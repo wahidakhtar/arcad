@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  arcad-db:
+    image: postgres:16-alpine
+    container_name: arcad-db
+    restart: always
+    environment:
+      POSTGRES_USER: arcad
+      POSTGRES_PASSWORD: arcad123
+      POSTGRES_DB: arcad_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - arcad_pgdata:/var/lib/postgresql/data
+
+volumes:
+  arcad_pgdata:
