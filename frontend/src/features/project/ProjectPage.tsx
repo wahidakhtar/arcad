@@ -31,7 +31,7 @@ export default function ProjectPage() {
           onUpdated={reload}
         />
       ) : (
-        <SiteTable siteList={siteList} onSelect={setSelectedSite} />
+        <SiteTable siteList={siteList} onSelect={setSelectedSite} reload={reload} />
       )}
     </div>
   )

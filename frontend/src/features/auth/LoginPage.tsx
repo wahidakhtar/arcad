@@ -18,7 +18,7 @@ export default function LoginPage() {
       localStorage.setItem("access_token", res.data.access_token)
       localStorage.setItem("user_name", res.data.name)
 
-      navigate("/dashboard")
+      navigate("/dashboard", { replace: true })
     } catch {
       setError("Invalid credentials")
     }

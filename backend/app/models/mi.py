@@ -1,10 +1,13 @@
-from sqlalchemy import Column, Integer, Text, Date, Numeric, Boolean, TIMESTAMP, ForeignKey
+from sqlalchemy import Column, Integer, Text, Date, Numeric, Boolean, TIMESTAMP, ForeignKey, UniqueConstraint
 from sqlalchemy.sql import func
 from app.core.database import Base
 
 class Mi(Base):
     __tablename__ = "site"
-    __table_args__ = {"schema": "schema_mi"}
+    __table_args__ = (
+        UniqueConstraint("project_id", "ckt_id", name="uq_project_ckt"),
+        {"schema": "schema_mi"},
+    )
 
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey("schema_core.project.id"))
@@ -13,9 +16,14 @@ class Mi(Base):
     customer = Column(Text)
 
     permission_date = Column(Date)
-    status_badge_id = Column(Integer, ForeignKey("schema_core.badge.id"))
     receiving_date = Column(Date)
     edd = Column(Date)
+
+    status_badge_id = Column(Integer, ForeignKey("schema_core.badge.id"))
+
+    po_status_badge_id = Column(Integer, ForeignKey("schema_core.badge.id"))
+    invoice_status_badge_id = Column(Integer, ForeignKey("schema_core.badge.id"))
+    wcc = Column(Integer, ForeignKey("schema_core.badge.id"))
 
     height_m = Column(Numeric)
     address = Column(Text)
@@ -23,7 +31,6 @@ class Mi(Base):
     lc = Column(Text)
 
     completion_date = Column(Date)
-    wcc = Column(Boolean, default=False)
 
     po_no = Column(Text)
     invoice_no = Column(Text)

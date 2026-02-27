@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { api } from "../../lib/api"
+import { createMiSite } from "./services/miClient"
 
 export default function AddSiteModal({
   project_id,
@@ -20,14 +20,31 @@ export default function AddSiteModal({
   })
 
   const handleSubmit = async () => {
-    await api.post("/v1/mi", {
+    const result = await createMiSite({
       project_id: Number(project_id),
       ...form,
       height_m: Number(form.height_m),
     })
 
-    onCreated()
-    onClose()
+    if (result.success) {
+      onCreated()
+      onClose()
+      return
+    }
+
+    if (result.duplicate) {
+      const s = result.existing_site
+      alert(
+        `Duplicate CKT ID Detected\n\n` +
+        `CKT: ${s.ckt_id}\n` +
+        `Customer: ${s.customer}\n` +
+        `City: ${s.city}\n` +
+        `Receiving Date: ${s.receiving_date}`
+      )
+      return
+    }
+
+    alert(result.error)
   }
 
   return (

@@ -7,7 +7,7 @@ import AppLayout from "./components/layout/AppLayout"
 import ProjectPage from "./features/project/ProjectPage"
 
 const router = createBrowserRouter([
-  { path: "/", element: <LoginPage /> },
+  { path: "/login", element: <LoginPage /> },
   {
     path: "/",
     element: (
