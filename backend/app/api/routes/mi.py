@@ -1,0 +1,58 @@
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from datetime import date
+from app.core.database import get_db
+from app.api.dependencies.auth import get_current_user
+from app.services.mi_service import get_mi_sites, create_mi_site
+
+router = APIRouter(prefix="/api/v1/mi", tags=["mi"])
+
+class MiCreate(BaseModel):
+    project_id: int
+    ckt_id: str
+    customer: str
+    receiving_date: date
+    height_m: float
+    city: str | None = None
+    lc: str | None = None
+
+@router.get("/{project_id}")
+def get_sites(
+    project_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return get_mi_sites(project_id, db)
+
+
+@router.post("")
+def create_site(
+    payload: MiCreate,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    new_site = create_mi_site(payload, db)
+    return {"message": "created", "id": new_site.id}
+
+from app.models.mi import Mi
+
+@router.put("/site/{site_id}")
+def update_site(
+    site_id: int,
+    payload: dict,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    site = db.query(Mi).filter(Mi.id == site_id).first()
+    if not site:
+        return {"error": "not found"}
+
+    for key, value in payload.items():
+        if hasattr(site, key):
+            setattr(site, key, value)
+
+    db.commit()
+    db.refresh(site)
+
+    return {"message": "updated"}

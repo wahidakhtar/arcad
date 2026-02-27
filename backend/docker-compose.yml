@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   arcad-db:
     image: postgres:16-alpine
@@ -13,6 +11,17 @@ services:
       - "5432:5432"
     volumes:
       - arcad_pgdata:/var/lib/postgresql/data
+
+  arcad-api:
+    build: .
+    container_name: arcad-api
+    restart: always
+    depends_on:
+      - arcad-db
+    environment:
+      DATABASE_URL: postgresql://arcad:arcad123@arcad-db:5432/arcad_db
+    ports:
+      - "8000:8000"
 
 volumes:
   arcad_pgdata:
