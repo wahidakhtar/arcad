@@ -9,5 +9,9 @@ class Project(Base):
     id = Column(Integer, primary_key=True, index=True)
     code = Column(Text, nullable=False, unique=True)
     name = Column(Text, nullable=False)
+
+    # NEW: which schema contains the site's table
+    site_schema = Column(Text, nullable=False)
+
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP, server_default=func.now())

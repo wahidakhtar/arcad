@@ -6,7 +6,9 @@ import AddSiteModal from "./AddSiteModal"
 import SiteDetail from "./SiteDetail"
 
 export default function ProjectPage() {
-  const { project_id } = useParams()
+  const { id } = useParams()
+  const project_id = id
+
   const { showModal, setShowModal } = useOutletContext<any>()
 
   const { siteList, reload } = useMiSites(project_id)

@@ -6,7 +6,7 @@ export function useMiSites(project_id: string | undefined) {
 
   const loadData = () => {
     if (!project_id) return
-    api.get(`/v1/mi/${project_id}`)
+    api.get(`/api/v1/mi/${project_id}`)
       .then((res) => setSiteList(res.data))
   }
 

@@ -1,5 +1,6 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { api } from "../../lib/api"
+import { useStatusBadges } from "./hooks/useStatusBadges"
 
 export default function SiteDetail({
   site,
@@ -13,9 +14,16 @@ export default function SiteDetail({
   const [form, setForm] = useState({ ...site })
   const [error, setError] = useState<string | null>(null)
 
+  const projectId = site.project_id
+
+  const statusOptions = useStatusBadges(
+    site.project_id,
+    site.status_badge_id
+  )
+
   const handleSave = async () => {
     try {
-      await api.put(`/v1/mi/site/${site.id}`, {
+      await api.put(`/api/v1/mi/site/${site.id}`, {
         ckt_id: form.ckt_id,
         customer: form.customer,
         receiving_date: form.receiving_date,
@@ -26,18 +34,16 @@ export default function SiteDetail({
         city: form.city,
         lc: form.lc,
         progress: form.progress,
-        fe: form.fe,
         paid: form.paid,
         po_no: form.po_no,
-        invoice_no: form.invoice_no
+        invoice_no: form.invoice_no,
+        status_badge_id: form.status_badge_id,
       })
 
       onUpdated()
       onBack()
     } catch (err: any) {
-      const message =
-        err?.response?.data?.detail || "Update failed"
-      setError(message)
+      setError(err?.response?.data?.detail || "Update failed")
     }
   }
 
@@ -45,49 +51,7 @@ export default function SiteDetail({
     <div style={{ maxWidth: 900 }}>
       <button onClick={onBack}>← Back</button>
 
-      <h3 style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-        Site Detail
-
-        {site.status_label && (
-          <span style={{
-            background: site.status_color,
-            padding: "4px 8px",
-            borderRadius: 4
-          }}>
-            {site.status_label}
-          </span>
-        )}
-
-        {site.wcc_status && (
-          <span style={{
-            background: site.wcc_status_color,
-            padding: "4px 8px",
-            borderRadius: 4
-          }}>
-            WCC: {site.wcc_status}
-          </span>
-        )}
-
-        {site.po_status && (
-          <span style={{
-            background: site.po_status_color,
-            padding: "4px 8px",
-            borderRadius: 4
-          }}>
-            PO: {site.po_status}
-          </span>
-        )}
-
-        {site.invoice_status && (
-          <span style={{
-            background: site.invoice_status_color,
-            padding: "4px 8px",
-            borderRadius: 4
-          }}>
-            Invoice: {site.invoice_status}
-          </span>
-        )}
-      </h3>
+      <h3>Site Detail</h3>
 
       {error && (
         <div style={{
@@ -105,6 +69,24 @@ export default function SiteDetail({
         gridTemplateColumns: "200px 1fr",
         gap: "8px"
       }}>
+
+        <label>Status</label>
+        <select
+          value={form.status_badge_id || ""}
+          onChange={(e) =>
+            setForm({ ...form, status_badge_id: Number(e.target.value) })
+          }
+        >
+          <option value="">
+            Current: {site.status_label}
+          </option>
+          {statusOptions.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.description}
+            </option>
+          ))}
+        </select>
+
         <label>CKT ID</label>
         <input value={form.ckt_id || ""} onChange={e => setForm({...form, ckt_id: e.target.value})} />
 
@@ -116,9 +98,6 @@ export default function SiteDetail({
 
         <label>Permission Date</label>
         <input type="date" value={form.permission_date || ""} onChange={e => setForm({...form, permission_date: e.target.value})} />
-
-        <label>EDD</label>
-        <input type="date" value={form.edd || ""} disabled />
 
         <label>Completion Date</label>
         <input type="date" value={form.completion_date || ""} onChange={e => setForm({...form, completion_date: e.target.value})} />
@@ -138,17 +117,9 @@ export default function SiteDetail({
         <label>Progress</label>
         <input value={form.progress || ""} onChange={e => setForm({...form, progress: e.target.value})} />
 
-        <label>FE</label>
-        <input value={form.fe || ""} onChange={e => setForm({...form, fe: e.target.value})} />
-
         <label>Paid</label>
         <input type="number" value={form.paid || ""} onChange={e => setForm({...form, paid: e.target.value})} />
 
-        <label>Budget</label>
-        <div>{site.budget}</div>
-
-        <label>Balance</label>
-        <div>{site.balance}</div>
       </div>
 
       <br />

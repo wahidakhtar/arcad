@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from app.core.database import get_db
 from app.api.dependencies.auth import get_current_user
 from app.models.badge import Badge
@@ -14,10 +15,8 @@ def status_badges(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    # Return only valid manual transitions
-
     rows = db.execute(
-        """
+        text("""
         SELECT b.id, b.badge_key, b.description, b.color
         FROM schema_core.badge_transition bt
         JOIN schema_core.badge b ON b.id = bt.to_badge_id
@@ -25,7 +24,7 @@ def status_badges(
         AND bt.project_id = :project_id
         AND bt.from_badge_id = :current_status_id
         AND b.is_manual = TRUE
-        """,
+        """),
         {"project_id": project_id, "current_status_id": current_status_id},
     ).fetchall()
 
@@ -42,20 +41,31 @@ def status_badges(
 
 @router.get("/doc_state")
 def doc_state_badges(
+    entity_type_id: int = Query(...),
+    project_id: int = Query(...),
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    badges = db.query(Badge).filter(
-        Badge.badge_type == "doc_state",
-        Badge.is_manual == True
-    ).all()
+    rows = db.execute(
+        text("""
+        SELECT b.id, b.badge_key, b.description, b.color
+        FROM schema_core.badge_entity_map bem
+        JOIN schema_core.badge b ON b.id = bem.badge_id
+        WHERE bem.entity_type_id = :entity_type_id
+        AND bem.project_id = :project_id
+        AND b.badge_type = 'doc_state'
+        AND b.is_manual = TRUE
+        ORDER BY b.id
+        """),
+        {"entity_type_id": entity_type_id, "project_id": project_id},
+    ).fetchall()
 
     return [
         {
-            "id": b.id,
-            "badge_key": b.badge_key,
-            "description": b.description,
-            "color": b.color,
+            "id": r.id,
+            "badge_key": r.badge_key,
+            "description": r.description,
+            "color": r.color,
         }
-        for b in badges
+        for r in rows
     ]

@@ -12,7 +12,7 @@ def get_badge_id(db: Session, badge_type: str, badge_key: str):
 
 
 def create_site_command(payload, db: Session):
-    status_open = get_badge_id(db, "status", "open")
+    perm_wait_id = get_badge_id(db, "status", "perm_wait")
     pending_doc = get_badge_id(db, "doc_state", "pend")
 
     new_site = Mi(
@@ -23,8 +23,10 @@ def create_site_command(payload, db: Session):
         height_m=payload.height_m,
         city=payload.city,
         lc=payload.lc,
-        status_badge_id=status_open,
-        po_status_badge_id=pending_doc
+        status_badge_id=perm_wait_id,
+        po_status_badge_id=pending_doc,
+        permission_date=None,
+        completion_date=None
     )
 
     db.add(new_site)

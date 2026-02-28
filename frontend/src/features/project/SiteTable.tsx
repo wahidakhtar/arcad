@@ -1,6 +1,4 @@
-import { useState } from "react"
-import { api } from "../../lib/api"
-import { useDocStateBadges } from "./hooks/useDocStateBadges"
+import BadgeSelectCell from "./components/BadgeSelectCell"
 
 const COLUMN_ORDER = [
   "receiving_date",
@@ -44,38 +42,6 @@ export default function SiteTable({
   onSelect: (site: any) => void
   reload: () => void
 }) {
-
-  const [transitionMap, setTransitionMap] = useState<Record<number, any[]>>({})
-  const docBadges = useDocStateBadges()
-
-  const loadTransitions = async (site: any) => {
-    const res = await api.get("/v1/badge/status", {
-      params: {
-        project_id: site.project_id,
-        current_status_id: site.status_badge_id,
-      },
-    })
-
-    setTransitionMap(prev => ({
-      ...prev,
-      [site.id]: res.data
-    }))
-  }
-
-  const handleStatusUpdate = async (siteId: number, badgeId: number) => {
-    await api.put(`/v1/mi/site/${siteId}`, {
-      status_badge_id: badgeId
-    })
-    reload()
-  }
-
-  const handleDocUpdate = async (siteId: number, field: string, badgeId: number) => {
-    await api.put(`/v1/mi/site/${siteId}`, {
-      [field]: badgeId
-    })
-    reload()
-  }
-
   return (
     <div style={{ maxHeight: "70vh", overflowY: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -87,35 +53,19 @@ export default function SiteTable({
           </tr>
         </thead>
         <tbody>
-          {siteList.map(s => (
-            <tr key={s.id}>
+          {siteList.map(site => (
+            <tr key={site.id}>
               {COLUMN_ORDER.map(col => {
 
                 if (col === "status_label") {
-                  const transitions = transitionMap[s.id] || []
-
                   return (
                     <td key={col}>
-                      <select
-                        value={s.status_badge_id || ""}
-                        onFocus={() => loadTransitions(s)}
-                        onChange={e =>
-                          handleStatusUpdate(s.id, Number(e.target.value))
-                        }
-                        style={{
-                          background: s.status_color || "#ccc",
-                          padding: "4px"
-                        }}
-                      >
-                        <option value={s.status_badge_id}>
-                          {s.status_label}
-                        </option>
-                        {transitions.map(b => (
-                          <option key={b.id} value={b.id}>
-                            {b.description}
-                          </option>
-                        ))}
-                      </select>
+                      <BadgeSelectCell
+                        site={site}
+                        field="status_badge_id"
+                        type="status"
+                        reload={reload}
+                      />
                     </td>
                   )
                 }
@@ -123,18 +73,13 @@ export default function SiteTable({
                 if (col === "wcc_status") {
                   return (
                     <td key={col}>
-                      <select
-                        value={s.wcc_badge_id || ""}
-                        onChange={e =>
-                          handleDocUpdate(s.id, "wcc", Number(e.target.value))
-                        }
-                      >
-                        {docBadges.map(b => (
-                          <option key={b.id} value={b.id}>
-                            {b.description}
-                          </option>
-                        ))}
-                      </select>
+                      <BadgeSelectCell
+                        site={site}
+                        field="wcc_badge_id"
+                        type="doc"
+                        entityTypeId={5}
+                        reload={reload}
+                      />
                     </td>
                   )
                 }
@@ -142,18 +87,13 @@ export default function SiteTable({
                 if (col === "po_status") {
                   return (
                     <td key={col}>
-                      <select
-                        value={s.po_status_badge_id || ""}
-                        onChange={e =>
-                          handleDocUpdate(s.id, "po_status_badge_id", Number(e.target.value))
-                        }
-                      >
-                        {docBadges.map(b => (
-                          <option key={b.id} value={b.id}>
-                            {b.description}
-                          </option>
-                        ))}
-                      </select>
+                      <BadgeSelectCell
+                        site={site}
+                        field="po_status_badge_id"
+                        type="doc"
+                        entityTypeId={4}
+                        reload={reload}
+                      />
                     </td>
                   )
                 }
@@ -161,18 +101,13 @@ export default function SiteTable({
                 if (col === "invoice_status") {
                   return (
                     <td key={col}>
-                      <select
-                        value={s.invoice_status_badge_id || ""}
-                        onChange={e =>
-                          handleDocUpdate(s.id, "invoice_status_badge_id", Number(e.target.value))
-                        }
-                      >
-                        {docBadges.map(b => (
-                          <option key={b.id} value={b.id}>
-                            {b.description}
-                          </option>
-                        ))}
-                      </select>
+                      <BadgeSelectCell
+                        site={site}
+                        field="invoice_status_badge_id"
+                        type="doc"
+                        entityTypeId={3}
+                        reload={reload}
+                      />
                     </td>
                   )
                 }
@@ -180,10 +115,10 @@ export default function SiteTable({
                 return (
                   <td
                     key={col}
-                    onClick={() => onSelect(s)}
+                    onClick={() => onSelect(site)}
                     style={{ cursor: "pointer" }}
                   >
-                    {String(s[col] ?? "")}
+                    {String(site[col] ?? "")}
                   </td>
                 )
               })}
