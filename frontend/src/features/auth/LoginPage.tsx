@@ -10,7 +10,7 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     try {
-      const res = await api.post("/api/v1/auth/login", {
+      const res = await api.post("/auth/login", {
         email,
         password,
       })
@@ -41,7 +41,7 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           style={{ display: "block", width: "100%", marginBottom: 10 }}
         />
-        <button onClick={handleLogin} style={{ width: "100%" }}>
+        <button type="button" onClick={handleLogin} style={{ width: "100%" }}>
           Login
         </button>
         {error && <p style={{ color: "red" }}>{error}</p>}

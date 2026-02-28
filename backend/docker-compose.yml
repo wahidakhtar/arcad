@@ -1,27 +1,38 @@
 services:
-  arcad-db:
+  db:
     image: postgres:16-alpine
-    container_name: arcad-db
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: arcad
-      POSTGRES_PASSWORD: arcad123
-      POSTGRES_DB: arcad_db
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - arcad_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  arcad-api:
+  api:
     build: .
-    container_name: arcad-api
-    restart: always
+    restart: unless-stopped
     depends_on:
-      - arcad-db
+      db:
+        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://arcad:arcad123@arcad-db:5432/arcad_db
+      DATABASE_URL: ${DATABASE_URL}
+      PORT: ${BACKEND_PORT}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
     ports:
-      - "8000:8000"
+      - "${BACKEND_HOST_PORT}:${BACKEND_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${BACKEND_PORT} || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
 
 volumes:
   arcad_pgdata:
+    external: true
+    name: backend_arcad_pgdata

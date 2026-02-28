@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text
+from sqlalchemy import Column, Integer, Text, Boolean
 from app.core.database import Base
 
 class Badge(Base):
@@ -10,3 +10,4 @@ class Badge(Base):
     badge_key = Column(Text, nullable=False)
     description = Column(Text)
     color = Column(Text)
+    is_manual = Column(Boolean, default=True)

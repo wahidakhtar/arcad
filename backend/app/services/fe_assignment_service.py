@@ -1,51 +1,56 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from app.models.fe import FeAssignment, Fe
+from decimal import Decimal
+from app.models.fe import FeAssignment
 from app.domain.site_resolver import validate_site_exists
 
 
 def assign_fe(db: Session, project_id: int, site_id: int, fe_id: int):
-    # Validate site exists
+    from app.models.fe import Fe
+    from app.models.mi import Mi
+    from app.domain.finance.mi_finance import compute_financials
+    from sqlalchemy import func
+
     validate_site_exists(db, project_id, site_id)
 
-    # Validate FE exists
+    site = db.query(Mi).filter(Mi.id == site_id).first()
+
     fe = db.query(Fe).filter(Fe.id == fe_id, Fe.is_active == True).first()
     if not fe:
         raise ValueError("Invalid or inactive FE")
 
-    # Validate FE allowed for project
-    allowed_ids = [int(x.strip()) for x in fe.allowed_project_ids.split(",") if x.strip()]
-    if project_id not in allowed_ids:
-        raise ValueError("FE not allowed for this project")
+    financials = compute_financials(site, db)
+    site_cost = Decimal(str(financials.get("cost", 0)))
 
-    # Check active assignment for site
-    active_assignment = db.query(FeAssignment).filter(
-        and_(
-            FeAssignment.project_id == project_id,
-            FeAssignment.site_id == site_id,
-            FeAssignment.is_active == True
-        )
-    ).first()
+    previous_sum = db.query(func.coalesce(func.sum(FeAssignment.final_fe_cost), 0)).filter(
+        FeAssignment.project_id == project_id,
+        FeAssignment.site_id == site_id
+    ).scalar()
 
-    if active_assignment:
-        raise ValueError("Site already has an active FE")
+    previous_sum = Decimal(str(previous_sum or 0))
+    remaining = site_cost - previous_sum
+
+    if remaining <= 0:
+        raise ValueError("No remaining cost available")
 
     assignment = FeAssignment(
         project_id=project_id,
         site_id=site_id,
         fe_id=fe_id,
+        final_fe_cost=remaining,
         is_active=True
     )
 
     db.add(assignment)
     db.commit()
     db.refresh(assignment)
-
     return assignment
 
 
 def remove_fe(db: Session, project_id: int, site_id: int, final_fe_cost):
-    assignment = db.query(FeAssignment).filter(
+    validate_site_exists(db, project_id, site_id)
+
+    active = db.query(FeAssignment).filter(
         and_(
             FeAssignment.project_id == project_id,
             FeAssignment.site_id == site_id,
@@ -53,16 +58,12 @@ def remove_fe(db: Session, project_id: int, site_id: int, final_fe_cost):
         )
     ).first()
 
-    if not assignment:
-        raise ValueError("No active FE assignment found")
+    if not active:
+        raise ValueError("No active FE")
 
-    if final_fe_cost is None:
-        raise ValueError("final_fe_cost is required")
-
-    assignment.is_active = False
-    assignment.final_fe_cost = final_fe_cost
+    active.final_fe_cost = Decimal(str(final_fe_cost))
+    active.is_active = False
 
     db.commit()
-    db.refresh(assignment)
-
-    return assignment
+    db.refresh(active)
+    return active

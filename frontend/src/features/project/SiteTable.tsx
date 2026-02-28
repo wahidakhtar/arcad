@@ -1,4 +1,5 @@
-import BadgeSelectCell from "./components/BadgeSelectCell"
+import StatusBadgeSelectCell from "./components/StatusBadgeSelectCell"
+import DocBadgeSelectCell from "./components/DocBadgeSelectCell"
 
 const COLUMN_ORDER = [
   "receiving_date",
@@ -60,10 +61,8 @@ export default function SiteTable({
                 if (col === "status_label") {
                   return (
                     <td key={col}>
-                      <BadgeSelectCell
+                      <StatusBadgeSelectCell
                         site={site}
-                        field="status_badge_id"
-                        type="status"
                         reload={reload}
                       />
                     </td>
@@ -73,10 +72,9 @@ export default function SiteTable({
                 if (col === "wcc_status") {
                   return (
                     <td key={col}>
-                      <BadgeSelectCell
+                      <DocBadgeSelectCell
                         site={site}
                         field="wcc_badge_id"
-                        type="doc"
                         entityTypeId={5}
                         reload={reload}
                       />
@@ -87,10 +85,9 @@ export default function SiteTable({
                 if (col === "po_status") {
                   return (
                     <td key={col}>
-                      <BadgeSelectCell
+                      <DocBadgeSelectCell
                         site={site}
                         field="po_status_badge_id"
-                        type="doc"
                         entityTypeId={4}
                         reload={reload}
                       />
@@ -101,10 +98,9 @@ export default function SiteTable({
                 if (col === "invoice_status") {
                   return (
                     <td key={col}>
-                      <BadgeSelectCell
+                      <DocBadgeSelectCell
                         site={site}
                         field="invoice_status_badge_id"
-                        type="doc"
                         entityTypeId={3}
                         reload={reload}
                       />

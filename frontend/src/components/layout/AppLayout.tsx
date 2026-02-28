@@ -8,7 +8,7 @@ export default function AppLayout() {
   const [showModal, setShowModal] = useState(false)
 
   useEffect(() => {
-    api.get("/api/v1/project/my").then((res) => {
+    api.get("/project/my").then((res) => {
       setProjects(res.data)
     })
   }, [])

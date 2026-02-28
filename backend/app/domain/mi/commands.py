@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from app.models.mi import Mi
 from .status_engine import process_status
 from .date_engine import apply_edd_logic, parse_date
+from .utils import normalize_ckt
 
 
 def update_site_command(site_id: int, payload: dict, db: Session):
@@ -23,6 +24,9 @@ def update_site_command(site_id: int, payload: dict, db: Session):
         elif key == "height_m":
             setattr(site, key, float(value) if value not in (None, "") else None)
 
+        elif key == "ckt_id":
+            setattr(site, key, normalize_ckt(value))
+
         elif key == "wcc_badge_id":
             site.wcc = value
 
@@ -30,7 +34,6 @@ def update_site_command(site_id: int, payload: dict, db: Session):
             setattr(site, key, value)
 
     process_status(site, payload, db, previous_state)
-
     apply_edd_logic(site)
 
     db.commit()

@@ -40,8 +40,10 @@ def create_site(
     try:
         new_site = create_site_command(payload, db)
         return {"message": "created", "id": new_site.id}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=e.args[0])
+    except Exception:
+        raise HTTPException(status_code=400, detail="Failed to create site")
 
 
 @router.put("/site/{site_id}")
@@ -54,5 +56,7 @@ def update_site(
     try:
         update_site_command(site_id, payload, db)
         return {"message": "updated"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=e.args[0])
+    except Exception:
+        raise HTTPException(status_code=400, detail="Update failed")

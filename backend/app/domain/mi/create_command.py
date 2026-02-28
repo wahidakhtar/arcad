@@ -1,36 +1,46 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from app.models.mi import Mi
-from app.models.badge import Badge
-
-
-def get_badge_id(db: Session, badge_type: str, badge_key: str):
-    badge = db.query(Badge).filter(
-        Badge.badge_type == badge_type,
-        Badge.badge_key == badge_key
-    ).first()
-    return badge.id if badge else None
+from .status_engine import get_badge_id
+from .utils import normalize_ckt
 
 
 def create_site_command(payload, db: Session):
+
     perm_wait_id = get_badge_id(db, "status", "perm_wait")
-    pending_doc = get_badge_id(db, "doc_state", "pend")
+    pending_doc_id = get_badge_id(db, "doc_state", "pend")
+
+    normalized_ckt = normalize_ckt(payload.ckt_id)
 
     new_site = Mi(
         project_id=payload.project_id,
-        ckt_id=payload.ckt_id,
+        ckt_id=normalized_ckt,
         customer=payload.customer,
         receiving_date=payload.receiving_date,
         height_m=payload.height_m,
         city=payload.city,
         lc=payload.lc,
+
         status_badge_id=perm_wait_id,
-        po_status_badge_id=pending_doc,
+        po_status_badge_id=pending_doc_id,
+        invoice_status_badge_id=None,
+        wcc=None,
+
         permission_date=None,
-        completion_date=None
+        completion_date=None,
     )
 
-    db.add(new_site)
-    db.commit()
-    db.refresh(new_site)
+    try:
+        db.add(new_site)
+        db.commit()
+        db.refresh(new_site)
+    except IntegrityError:
+        db.rollback()
+        raise ValueError({
+            "message": "Duplicate CKT ID in this project",
+            "existing_site": {
+                "ckt_id": normalized_ckt
+            }
+        })
 
     return new_site

@@ -1,61 +1,89 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional
-
+from decimal import Decimal
 from app.core.database import get_db
-from app.services.finance_service import create_finance_entry, update_finance_state
-from app.models.fe import FinanceTypeEnum, FinanceStateEnum
+from app.models.fe import Finance, Fe
+from app.models.mi import Mi
 
 router = APIRouter(prefix="/api/v1/finance", tags=["finance"])
 
 
-class CreateFinanceRequest(BaseModel):
+class FinanceRequest(BaseModel):
     project_id: int
     site_id: int
-    fe_id: Optional[int] = None
-    type: FinanceTypeEnum
+    fe_id: int
     amount: float
-    approval: bool = False
+    type: str
+    approval: bool
 
 
-class ExecuteFinanceRequest(BaseModel):
-    execution_date: str
+@router.post("/request")
+def request_payment(payload: FinanceRequest, db: Session = Depends(get_db)):
+    entry = Finance(
+        project_id=payload.project_id,
+        site_id=payload.site_id,
+        fe_id=payload.fe_id,
+        type=payload.type,
+        state="requested",
+        amount=payload.amount,
+        approval=payload.approval,
+        execution_date=None
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
 
 
-@router.post("/")
-def create_finance(
-    payload: CreateFinanceRequest,
-    db: Session = Depends(get_db),
-):
-    try:
-        return create_finance_entry(
-            db=db,
-            project_id=payload.project_id,
-            site_id=payload.site_id,
-            fe_id=payload.fe_id,
-            type=payload.type,
-            state=FinanceStateEnum.requested,
-            amount=payload.amount,
-            approval=payload.approval,
-            execution_date=None,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+@router.put("/state/{finance_id}")
+def update_finance_state(finance_id: int, payload: dict, db: Session = Depends(get_db)):
+    entry = db.query(Finance).filter(Finance.id == finance_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    old_state = entry.state
+    new_state = payload.get("state")
+
+    site = db.query(Mi).filter(Mi.id == entry.site_id).first()
+    amount = Decimal(entry.amount)
+
+    # Undo old executed effect
+    if old_state == "executed":
+        if entry.type == "payment":
+            site.paid = (site.paid or 0) - amount
+        elif entry.type == "refund":
+            site.paid = (site.paid or 0) + amount
+
+    # Apply new executed effect
+    if new_state == "executed":
+        if entry.type == "payment":
+            site.paid = (site.paid or 0) + amount
+        elif entry.type == "refund":
+            site.paid = (site.paid or 0) - amount
+
+    entry.state = new_state
+
+    db.commit()
+    db.refresh(entry)
+    return entry
 
 
-@router.patch("/{finance_id}/execute")
-def execute_finance(
-    finance_id: int,
-    payload: ExecuteFinanceRequest,
-    db: Session = Depends(get_db),
-):
-    try:
-        return update_finance_state(
-            db,
-            finance_id,
-            FinanceStateEnum.executed,
-            payload.execution_date,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+@router.get("/site/{project_id}/{site_id}")
+def site_finance(project_id: int, site_id: int, db: Session = Depends(get_db)):
+    rows = db.query(Finance).filter(
+        Finance.project_id == project_id,
+        Finance.site_id == site_id
+    ).all()
+
+    return [
+        {
+            "id": r.id,
+            "fe_name": db.query(Fe.name).filter(Fe.id == r.fe_id).scalar(),
+            "amount": float(r.amount),
+            "state": r.state,
+            "type": r.type,
+            "approval": r.approval
+        }
+        for r in rows
+    ]

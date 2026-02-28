@@ -21,7 +21,7 @@ export default function BadgeSelectCell({
 
   useEffect(() => {
     if (type === "status") {
-      api.get("/api/v1/badge/status", {
+      api.get("/badge/status", {
         params: {
           project_id: site.project_id,
           current_status_id: site.status_badge_id,
@@ -30,44 +30,65 @@ export default function BadgeSelectCell({
     }
 
     if (type === "doc" && entityTypeId) {
-      api.get("/api/v1/badge/doc_state", {
+      api.get("/badge/doc_state", {
         params: {
           entity_type_id: entityTypeId,
           project_id: site.project_id,
+          site_id: site.id,
         },
       }).then(res => setBadges(res.data))
     }
 
-  }, [site.project_id, site.status_badge_id, type, entityTypeId])
+  }, [
+    site.id,
+    site.project_id,
+    site.status_badge_id,
+    type,
+    entityTypeId,
+  ])
 
-  const handleUpdate = async (badgeId: number) => {
-    await api.put(`/api/v1/mi/site/${site.id}`, {
+  const handleUpdate = async (badgeId: number | null) => {
+    await api.put(`/mi/site/${site.id}`, {
       [field]: badgeId,
     })
     reload()
   }
 
-  const currentValue = site[field] || ""
-  const selected = badges.find(b => b.id === currentValue)
+  let currentValue: number | null = null
+  let currentColor: string = "#fff"
+
+  if (type === "status") {
+    currentValue = site.status_badge_id
+    currentColor = site.status_color || "#ccc"
+  } else {
+    if (field === "po_status_badge_id") {
+      currentValue = site.po_status_badge_id
+      currentColor = site.po_status_color
+    }
+
+    if (field === "invoice_status_badge_id") {
+      currentValue = site.invoice_status_badge_id
+      currentColor = site.invoice_status_color
+    }
+
+    if (field === "wcc_badge_id") {
+      currentValue = site.wcc_badge_id
+      currentColor = site.wcc_status_color
+    }
+  }
 
   return (
     <select
-      value={currentValue}
-      onChange={e => handleUpdate(Number(e.target.value))}
+      value={currentValue ?? ""}
+      onChange={e => {
+        const value = e.target.value
+        handleUpdate(value ? Number(value) : null)
+      }}
       style={{
-        background:
-          type === "status"
-            ? site.status_color || "#ccc"
-            : selected?.color || "#fff",
+        background: currentColor || "#fff",
         padding: "4px",
       }}
     >
-      {type === "status" && (
-        <option value={site.status_badge_id}>
-          {site.status_label}
-        </option>
-      )}
-
       {badges.map(b => (
         <option key={b.id} value={b.id}>
           {b.description}
