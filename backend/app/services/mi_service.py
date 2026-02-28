@@ -1,37 +1,59 @@
 from sqlalchemy.orm import Session
 from app.models.mi import Mi
+from app.models.badge import Badge
 
 
 def get_mi_sites(project_id: int, db: Session):
-    sites = db.query(Mi).filter(
-        Mi.project_id == project_id,
-        Mi.is_active == True
-    ).all()
+
+    rows = (
+        db.query(
+            Mi,
+            Badge.id,
+            Badge.description,
+            Badge.color
+        )
+        .outerjoin(Badge, Badge.id == Mi.status_badge_id)
+        .filter(
+            Mi.project_id == project_id,
+            Mi.is_active == True
+        )
+        .all()
+    )
 
     result = []
 
-    for s in sites:
+    for row in rows:
+        site = row[0]
+        badge_id = row[1]
+        badge_label = row[2]
+        badge_color = row[3]
+
         result.append({
-            "id": s.id,
-            "project_id": s.project_id,
-            "ckt_id": s.ckt_id,
-            "customer": s.customer,
-            "permission_date": s.permission_date,
-            "receiving_date": s.receiving_date,
-            "edd": s.edd,
-            "completion_date": s.completion_date,
-            "status_badge_id": s.status_badge_id,
-            "po_status_badge_id": s.po_status_badge_id,
-            "invoice_status_badge_id": s.invoice_status_badge_id,
-            "wcc_badge_id": s.wcc,
-            "height_m": float(s.height_m or 0),
-            "city": s.city,
-            "lc": s.lc,
-            "progress": s.progress,
-            "fe": s.fe,
-            "paid": float(s.paid or 0),
-            "po_no": s.po_no,
-            "invoice_no": s.invoice_no
+            "id": site.id,
+            "project_id": site.project_id,
+            "ckt_id": site.ckt_id,
+            "customer": site.customer,
+            "permission_date": site.permission_date,
+            "receiving_date": site.receiving_date,
+            "edd": site.edd,
+            "completion_date": site.completion_date,
+
+            "status_badge_id": badge_id,
+            "status_label": badge_label,
+            "status_color": badge_color,
+
+            "po_status_badge_id": site.po_status_badge_id,
+            "invoice_status_badge_id": site.invoice_status_badge_id,
+            "wcc_badge_id": site.wcc,
+
+            "height_m": float(site.height_m or 0),
+            "city": site.city,
+            "lc": site.lc,
+            "progress": site.progress,
+            "fe": site.fe,
+            "paid": float(site.paid or 0),
+            "po_no": site.po_no,
+            "invoice_no": site.invoice_no
         })
 
     return result
