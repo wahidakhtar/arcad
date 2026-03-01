@@ -24,6 +24,7 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       PORT: ${BACKEND_PORT}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      SECRET_KEY: ${SECRET_KEY}
     ports:
       - "${BACKEND_HOST_PORT}:${BACKEND_PORT}"
     healthcheck:

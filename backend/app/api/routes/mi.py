@@ -7,12 +7,14 @@ from app.core.database import get_db
 from app.authz.dependencies import get_role
 from app.authz.guard import require
 from app.authz.policy_resolver import resolve_policy_for_project
-
 from app.domain.mi.commands import update_site_command
 from app.domain.mi.create_command import create_site_command
 from app.services.mi_service import get_mi_sites, get_mi_site
 
-router = APIRouter(prefix="/api/v1/mi", tags=["mi"])
+router = APIRouter(
+    prefix="/api/v1/mi",
+    tags=["mi"]
+)
 
 
 class MiCreate(BaseModel):
@@ -51,7 +53,8 @@ def get_single_site(
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
 
-    policy = resolve_policy_for_project(role, site["project_id"], db)
+    policy = resolve_policy_for_project(role, site.project_id, db)
+
     require(policy.can_open_detail())
 
     return {
@@ -69,8 +72,7 @@ def create_site(
     policy = resolve_policy_for_project(role, payload.project_id, db)
     require(policy.can_create_site())
 
-    site = create_site_command(payload, db)
-    return site
+    return create_site_command(payload, db)
 
 
 @router.put("/site/{site_id}")
@@ -84,8 +86,7 @@ def update_site(
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
 
-    policy = resolve_policy_for_project(role, site["project_id"], db)
+    policy = resolve_policy_for_project(role, site.project_id, db)
     require(policy.can_edit_site())
 
-    updated = update_site_command(site_id, payload, db)
-    return updated
+    return update_site_command(site_id, payload, db)

@@ -2,12 +2,17 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
+import os
+
 from app.core.database import get_db
 from app.models.user import User
 
 security = HTTPBearer()
 
-SECRET_KEY = "arcad_secret_key"
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY not set")
+
 ALGORITHM = "HS256"
 
 

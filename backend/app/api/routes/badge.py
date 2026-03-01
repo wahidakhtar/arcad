@@ -7,23 +7,19 @@ from app.api.dependencies.auth import get_current_user
 from app.models.badge import Badge
 from app.models.mi import Mi
 
-from app.authz.dependencies import get_role
-from app.authz.guard import require
-from app.authz.policy_resolver import resolve_policy_for_project
-
-router = APIRouter(prefix="/api/v1/badge", tags=["badge"])
+router = APIRouter(
+    prefix="/api/v1/badge",
+    tags=["badge"],
+    dependencies=[Depends(get_current_user)]
+)
 
 
 @router.get("/status")
 def status_badges(
     project_id: int = Query(...),
     current_status_id: int = Query(...),
-    role=Depends(get_role),
     db: Session = Depends(get_db),
 ):
-    policy = resolve_policy_for_project(role, project_id, db)
-    require(policy.can_toggle_status())
-
     rows = db.execute(
         text("""
         SELECT b.id, b.badge_key, b.description, b.color
@@ -53,23 +49,14 @@ def doc_state_badges(
     entity_type_id: int = Query(...),
     project_id: int = Query(...),
     site_id: int = Query(...),
-    role=Depends(get_role),
     db: Session = Depends(get_db),
 ):
-    policy = resolve_policy_for_project(role, project_id, db)
-
-    # Determine which toggle applies
-    if entity_type_id == 3:
-        require(policy.can_toggle_invoice())
-    elif entity_type_id == 4:
-        require(policy.can_toggle_po())
-    elif entity_type_id == 5:
-        require(policy.can_toggle_wcc())
-    else:
-        require(policy.can_view_finance())
-
     site = db.query(Mi).filter(Mi.id == site_id).first()
+
     if not site:
+        return []
+
+    if entity_type_id in [3, 5] and not site.completion_date:
         return []
 
     rows = db.execute(
@@ -85,7 +72,7 @@ def doc_state_badges(
         {"entity_type_id": entity_type_id},
     ).fetchall()
 
-    return [
+    badges = [
         {
             "id": r.id,
             "badge_key": r.badge_key,
@@ -94,3 +81,26 @@ def doc_state_badges(
         }
         for r in rows
     ]
+
+    current_value = None
+
+    if entity_type_id == 3:
+        current_value = site.invoice_status_badge_id
+    elif entity_type_id == 4:
+        current_value = site.po_status_badge_id
+    elif entity_type_id == 5:
+        current_value = site.wcc
+
+    if current_value:
+        exists = any(b["id"] == current_value for b in badges)
+        if not exists:
+            badge = db.query(Badge).filter(Badge.id == current_value).first()
+            if badge:
+                badges.append({
+                    "id": badge.id,
+                    "badge_key": badge.badge_key,
+                    "description": badge.description,
+                    "color": badge.color,
+                })
+
+    return badges

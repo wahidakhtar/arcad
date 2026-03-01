@@ -4,15 +4,19 @@ from pydantic import BaseModel
 from decimal import Decimal
 
 from app.core.database import get_db
+from app.api.dependencies.auth import get_current_user
+from app.authz.dependencies import get_role
+from app.authz.guard import require
+from app.authz.policy_resolver import resolve_policy_for_project
 from app.models.fe import Finance, Fe
 from app.models.mi import Mi
 from app.domain.finance.mi_finance import compute_financials
 
-from app.authz.dependencies import get_role
-from app.authz.guard import require
-from app.authz.policy_resolver import resolve_policy_for_project
-
-router = APIRouter(prefix="/api/v1/finance", tags=["finance"])
+router = APIRouter(
+    prefix="/api/v1/finance",
+    tags=["finance"],
+    dependencies=[Depends(get_current_user)]
+)
 
 
 class FinanceRequest(BaseModel):
@@ -31,7 +35,7 @@ def request_payment(
     db: Session = Depends(get_db),
 ):
     policy = resolve_policy_for_project(role, payload.project_id, db)
-    require(policy.can_modify_finance())
+    require(policy.can_request_finance(), "Not allowed to request finance")
 
     entry = Finance(
         project_id=payload.project_id,
@@ -61,7 +65,7 @@ def update_finance_state(
         raise HTTPException(status_code=404, detail="Not found")
 
     policy = resolve_policy_for_project(role, entry.project_id, db)
-    require(policy.can_modify_finance())
+    require(policy.can_execute_finance(), "Not allowed to execute finance")
 
     old_state = entry.state
     new_state = payload.get("state")
@@ -95,6 +99,9 @@ def site_finance(
     role=Depends(get_role),
     db: Session = Depends(get_db),
 ):
+    policy = resolve_policy_for_project(role, project_id, db)
+    require(policy.can_view_finance(), "Not allowed to view finance")
+
     site = db.query(Mi).filter(
         Mi.id == site_id,
         Mi.project_id == project_id
@@ -102,9 +109,6 @@ def site_finance(
 
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
-
-    policy = resolve_policy_for_project(role, project_id, db)
-    require(policy.can_view_finance())
 
     summary = compute_financials(site, db) or {}
 
