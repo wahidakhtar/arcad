@@ -4,6 +4,9 @@ from app.core.database import get_db
 from app.models.user import User
 from app.core.security import verify_password, create_access_token
 from app.schemas.auth import LoginRequest
+from app.api.dependencies.auth import get_current_user
+
+from app.authz.resolver import resolve_user_role
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -22,4 +25,25 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         "token_type": "bearer",
         "user_id": user.id,
         "name": user.name
+    }
+
+
+@router.get("/me")
+def get_me(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    role = resolve_user_role(current_user.id, db)
+
+    roles = [
+        {
+            "project": rs.project_code,
+            "department": rs.department_code,
+            "level": rs.level_code,
+        }
+        for rs in role.role_sets
+    ]
+
+    return {
+        "id": current_user.id,
+        "name": current_user.name,
+        "email": current_user.email,
+        "roles": roles,
     }

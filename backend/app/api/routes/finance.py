@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from decimal import Decimal
+
 from app.core.database import get_db
 from app.models.fe import Finance, Fe
 from app.models.mi import Mi
+from app.domain.finance.mi_finance import compute_financials
 
 router = APIRouter(prefix="/api/v1/finance", tags=["finance"])
 
@@ -48,14 +50,12 @@ def update_finance_state(finance_id: int, payload: dict, db: Session = Depends(g
     site = db.query(Mi).filter(Mi.id == entry.site_id).first()
     amount = Decimal(entry.amount)
 
-    # Undo old executed effect
     if old_state == "executed":
         if entry.type == "payment":
             site.paid = (site.paid or 0) - amount
         elif entry.type == "refund":
             site.paid = (site.paid or 0) + amount
 
-    # Apply new executed effect
     if new_state == "executed":
         if entry.type == "payment":
             site.paid = (site.paid or 0) + amount
@@ -71,12 +71,22 @@ def update_finance_state(finance_id: int, payload: dict, db: Session = Depends(g
 
 @router.get("/site/{project_id}/{site_id}")
 def site_finance(project_id: int, site_id: int, db: Session = Depends(get_db)):
+    site = db.query(Mi).filter(
+        Mi.id == site_id,
+        Mi.project_id == project_id
+    ).first()
+
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    summary = compute_financials(site, db) or {}
+
     rows = db.query(Finance).filter(
         Finance.project_id == project_id,
         Finance.site_id == site_id
     ).all()
 
-    return [
+    transactions = [
         {
             "id": r.id,
             "fe_name": db.query(Fe.name).filter(Fe.id == r.fe_id).scalar(),
@@ -87,3 +97,8 @@ def site_finance(project_id: int, site_id: int, db: Session = Depends(get_db)):
         }
         for r in rows
     ]
+
+    return {
+        "summary": summary,
+        "transactions": transactions
+    }

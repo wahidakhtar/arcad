@@ -1,8 +1,16 @@
 import { Link, useLocation } from "react-router-dom"
 
 interface ProjectListProps {
-  projects: any[]
+  projects: string[]
   onActivePlusClick: () => void
+}
+
+const PROJECT_LABELS: Record<string, string> = {
+  mi: "Mast Installation",
+  md: "Mast Dismantle",
+  ma: "Mast Audit",
+  mc: "Mast CM",
+  bb: "BB",
 }
 
 export default function ProjectList({
@@ -13,12 +21,12 @@ export default function ProjectList({
 
   return (
     <>
-      {projects.map((p) => {
-        const isActive = location.pathname === "/project/" + p.id
+      {projects.map((projectCode) => {
+        const isActive = location.pathname.startsWith("/" + projectCode)
 
         return (
           <div
-            key={p.id}
+            key={projectCode}
             style={{
               display: "flex",
               justifyContent: "space-between",
@@ -27,10 +35,10 @@ export default function ProjectList({
             }}
           >
             <Link
-              to={"/project/" + p.id}
+              to={"/" + projectCode}
               style={{ color: "white", textDecoration: "none" }}
             >
-              {p.name}
+              {PROJECT_LABELS[projectCode] || projectCode}
             </Link>
 
             {isActive && (

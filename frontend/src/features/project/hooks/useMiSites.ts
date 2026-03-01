@@ -1,18 +1,23 @@
 import { useEffect, useState } from "react"
 import { api } from "../../../lib/api"
 
-export function useMiSites(project_id: string | undefined) {
+export function useMiSites(projectCode: string | undefined) {
   const [siteList, setSiteList] = useState<any[]>([])
+  const [capabilities, setCapabilities] = useState<any>({})
 
   const loadData = () => {
-    if (!project_id) return
-    api.get(`/mi/${project_id}`)
-      .then((res) => setSiteList(res.data))
+    if (!projectCode) return
+
+    api.get(`/${projectCode}/1`)
+      .then((res) => {
+        setSiteList(res.data.data)
+        setCapabilities(res.data.capabilities)
+      })
   }
 
   useEffect(() => {
     loadData()
-  }, [project_id])
+  }, [projectCode])
 
-  return { siteList, reload: loadData }
+  return { siteList, capabilities, reload: loadData }
 }

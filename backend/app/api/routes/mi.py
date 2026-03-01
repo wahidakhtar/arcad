@@ -4,10 +4,13 @@ from pydantic import BaseModel
 from datetime import date
 
 from app.core.database import get_db
-from app.api.dependencies.auth import get_current_user
+from app.authz.dependencies import get_role
+from app.authz.guard import require
+from app.authz.policies.mi_policy import MiPolicy
+
 from app.domain.mi.commands import update_site_command
 from app.domain.mi.create_command import create_site_command
-from app.services.mi_service import get_mi_sites
+from app.services.mi_service import get_mi_sites, get_mi_site
 
 router = APIRouter(prefix="/api/v1/mi", tags=["mi"])
 
@@ -22,41 +25,46 @@ class MiCreate(BaseModel):
     lc: str | None = None
 
 
+def require_project(role, project_code: str):
+    role_set = role.get_for_project(project_code)
+    require(role_set is not None)
+    return role_set
+
+
 @router.get("/{project_id}")
 def get_sites(
     project_id: int,
-    current_user=Depends(get_current_user),
+    role=Depends(get_role),
     db: Session = Depends(get_db),
 ):
-    return get_mi_sites(project_id, db)
+    role_set = require_project(role, "mi")
+    policy = MiPolicy(role_set)
+
+    sites = get_mi_sites(project_id, db)
+
+    return {
+        "data": policy.filter_site_response(sites),
+        "capabilities": policy.ui_capabilities(),
+    }
 
 
-@router.post("")
-def create_site(
-    payload: MiCreate,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    try:
-        new_site = create_site_command(payload, db)
-        return {"message": "created", "id": new_site.id}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=e.args[0])
-    except Exception:
-        raise HTTPException(status_code=400, detail="Failed to create site")
-
-
-@router.put("/site/{site_id}")
-def update_site(
+@router.get("/site/{site_id}")
+def get_single_site(
     site_id: int,
-    payload: dict,
-    current_user=Depends(get_current_user),
+    role=Depends(get_role),
     db: Session = Depends(get_db),
 ):
-    try:
-        update_site_command(site_id, payload, db)
-        return {"message": "updated"}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=e.args[0])
-    except Exception:
-        raise HTTPException(status_code=400, detail="Update failed")
+    role_set = require_project(role, "mi")
+    policy = MiPolicy(role_set)
+
+    require(policy.can_open_detail())
+
+    site = get_mi_site(site_id, db)
+
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    return {
+        "data": policy.filter_site_response(site),
+        "capabilities": policy.ui_capabilities(),
+    }

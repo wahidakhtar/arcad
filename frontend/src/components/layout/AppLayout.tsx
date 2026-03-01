@@ -1,17 +1,15 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Outlet } from "react-router-dom"
-import { api } from "../../lib/api"
 import Sidebar from "./Sidebar"
+import { useAuth } from "../../context/AuthContext"
 
 export default function AppLayout() {
-  const [projects, setProjects] = useState<any[]>([])
+  const { roles, loading } = useAuth()
   const [showModal, setShowModal] = useState(false)
 
-  useEffect(() => {
-    api.get("/project/my").then((res) => {
-      setProjects(res.data)
-    })
-  }, [])
+  if (loading) return null
+
+  const projects = Array.from(new Set(roles.map(r => r.project)))
 
   return (
     <div style={{ display: "flex", height: "100vh" }}>

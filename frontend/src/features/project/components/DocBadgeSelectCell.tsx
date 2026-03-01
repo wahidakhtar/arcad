@@ -1,11 +1,13 @@
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState } from "react"
 import { api } from "../../../lib/api"
+import { useParams } from "react-router-dom"
 
 interface Props {
   site: any
-  field: "po_status_badge_id" | "invoice_status_badge_id" | "wcc_badge_id"
+  field: string
   entityTypeId: number
   reload: () => void
+  canToggle: boolean
 }
 
 export default function DocBadgeSelectCell({
@@ -13,54 +15,64 @@ export default function DocBadgeSelectCell({
   field,
   entityTypeId,
   reload,
+  canToggle,
 }: Props) {
 
-  const [badges, setBadges] = useState<any[]>([])
+  const { projectCode } = useParams()
+  const [options, setOptions] = useState<any[]>([])
+
+  const currentValue = site[field]
 
   useEffect(() => {
+    if (!canToggle || !projectCode) return
+
     api.get("/badge/doc_state", {
       params: {
         entity_type_id: entityTypeId,
-        project_id: site.project_id,
+        project_id: 1,
         site_id: site.id,
       },
-    }).then(res => setBadges(res.data))
-  }, [site.id, site.project_id, entityTypeId])
+    }).then(res => setOptions(res.data))
+  }, [site.id, entityTypeId, projectCode, canToggle])
 
-  const currentValue: number | null = site[field] ?? null
-
-  const selectedBadge = useMemo(
-    () => badges.find(b => b.id === currentValue),
-    [badges, currentValue]
-  )
-
-  const handleUpdate = async (badgeId: number) => {
-    await api.put(`/mi/site/${site.id}`, {
-      [field]: badgeId,
-    })
-    reload()
+  // ---- READ ONLY BADGE ----
+  if (!canToggle) {
+    return (
+      <span
+        style={{
+          background: site[`${field.replace("_badge_id", "")}_color`] || "#ccc",
+          color: "white",
+          padding: "4px 8px",
+          borderRadius: "4px",
+          fontSize: "12px",
+        }}
+      >
+        {site[`${field.replace("_badge_id", "")}_label`] || ""}
+      </span>
+    )
   }
 
-  // If WCC or Invoice and completion_date not present → render empty cell
-  if (
-    (field === "wcc_badge_id" || field === "invoice_status_badge_id") &&
-    !site.completion_date
-  ) {
-    return <span />
-  }
-
+  // ---- EDITABLE DROPDOWN ----
   return (
     <select
-      value={currentValue ?? ""}
-      onChange={e => handleUpdate(Number(e.target.value))}
-      style={{
-        background: selectedBadge?.color || "#fff",
-        padding: "4px",
+      value={currentValue || ""}
+      onChange={async (e) => {
+        if (!projectCode) return
+
+        await api.put(`/${projectCode}/site/${site.id}`, {
+          [field]: Number(e.target.value),
+        })
+
+        reload()
       }}
     >
-      {badges.map(b => (
-        <option key={b.id} value={b.id}>
-          {b.description}
+      <option value={currentValue}>
+        {site[`${field.replace("_badge_id", "")}_label`] || ""}
+      </option>
+
+      {options.map(opt => (
+        <option key={opt.id} value={opt.id}>
+          {opt.badge_key}
         </option>
       ))}
     </select>

@@ -1,40 +1,38 @@
-import { useState } from "react"
-import { useParams, useOutletContext } from "react-router-dom"
+import { useParams } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
 import { useMiSites } from "./hooks/useMiSites"
 import SiteTable from "./SiteTable"
 import AddSiteModal from "./AddSiteModal"
-import SiteDetail from "./SiteDetail"
+
+const PROJECT_LABELS: Record<string, string> = {
+  mi: "Mast Installation",
+}
 
 export default function ProjectPage() {
-  const { id } = useParams()
-  const project_id = id
-
+  const { projectCode } = useParams()
   const { showModal, setShowModal } = useOutletContext<any>()
 
-  const { siteList, reload } = useMiSites(project_id)
-  const [selectedSite, setSelectedSite] = useState<any | null>(null)
+  const { siteList, capabilities, reload } = useMiSites(projectCode)
+
+  if (!projectCode) return null
 
   return (
     <div>
-      <h2>Mast Installation</h2>
+      <h2>{PROJECT_LABELS[projectCode] || projectCode}</h2>
 
-      {showModal && project_id && (
+      {showModal && capabilities.can_create_site && (
         <AddSiteModal
-          project_id={project_id}
+          project_id={projectCode}
           onClose={() => setShowModal(false)}
           onCreated={reload}
         />
       )}
 
-      {selectedSite ? (
-        <SiteDetail
-          site={selectedSite}
-          onBack={() => setSelectedSite(null)}
-          onUpdated={reload}
-        />
-      ) : (
-        <SiteTable siteList={siteList} onSelect={setSelectedSite} reload={reload} />
-      )}
+      <SiteTable
+        siteList={siteList}
+        reload={reload}
+        capabilities={capabilities}
+      />
     </div>
   )
 }

@@ -27,10 +27,31 @@ services:
     ports:
       - "${BACKEND_HOST_PORT}:${BACKEND_PORT}"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${BACKEND_PORT} || exit 1"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json')"]
       interval: 20s
       timeout: 5s
       retries: 5
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ../backups:/backups
+    entrypoint: >
+      sh -c "
+      while true; do
+        TIMESTAMP=$$(date +%Y%m%d_%H%M%S);
+        pg_dump -h db -U ${POSTGRES_USER} ${POSTGRES_DB} | gzip > /backups/arcad_$${TIMESTAMP}.sql.gz;
+        find /backups -type f -mtime +7 -delete;
+        sleep 86400;
+      done
+      "
 
 volumes:
   arcad_pgdata:

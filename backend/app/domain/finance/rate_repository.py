@@ -1,14 +1,15 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from app.models.mi_rate_card import MiRateCard
+from app.models.rate_card import RateCard
 
-def get_latest_rate_for_date(job: str, date, db: Session):
+def get_latest_rate_for_date(job_id: int, date, db: Session):
     return (
-        db.query(MiRateCard)
+        db.query(RateCard)
         .filter(
-            MiRateCard.job == job,
-            MiRateCard.effective_date <= date
+            RateCard.job_id == job_id,
+            RateCard.effective_date <= date,
+            RateCard.is_active == True
         )
-        .order_by(desc(MiRateCard.effective_date))
+        .order_by(desc(RateCard.effective_date))
         .first()
     )

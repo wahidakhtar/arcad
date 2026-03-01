@@ -1,0 +1,17 @@
+export const columnConfig = [
+  { key: "receiving_date" },
+  { key: "permission_date" },
+  { key: "edd" },
+  { key: "status_label", group: "status" },
+  { key: "ckt_id" },
+  { key: "customer" },
+  { key: "height_m" },
+  { key: "city" },
+  { key: "completion_date" },
+  { key: "wcc_status", group: "wcc" },
+  { key: "budget", group: "finance" },
+  { key: "paid", group: "finance" },
+  { key: "balance", group: "finance" },
+  { key: "po_status", group: "finance" },
+  { key: "invoice_status", group: "finance" },
+]

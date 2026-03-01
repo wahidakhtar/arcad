@@ -4,18 +4,22 @@ import { api } from "../../../lib/api"
 export default function FeFinancePanel({ site, onUpdated }: any) {
   const [feList, setFeList] = useState<any[]>([])
   const [feHistory, setFeHistory] = useState<any[]>([])
+  const [financeHistory, setFinanceHistory] = useState<any[]>([])
+  const [summary, setSummary] = useState<any>(null)
+
   const [selectedFe, setSelectedFe] = useState<number | null>(null)
   const [closeCost, setCloseCost] = useState<Record<number, number>>({})
   const [requestData, setRequestData] = useState<Record<number, any>>({})
-  const [financeHistory, setFinanceHistory] = useState<any[]>([])
 
   const load = async () => {
-    const feRes = await api.get(`/api/v1/fe/list/${site.project_id}`)
-    const histRes = await api.get(`/api/v1/fe/history/${site.project_id}/${site.id}`)
-    const finRes = await api.get(`/api/v1/finance/site/${site.project_id}/${site.id}`)
+    const feRes = await api.get(`/fe/list/${site.project_id}`)
+    const histRes = await api.get(`/fe/history/${site.project_id}/${site.id}`)
+    const finRes = await api.get(`/finance/site/${site.project_id}/${site.id}`)
+
     setFeList(feRes.data)
     setFeHistory(histRes.data)
-    setFinanceHistory(finRes.data)
+    setFinanceHistory(finRes.data.transactions || [])
+    setSummary(finRes.data.summary || null)
   }
 
   useEffect(() => { load() }, [site])
@@ -33,12 +37,14 @@ export default function FeFinancePanel({ site, onUpdated }: any) {
 
   const close = async (row: any) => {
     const cost = closeCost[row.id]
-    if (cost === undefined || cost === null || cost === "") return
+    if (!cost && cost !== 0) return
+
     await api.post("/fe/remove", {
       project_id: site.project_id,
       site_id: site.id,
       final_fe_cost: Number(cost)
     })
+
     await load()
     onUpdated()
   }
@@ -61,6 +67,18 @@ export default function FeFinancePanel({ site, onUpdated }: any) {
 
   return (
     <div style={{ marginTop: 30 }}>
+
+      <h4>Site Financial Summary</h4>
+      {summary && (
+        <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
+          <div><strong>Base Budget:</strong> {summary.base_budget}</div>
+          <div><strong>Budget:</strong> {summary.budget}</div>
+          <div><strong>Cost:</strong> {summary.cost}</div>
+          <div><strong>Paid:</strong> {summary.paid}</div>
+          <div><strong>Balance:</strong> {summary.balance}</div>
+        </div>
+      )}
+
       <h4>FE Management</h4>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
@@ -167,7 +185,6 @@ export default function FeFinancePanel({ site, onUpdated }: any) {
         </tbody>
       </table>
 
-
       <h4 style={{ marginTop: 30 }}>Finance Requests</h4>
       <table border={1} cellPadding={6}>
         <thead>
@@ -189,7 +206,7 @@ export default function FeFinancePanel({ site, onUpdated }: any) {
                 <select
                   value={f.state}
                   onChange={async (e) => {
-                    await api.put(`/api/v1/finance/state/${f.id}`, {
+                    await api.put(`/finance/state/${f.id}`, {
                       state: e.target.value
                     })
                     load()
@@ -205,6 +222,7 @@ export default function FeFinancePanel({ site, onUpdated }: any) {
           ))}
         </tbody>
       </table>
+
     </div>
   )
 }

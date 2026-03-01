@@ -1,59 +1,33 @@
-import { useEffect, useState } from "react"
-import { api } from "../../lib/api"
-import { useStatusBadges } from "./hooks/useStatusBadges"
-import DocBadgeSelectCell from "./components/DocBadgeSelectCell"
-import FeFinancePanel from "./components/FeFinancePanel"
+import { useOutletContext } from "react-router-dom"
+import { useState } from "react"
+import { api } from "../../../lib/api"
+import DocBadgeSelectCell from "../components/DocBadgeSelectCell"
+import StatusBadgeSelectCell from "../components/StatusBadgeSelectCell"
 
-export default function SiteDetail({
-  site,
-  onBack,
-  onUpdated,
-}: {
-  site: any
-  onBack: () => void
-  onUpdated: () => void
-}) {
+export default function SiteDetailsPage() {
+  const { site, reload } = useOutletContext<any>()
   const [form, setForm] = useState({ ...site })
-
-  const statusOptions = useStatusBadges(
-    site.project_id,
-    site.status_badge_id
-  )
 
   const handleSave = async () => {
     await api.put(`/mi/site/${site.id}`, form)
-    onUpdated()
-    onBack()
+    reload()
   }
 
   return (
     <div style={{ maxWidth: 1100 }}>
-      <button onClick={onBack}>← Back</button>
-
-      <h3>Site Detail</h3>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-        <select
-          value={form.status_badge_id || ""}
-          onChange={(e) =>
-            setForm({ ...form, status_badge_id: Number(e.target.value) })
-          }
-        >
-          <option value={site.status_badge_id}>
-            {site.status_label}
-          </option>
-          {statusOptions.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.description}
-            </option>
-          ))}
-        </select>
+
+        <StatusBadgeSelectCell
+          site={site}
+          reload={reload}
+        />
 
         <DocBadgeSelectCell
           site={site}
           field="po_status_badge_id"
           entityTypeId={4}
-          reload={onUpdated}
+          reload={reload}
         />
 
         {site.completion_date && (
@@ -62,19 +36,17 @@ export default function SiteDetail({
               site={site}
               field="wcc_badge_id"
               entityTypeId={5}
-              reload={onUpdated}
+              reload={reload}
             />
             <DocBadgeSelectCell
               site={site}
               field="invoice_status_badge_id"
               entityTypeId={3}
-              reload={onUpdated}
+              reload={reload}
             />
           </>
         )}
       </div>
-
-      <FeFinancePanel site={site} onUpdated={onUpdated} />
 
       <div style={{
         display: "grid",
