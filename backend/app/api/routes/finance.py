@@ -8,6 +8,10 @@ from app.models.fe import Finance, Fe
 from app.models.mi import Mi
 from app.domain.finance.mi_finance import compute_financials
 
+from app.authz.dependencies import get_role
+from app.authz.guard import require
+from app.authz.policy_resolver import resolve_policy_for_project
+
 router = APIRouter(prefix="/api/v1/finance", tags=["finance"])
 
 
@@ -21,7 +25,14 @@ class FinanceRequest(BaseModel):
 
 
 @router.post("/request")
-def request_payment(payload: FinanceRequest, db: Session = Depends(get_db)):
+def request_payment(
+    payload: FinanceRequest,
+    role=Depends(get_role),
+    db: Session = Depends(get_db),
+):
+    policy = resolve_policy_for_project(role, payload.project_id, db)
+    require(policy.can_modify_finance())
+
     entry = Finance(
         project_id=payload.project_id,
         site_id=payload.site_id,
@@ -39,10 +50,18 @@ def request_payment(payload: FinanceRequest, db: Session = Depends(get_db)):
 
 
 @router.put("/state/{finance_id}")
-def update_finance_state(finance_id: int, payload: dict, db: Session = Depends(get_db)):
+def update_finance_state(
+    finance_id: int,
+    payload: dict,
+    role=Depends(get_role),
+    db: Session = Depends(get_db),
+):
     entry = db.query(Finance).filter(Finance.id == finance_id).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Not found")
+
+    policy = resolve_policy_for_project(role, entry.project_id, db)
+    require(policy.can_modify_finance())
 
     old_state = entry.state
     new_state = payload.get("state")
@@ -70,7 +89,12 @@ def update_finance_state(finance_id: int, payload: dict, db: Session = Depends(g
 
 
 @router.get("/site/{project_id}/{site_id}")
-def site_finance(project_id: int, site_id: int, db: Session = Depends(get_db)):
+def site_finance(
+    project_id: int,
+    site_id: int,
+    role=Depends(get_role),
+    db: Session = Depends(get_db),
+):
     site = db.query(Mi).filter(
         Mi.id == site_id,
         Mi.project_id == project_id
@@ -78,6 +102,9 @@ def site_finance(project_id: int, site_id: int, db: Session = Depends(get_db)):
 
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
+
+    policy = resolve_policy_for_project(role, project_id, db)
+    require(policy.can_view_finance())
 
     summary = compute_financials(site, db) or {}
 

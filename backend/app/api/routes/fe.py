@@ -5,12 +5,12 @@ from pydantic import BaseModel
 from decimal import Decimal
 
 from app.core.database import get_db
-from app.api.dependencies.auth import get_current_user
-from app.services.fe_assignment_service import assign_fe as assign_service
-from app.services.fe_assignment_service import remove_fe as remove_service
 from app.models.fe import FeAssignment, Fe, Finance
 from app.models.mi import Mi
-from app.domain.finance.mi_finance import compute_financials
+
+from app.authz.dependencies import get_role
+from app.authz.guard import require
+from app.authz.policy_resolver import resolve_policy_for_project
 
 router = APIRouter(prefix="/api/v1/fe", tags=["fe"])
 
@@ -30,9 +30,12 @@ class FeRemoveRequest(BaseModel):
 @router.get("/list/{project_id}")
 def list_fe(
     project_id: int,
-    current_user=Depends(get_current_user),
+    role=Depends(get_role),
     db: Session = Depends(get_db),
 ):
+    policy = resolve_policy_for_project(role, project_id, db)
+    require(policy.can_view_finance())
+
     rows = db.query(Fe).filter(Fe.is_active == True).all()
     return [{"id": r.id, "name": r.name} for r in rows]
 
@@ -41,9 +44,12 @@ def list_fe(
 def fe_history(
     project_id: int,
     site_id: int,
-    current_user=Depends(get_current_user),
+    role=Depends(get_role),
     db: Session = Depends(get_db),
 ):
+    policy = resolve_policy_for_project(role, project_id, db)
+    require(policy.can_view_finance())
+
     assignments = db.query(FeAssignment).filter(
         and_(
             FeAssignment.project_id == project_id,
@@ -51,93 +57,53 @@ def fe_history(
         )
     ).all()
 
-    site = db.query(Mi).filter(
-        Mi.id == site_id,
-        Mi.project_id == project_id
-    ).first()
-
-    summary = compute_financials(site, db) or {}
-    total_cost = Decimal(str(summary.get("cost", 0)))
-
-    closed_total = Decimal(0)
-    for a in assignments:
-        if not a.is_active:
-            closed_total += Decimal(str(a.final_fe_cost or 0))
-
-    result = []
-
-    for a in assignments:
-        fe_name = db.query(Fe.name).filter(Fe.id == a.fe_id).scalar()
-
-        payments = db.query(func.coalesce(func.sum(Finance.amount), 0)).filter(
-            Finance.site_id == site_id,
-            Finance.fe_id == a.fe_id,
-            Finance.state == "executed",
-            Finance.type == "payment"
-        ).scalar()
-
-        refunds = db.query(func.coalesce(func.sum(Finance.amount), 0)).filter(
-            Finance.site_id == site_id,
-            Finance.fe_id == a.fe_id,
-            Finance.state == "executed",
-            Finance.type == "refund"
-        ).scalar()
-
-        fe_paid = float(payments) - float(refunds)
-
-        if a.is_active:
-            allocation = float(total_cost - closed_total)
-        else:
-            allocation = float(a.final_fe_cost or 0)
-
-        result.append({
-            "id": a.id,
-            "fe_id": a.fe_id,
-            "fe_name": fe_name,
-            "final_fe_cost": allocation,
-            "paid": fe_paid,
-            "balance": allocation - fe_paid,
-            "is_active": a.is_active
-        })
-
-    return result
+    return assignments
 
 
 @router.post("/assign")
 def assign_fe(
     payload: FeAssignRequest,
-    current_user=Depends(get_current_user),
+    role=Depends(get_role),
     db: Session = Depends(get_db),
 ):
-    try:
-        assignment = assign_service(
-            db,
-            payload.project_id,
-            payload.site_id,
-            payload.fe_id
-        )
-        return {"message": "assigned", "id": assignment.id}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="FE assign failed")
+    policy = resolve_policy_for_project(role, payload.project_id, db)
+    require(policy.can_assign_fe())
+
+    assignment = FeAssignment(
+        project_id=payload.project_id,
+        site_id=payload.site_id,
+        fe_id=payload.fe_id,
+        is_active=True
+    )
+    db.add(assignment)
+    db.commit()
+    db.refresh(assignment)
+
+    return {"message": "assigned", "id": assignment.id}
 
 
 @router.post("/remove")
 def remove_fe(
     payload: FeRemoveRequest,
-    current_user=Depends(get_current_user),
+    role=Depends(get_role),
     db: Session = Depends(get_db),
 ):
-    try:
-        assignment = remove_service(
-            db,
-            payload.project_id,
-            payload.site_id,
-            payload.final_fe_cost
-        )
-        return {"message": "removed", "id": assignment.id}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="FE remove failed")
+    policy = resolve_policy_for_project(role, payload.project_id, db)
+    require(policy.can_assign_fe())
+
+    assignment = db.query(FeAssignment).filter(
+        FeAssignment.project_id == payload.project_id,
+        FeAssignment.site_id == payload.site_id,
+        FeAssignment.is_active == True
+    ).first()
+
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Active FE not found")
+
+    assignment.is_active = False
+    assignment.final_fe_cost = payload.final_fe_cost
+
+    db.commit()
+    db.refresh(assignment)
+
+    return {"message": "removed", "id": assignment.id}
