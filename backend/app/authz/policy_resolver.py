@@ -15,7 +15,7 @@ def resolve_policy_for_project(role, project_id: int, db: Session):
 
     # Project → Policy mapping (extendable)
     if project.code == "mi":
-        return MiPolicy(role_set)
+        return MiPolicy(role_set, project_id, db)
 
     # Future:
     # if project.code == "md": return MdPolicy(role_set)

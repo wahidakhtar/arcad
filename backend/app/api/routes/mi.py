@@ -53,7 +53,7 @@ def get_single_site(
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
 
-    policy = resolve_policy_for_project(role, site.project_id, db)
+    policy = resolve_policy_for_project(role, site["project_id"], db)
 
     require(policy.can_open_detail())
 
@@ -86,7 +86,7 @@ def update_site(
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
 
-    policy = resolve_policy_for_project(role, site.project_id, db)
+    policy = resolve_policy_for_project(role, site["project_id"], db)
     require(policy.can_edit_site())
 
     return update_site_command(site_id, payload, db)

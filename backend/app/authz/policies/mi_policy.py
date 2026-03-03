@@ -1,89 +1,101 @@
 from app.authz.policies.base_policy import BaseProjectPolicy
+from app.models.role_field_permissions import RoleFieldPermission
 
 
 class MiPolicy(BaseProjectPolicy):
 
-    # -----------------------------
+    def __init__(self, role, project_id, db):
+        self.role = role
+        self.project_id = project_id
+        self.db = db
+        self.permissions = self._load_permissions()
+
+    # ---------------------------------
+    # Load Field Permissions From DB
+    # ---------------------------------
+
+    def _load_permissions(self):
+        rows = (
+            self.db.query(RoleFieldPermission)
+            .filter(
+                RoleFieldPermission.dept_badge_id == self.role.department_badge_id,
+                RoleFieldPermission.level_badge_id == self.role.level_badge_id,
+            )
+            .all()
+        )
+
+        return {
+            r.column_name: {
+                "view": r.can_view,
+                "edit": r.can_edit,
+            }
+            for r in rows
+        }
+
+    # ---------------------------------
     # Core Access
-    # -----------------------------
+    # ---------------------------------
 
     def can_open_detail(self):
-        if self.role.department_code == "ops":
-            return self.role.level_code in {"l2", "l3"}
-        if self.role.department_code == "acc":
-            return True
-        if self.role.department_code == "mgmt":
-            return True
-        return False
+        return any(p["view"] for p in self.permissions.values())
 
     def can_edit_site(self):
-        if self.role.department_code == "ops":
-            return self.role.level_code in {"l2", "l3"}
-        return False
+        return any(p["edit"] for p in self.permissions.values())
 
     def can_create_site(self):
-        return (
-            self.role.department_code == "ops"
-            and self.role.level_code == "l3"
-        )
+        return False  # configure later via DB if needed
 
-    # -----------------------------
-    # FE Assignment
-    # -----------------------------
+    # ---------------------------------
+    # FE / Finance (derive from fields if needed)
+    # ---------------------------------
 
     def can_assign_fe(self):
-        return (
-            self.role.department_code == "ops"
-            and self.role.level_code in {"l2", "l3"}
-        )
-
-    # -----------------------------
-    # Finance Permissions
-    # -----------------------------
+        return False
 
     def can_view_finance(self):
-        if self.role.department_code == "ops":
-            return self.role.level_code in {"l2", "l3"}
-        if self.role.department_code == "acc":
-            return True
-        if self.role.department_code == "mgmt":
-            return True  # read-only
         return False
 
     def can_request_finance(self):
-        return (
-            self.role.department_code == "ops"
-            and self.role.level_code in {"l2", "l3"}
-        )
+        return False
 
     def can_execute_finance(self):
-        return self.role.department_code == "acc"
+        return False
 
-    # -----------------------------
-    # Status / Document Toggles
-    # -----------------------------
+    # ---------------------------------
+    # Status Toggles
+    # ---------------------------------
 
     def can_toggle_status(self):
-        if self.role.department_code == "ops":
-            return self.role.level_code in {"l2", "l3"}
-        return False
+        return self.permissions.get("status_badge_id", {}).get("edit", False)
 
     def can_toggle_wcc(self):
-        if self.role.department_code == "ops":
-            return self.role.level_code in {"l2", "l3"}
-        if self.role.department_code == "acc":
-            return True
-        return False
+        return self.permissions.get("wcc", {}).get("edit", False)
 
     def can_toggle_po(self):
-        return self.can_view_finance()
+        return self.permissions.get("po_status_badge_id", {}).get("edit", False)
 
     def can_toggle_invoice(self):
-        return self.can_view_finance()
+        return self.permissions.get("invoice_status_badge_id", {}).get("edit", False)
 
-    # -----------------------------
+    # ---------------------------------
+    # Response Filtering
+    # ---------------------------------
+
+    def filter_site_response(self, data):
+        if isinstance(data, list):
+            return [self._filter_one(d) for d in data]
+        return self._filter_one(data)
+
+    def _filter_one(self, site):
+        return {
+            k: v
+            for k, v in site.items()
+            if self.permissions.get(k, {}).get("view", False)
+        }
+
+    # ---------------------------------
     # UI Capability Map
-    # -----------------------------
+    # ---------------------------------
 
     def ui_capabilities(self):
         return {
