@@ -34,6 +34,7 @@ def get_sites(
     db: Session = Depends(get_db),
 ):
     policy = resolve_policy_for_project(role, project_id, db)
+    require(policy.can_open_detail())
 
     sites = get_mi_sites(project_id, db)
 
@@ -54,7 +55,6 @@ def get_single_site(
         raise HTTPException(status_code=404, detail="Site not found")
 
     policy = resolve_policy_for_project(role, site["project_id"], db)
-
     require(policy.can_open_detail())
 
     return {
@@ -89,4 +89,18 @@ def update_site(
     policy = resolve_policy_for_project(role, site["project_id"], db)
     require(policy.can_edit_site())
 
-    return update_site_command(site_id, payload, db)
+    # Strict field-level validation
+    for field in payload.keys():
+        if not policy.permissions.get(field, {}).get("edit", False):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Field '{field}' is not editable"
+            )
+
+    updated = update_site_command(site_id, payload, db)
+
+    updated_dict = {c.name: getattr(updated, c.name) for c in updated.__table__.columns}
+    return {
+        "data": policy.filter_site_response(updated_dict),
+        "capabilities": policy.ui_capabilities(),
+    }

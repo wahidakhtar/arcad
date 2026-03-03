@@ -15,11 +15,12 @@ class MiPolicy(BaseProjectPolicy):
     # ---------------------------------
 
     def _load_permissions(self):
+
         rows = (
             self.db.query(RoleFieldPermission)
             .filter(
-                RoleFieldPermission.dept_badge_id == self.role.department_badge_id,
-                RoleFieldPermission.level_badge_id == self.role.level_badge_id,
+                RoleFieldPermission.dept_badge_id == self.role.department_id,
+                RoleFieldPermission.level_badge_id == self.role.level_id,
             )
             .all()
         )
@@ -43,22 +44,6 @@ class MiPolicy(BaseProjectPolicy):
         return any(p["edit"] for p in self.permissions.values())
 
     def can_create_site(self):
-        return False  # configure later via DB if needed
-
-    # ---------------------------------
-    # FE / Finance (derive from fields if needed)
-    # ---------------------------------
-
-    def can_assign_fe(self):
-        return False
-
-    def can_view_finance(self):
-        return False
-
-    def can_request_finance(self):
-        return False
-
-    def can_execute_finance(self):
         return False
 
     # ---------------------------------
@@ -101,10 +86,10 @@ class MiPolicy(BaseProjectPolicy):
         return {
             "can_open_detail": self.can_open_detail(),
             "can_create_site": self.can_create_site(),
-            "can_assign_fe": self.can_assign_fe(),
-            "can_view_finance": self.can_view_finance(),
-            "can_request_finance": self.can_request_finance(),
-            "can_execute_finance": self.can_execute_finance(),
+            "can_assign_fe": False,
+            "can_view_finance": False,
+            "can_request_finance": False,
+            "can_execute_finance": False,
             "toggle_status": self.can_toggle_status(),
             "toggle_wcc": self.can_toggle_wcc(),
             "toggle_po": self.can_toggle_po(),
