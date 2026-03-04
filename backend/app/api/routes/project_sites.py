@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
@@ -36,9 +36,5 @@ def get_sites(
 
     return {
         "data": policy.filter_site_response(rows),
-        "capabilities": {
-            "can_open_detail": policy.can_open_detail(),
-            "can_edit_site": policy.can_edit_site(),
-            "can_create_site": policy.can_create_site()
-        }
+        "field_permissions": policy.permissions
     }

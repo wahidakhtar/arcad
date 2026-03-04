@@ -18,11 +18,18 @@ export default function BadgeSelectCell({
 }: Props) {
 
   const [badges, setBadges] = useState<any[]>([])
+  const [badgeMap, setBadgeMap] = useState<any>({})
 
   useEffect(() => {
+
+    api.get("/badge/map").then(res => {
+      setBadgeMap(res.data || {})
+    })
+
     if (type === "status") {
       api.get("/badge/status", {
         params: {
+          project_id: site.project_id,
           project_id: site.project_id,
           current_status_id: site.status_badge_id,
         },
@@ -39,13 +46,7 @@ export default function BadgeSelectCell({
       }).then(res => setBadges(res.data))
     }
 
-  }, [
-    site.id,
-    site.project_id,
-    site.status_badge_id,
-    type,
-    entityTypeId,
-  ])
+  }, [site])
 
   const handleUpdate = async (badgeId: number | null) => {
     await api.put(`/mi/site/${site.id}`, {
@@ -54,28 +55,8 @@ export default function BadgeSelectCell({
     reload()
   }
 
-  let currentValue: number | null = null
-  let currentColor: string = "#fff"
-
-  if (type === "status") {
-    currentValue = site.status_badge_id
-    currentColor = site.status_color || "#ccc"
-  } else {
-    if (field === "po_status_badge_id") {
-      currentValue = site.po_status_badge_id
-      currentColor = site.po_status_color
-    }
-
-    if (field === "invoice_status_badge_id") {
-      currentValue = site.invoice_status_badge_id
-      currentColor = site.invoice_status_color
-    }
-
-    if (field === "wcc_badge_id") {
-      currentValue = site.wcc_badge_id
-      currentColor = site.wcc_status_color
-    }
-  }
+  const currentValue = site[field]
+  const currentBadge = badgeMap[currentValue] || {}
 
   return (
     <select
@@ -85,15 +66,21 @@ export default function BadgeSelectCell({
         handleUpdate(value ? Number(value) : null)
       }}
       style={{
-        background: currentColor || "#fff",
+        background: currentBadge.color || "#fff",
         padding: "4px",
       }}
     >
+
+      <option value={currentValue ?? ""}>
+        {currentBadge.label || "Current"}
+      </option>
+
       {badges.map(b => (
         <option key={b.id} value={b.id}>
           {b.description}
         </option>
       ))}
+
     </select>
   )
 }

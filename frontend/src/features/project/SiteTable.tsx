@@ -1,107 +1,63 @@
-import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
-import { api } from "../../lib/api"
-import BadgeSelectCell from "./components/BadgeSelectCell"
-import DocBadgeSelectCell from "./components/DocBadgeSelectCell"
-import FeFinancePanel from "./components/FeFinancePanel"
+import useBadgeTransitions from "./useBadgeTransitions"
+import CellRenderer from "./CellRenderer"
 
-export default function SiteTable() {
+const badgeFields = ["status_badge_id","wcc"]
+
+export default function SiteTable({ siteList, reload, fieldPermissions }: any){
+
   const { projectCode } = useParams()
-  const [sites, setSites] = useState<any[]>([])
-  const [capabilities, setCapabilities] = useState<any>({})
 
-  const fetchSites = async () => {
-    const projectRes = await api.get("/project/my")
-    const projectId = projectRes.data[0]?.id
-    if (!projectId) return
-    const res = await api.get(`/${projectCode}/${projectId}`)
-    setSites(res.data.data || [])
-    setCapabilities(res.data.capabilities || {})
-  }
+  const sites = siteList || []
 
-  useEffect(() => {
-    fetchSites()
-  }, [projectCode])
+  const fields = sites.length
+    ? Object.keys(sites[0]).map(k => ({
+        column_name: k,
+        label: k
+      }))
+    : []
 
-  const renderCell = (key: string, value: any, site: any) => {
-    if (key === "status_badge_id") {
-      if (capabilities.toggle_status) {
-        return (
-          <BadgeSelectCell
-            site={site}
-            field="status_badge_id"
-            type="status"
-            reload={fetchSites}
-          />
-        )
-      }
-      return value
-    }
+  const {badgeMap,transitions}=useBadgeTransitions(
+    sites,
+    projectCode
+  )
 
-    if (key === "po_status_badge_id" && capabilities.toggle_po) {
-      return (
-        <DocBadgeSelectCell
-          site={site}
-          field="po_status_badge_id"
-          entityTypeId={4}
-          reload={fetchSites}
-          canToggle={true}
-        />
-      )
-    }
-
-    if (key === "invoice_status_badge_id" && capabilities.toggle_invoice) {
-      return (
-        <DocBadgeSelectCell
-          site={site}
-          field="invoice_status_badge_id"
-          entityTypeId={3}
-          reload={fetchSites}
-          canToggle={true}
-        />
-      )
-    }
-
-    if (key === "wcc" && capabilities.toggle_wcc) {
-      return (
-        <DocBadgeSelectCell
-          site={site}
-          field="wcc"
-          entityTypeId={5}
-          reload={fetchSites}
-          canToggle={true}
-        />
-      )
-    }
-
-    if (key === "fe") {
-      return <FeFinancePanel site={site} onUpdated={fetchSites} />
-    }
-
-    return value ?? "-"
-  }
-
-  return (
+  return(
     <table border={1} cellPadding={6}>
+
       <thead>
         <tr>
-          {sites.length > 0 &&
-            Object.keys(sites[0]).map((key) => (
-              <th key={key}>{key}</th>
-            ))}
+          {fields.map((f:any)=>(
+            <th key={f.column_name}>{f.label}</th>
+          ))}
         </tr>
       </thead>
+
       <tbody>
-        {sites.map(site => (
+
+        {sites.map((site:any)=>(
           <tr key={site.id}>
-            {Object.entries(site).map(([key, value]) => (
-              <td key={key}>
-                {renderCell(key, value, site)}
+
+            {fields.map((f:any)=>(
+              <td key={f.column_name}>
+                <CellRenderer
+                  site={site}
+                  field={f}
+                  badgeMap={badgeMap}
+                  transitions={transitions}
+                  isBadge={badgeFields.includes(f.column_name)}
+                  refresh={reload}
+                  projectCode={projectCode}
+                  permissions={fieldPermissions}
+                />
               </td>
             ))}
+
           </tr>
         ))}
+
       </tbody>
+
     </table>
   )
 }
