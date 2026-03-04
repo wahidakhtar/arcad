@@ -1,15 +1,15 @@
 import { useOutletContext } from "react-router-dom"
 import { useState } from "react"
-import { api } from "../../../lib/api"
-import DocBadgeSelectCell from "../components/DocBadgeSelectCell"
-import StatusBadgeSelectCell from "../components/StatusBadgeSelectCell"
+import { api } from "../../../../lib/api"
+import DocBadgeSelectCell from "../../components/DocBadgeSelectCell"
+import StatusBadgeSelectCell from "../../components/StatusBadgeSelectCell"
 
-export default function SiteDetailsPage() {
+export default function McSiteDetailsPage() {
   const { site, reload } = useOutletContext<any>()
   const [form, setForm] = useState({ ...site })
 
   const handleSave = async () => {
-    await api.put(`/mi/site/${site.id}`, form)
+    await api.put(`/site/${site.id}`, form)
     reload()
   }
 

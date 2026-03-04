@@ -1,65 +1,52 @@
-import { Outlet, useParams, useNavigate, Link, useLocation } from "react-router-dom"
+import { Outlet, useParams, useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { api } from "../../../lib/api"
 
-export default function SiteLayout() {
+export default function SiteLayout(){
+
   const { projectCode, siteId } = useParams()
   const navigate = useNavigate()
-  const location = useLocation()
 
-  const [site, setSite] = useState<any>(null)
+  const [site,setSite] = useState<any>(null)
+  const [permissions,setPermissions] = useState<any>({})
+  const [columns,setColumns] = useState<any[]>([])
 
-  useEffect(() => {
-    if (!projectCode || !siteId) return
+  const load = async () => {
 
-    api.get(`/${projectCode}/site/${siteId}`)
-      .then((res) => setSite(res.data))
-      .catch((err) => {
-        if (err.response?.status === 403) {
-          navigate(`/${projectCode}`)
-        }
-      })
-  }, [projectCode, siteId])
+    if(!projectCode || !siteId) return
 
-  if (!site) return null
+    try{
 
-  const base = `/${projectCode}/site/${siteId}`
+      const siteRes = await api.get(`/${projectCode}/site/${siteId}`)
+      const tableRes = await api.get(`/project/${projectCode}/sites`)
 
-  const isDetails = location.pathname.endsWith("/details")
-  const isFe = location.pathname.endsWith("/fe")
+      setSite(siteRes.data.data)
+      setPermissions(tableRes.data.field_permissions || {})
+      setColumns(tableRes.data.columns || [])
+
+    }catch(err:any){
+
+      if(err.response?.status===403){
+        navigate(`/${projectCode}`)
+      }
+
+    }
+  }
+
+  useEffect(()=>{
+    load()
+  },[projectCode,siteId])
+
+  if(!site) return null
 
   return (
-    <div>
-
-      <div style={{
-        display: "flex",
-        gap: 20,
-        borderBottom: "1px solid #ccc",
-        marginBottom: 20
-      }}>
-        <Link
-          to={`${base}/details`}
-          style={{
-            padding: "6px 10px",
-            borderBottom: isDetails ? "2px solid black" : "none"
-          }}
-        >
-          Details
-        </Link>
-
-        <Link
-          to={`${base}/fe`}
-          style={{
-            padding: "6px 10px",
-            borderBottom: isFe ? "2px solid black" : "none"
-          }}
-        >
-          FE + Finance
-        </Link>
-      </div>
-
-      <Outlet context={{ site }} />
-
-    </div>
+    <Outlet
+      context={{
+        site,
+        reload: load,
+        permissions,
+        columns
+      }}
+    />
   )
 }

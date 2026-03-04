@@ -68,5 +68,9 @@ export default function CellRenderer({
     )
   }
 
+  if(field.column_name === "fe_id"){
+    if(!value) return "-"
+    return badgeMap[value]?.label || value
+  }
   return value ?? "-"
 }

@@ -5,6 +5,7 @@ export function useMiSites(projectCode: string | undefined) {
 
   const [siteList,setSiteList] = useState<any[]>([])
   const [fieldPermissions,setFieldPermissions] = useState<any>({})
+  const [columns,setColumns] = useState<any[]>([])
 
   const loadData = async () => {
 
@@ -14,16 +15,18 @@ export function useMiSites(projectCode: string | undefined) {
 
     setSiteList(res.data.data || [])
     setFieldPermissions(res.data.field_permissions || {})
+    setColumns(res.data.columns || [])
   }
 
   useEffect(()=>{
 
     setSiteList([])
     setFieldPermissions({})
+    setColumns([])
 
     loadData()
 
   },[projectCode])
 
-  return { siteList, fieldPermissions, reload: loadData }
+  return { siteList, fieldPermissions, columns, reload: loadData }
 }

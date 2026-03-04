@@ -6,7 +6,7 @@ import ProjectPage from "./features/project/ProjectPage"
 import LoginPage from "./features/auth/LoginPage"
 
 import SiteLayout from "./features/project/site/SiteLayout"
-import SiteDetailsPage from "./features/project/site/SiteDetailsPage"
+import ProjectSiteDetailsRouter from "./features/project/site/ProjectSiteDetailsRouter"
 import SiteFeFinancePage from "./features/project/site/SiteFeFinancePage"
 
 export default function App() {
@@ -31,7 +31,7 @@ export default function App() {
 
           <Route path=":projectCode/site/:siteId" element={<SiteLayout />}>
             <Route index element={<Navigate to="details" />} />
-            <Route path="details" element={<SiteDetailsPage />} />
+            <Route path="details" element={<ProjectSiteDetailsRouter />} />
             <Route path="fe" element={<SiteFeFinancePage />} />
           </Route>
 

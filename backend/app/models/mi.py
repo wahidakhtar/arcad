@@ -30,4 +30,4 @@ class Mi(Base):
 
     completion_date = Column(Date)
 
-    fe = Column(Text)
+    fe_id = Column(Text)

@@ -17,7 +17,7 @@ export default function ProjectPage() {
   const { projectCode } = useParams()
   const { showModal, setShowModal } = useOutletContext<any>()
 
-  const { siteList, fieldPermissions, reload } = useMiSites(projectCode)
+  const { siteList, fieldPermissions, columns, reload } = useMiSites(projectCode)
 
   if (!projectCode) return null
 
@@ -38,6 +38,7 @@ export default function ProjectPage() {
         siteList={siteList}
         reload={reload}
         fieldPermissions={fieldPermissions}
+        columns={columns}
       />
 
     </div>

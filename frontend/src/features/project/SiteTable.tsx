@@ -4,18 +4,18 @@ import CellRenderer from "./CellRenderer"
 
 const badgeFields = ["status_badge_id","wcc"]
 
-export default function SiteTable({ siteList, reload, fieldPermissions }: any){
+export default function SiteTable({ siteList, reload, fieldPermissions, columns }: any){
 
   const { projectCode } = useParams()
 
   const sites = siteList || []
 
-  const fields = sites.length
-    ? Object.keys(sites[0]).map(k => ({
-        column_name: k,
-        label: k
-      }))
-    : []
+  const fields = (columns || [])
+    .filter((c:any)=>!["id","project_id"].includes(c.column_name))
+    .map((c:any)=>({
+      column_name: c.column_name,
+      label: c.label || c.column_name
+    }))
 
   const {badgeMap,transitions}=useBadgeTransitions(
     sites,

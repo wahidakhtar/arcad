@@ -34,7 +34,25 @@ def get_sites(
         """)
     ).mappings().all()
 
+    columns = db.execute(
+        text("""
+        SELECT
+        a.attname AS column_name,
+        col_description(a.attrelid,a.attnum) AS label
+        FROM pg_attribute a
+        JOIN pg_class c ON a.attrelid=c.oid
+        JOIN pg_namespace n ON c.relnamespace=n.oid
+        WHERE n.nspname=:schema
+        AND c.relname='site'
+        AND a.attnum>0
+        AND NOT a.attisdropped
+        ORDER BY a.attnum
+        """),
+        {"schema": project.site_schema}
+    ).mappings().all()
+
     return {
         "data": policy.filter_site_response(rows),
-        "field_permissions": policy.permissions
+        "field_permissions": policy.permissions,
+        "columns": columns
     }
