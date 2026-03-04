@@ -4,7 +4,7 @@ from app.models.badge import Badge
 
 def fetch_sites(project_id: int, db: Session):
     site_list = db.query(Mi).filter(
-        Mi.is_active == True,
+        
         Mi.project_id == project_id
     ).all()
 

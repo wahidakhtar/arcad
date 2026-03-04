@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from pydantic import BaseModel
 from datetime import date
 
@@ -27,6 +28,23 @@ class MiCreate(BaseModel):
     lc: str | None = None
 
 
+@router.get("/site/fields")
+def get_site_fields(db: Session = Depends(get_db)):
+
+    rows = db.execute(text("""
+        SELECT
+            column_name,
+            col_description('schema_mi.site'::regclass, ordinal_position) AS label
+        FROM information_schema.columns
+        WHERE table_schema='schema_mi'
+        AND table_name='site'
+        AND column_name NOT IN ('id','project_id')
+        ORDER BY ordinal_position
+    """)).mappings().all()
+
+    return rows
+
+
 @router.get("/{project_id}")
 def get_sites(
     project_id: int,
@@ -39,8 +57,7 @@ def get_sites(
     sites = get_mi_sites(project_id, db)
 
     return {
-        "data": policy.filter_site_response(sites),
-        "capabilities": policy.ui_capabilities(),
+        "data": policy.filter_site_response(sites)
     }
 
 
@@ -58,8 +75,7 @@ def get_single_site(
     require(policy.can_open_detail())
 
     return {
-        "data": policy.filter_site_response(site),
-        "capabilities": policy.ui_capabilities(),
+        "data": policy.filter_site_response(site)
     }
 
 
@@ -89,7 +105,6 @@ def update_site(
     policy = resolve_policy_for_project(role, site["project_id"], db)
     require(policy.can_edit_site())
 
-    # Strict field-level validation
     for field in payload.keys():
         if not policy.permissions.get(field, {}).get("edit", False):
             raise HTTPException(
@@ -100,7 +115,7 @@ def update_site(
     updated = update_site_command(site_id, payload, db)
 
     updated_dict = {c.name: getattr(updated, c.name) for c in updated.__table__.columns}
+
     return {
-        "data": policy.filter_site_response(updated_dict),
-        "capabilities": policy.ui_capabilities(),
+        "data": policy.filter_site_response(updated_dict)
     }

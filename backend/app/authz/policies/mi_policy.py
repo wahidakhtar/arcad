@@ -10,10 +10,6 @@ class MiPolicy(BaseProjectPolicy):
         self.db = db
         self.permissions = self._load_permissions()
 
-    # ---------------------------------
-    # Load Field Permissions From DB
-    # ---------------------------------
-
     def _load_permissions(self):
 
         rows = (
@@ -33,10 +29,6 @@ class MiPolicy(BaseProjectPolicy):
             for r in rows
         }
 
-    # ---------------------------------
-    # Core Access
-    # ---------------------------------
-
     def can_open_detail(self):
         return any(p["view"] for p in self.permissions.values())
 
@@ -46,52 +38,24 @@ class MiPolicy(BaseProjectPolicy):
     def can_create_site(self):
         return False
 
-    # ---------------------------------
-    # Status Toggles
-    # ---------------------------------
-
-    def can_toggle_status(self):
-        return self.permissions.get("status_badge_id", {}).get("edit", False)
-
-    def can_toggle_wcc(self):
-        return self.permissions.get("wcc", {}).get("edit", False)
-
-    def can_toggle_po(self):
-        return self.permissions.get("po_status_badge_id", {}).get("edit", False)
-
-    def can_toggle_invoice(self):
-        return self.permissions.get("invoice_status_badge_id", {}).get("edit", False)
-
-    # ---------------------------------
-    # Response Filtering
-    # ---------------------------------
-
     def filter_site_response(self, data):
+
         if isinstance(data, list):
             return [self._filter_one(d) for d in data]
+
         return self._filter_one(data)
 
     def _filter_one(self, site):
-        return {
-            k: v
-            for k, v in site.items()
-            if self.permissions.get(k, {}).get("view", False)
-        }
 
-    # ---------------------------------
-    # UI Capability Map
-    # ---------------------------------
+        result = {}
 
-    def ui_capabilities(self):
-        return {
-            "can_open_detail": self.can_open_detail(),
-            "can_create_site": self.can_create_site(),
-            "can_assign_fe": False,
-            "can_view_finance": False,
-            "can_request_finance": False,
-            "can_execute_finance": False,
-            "toggle_status": self.can_toggle_status(),
-            "toggle_wcc": self.can_toggle_wcc(),
-            "toggle_po": self.can_toggle_po(),
-            "toggle_invoice": self.can_toggle_invoice(),
-        }
+        for k, v in site.items():
+
+            if k == "id":
+                result[k] = v
+                continue
+
+            if self.permissions.get(k, {}).get("view", False):
+                result[k] = v
+
+        return result

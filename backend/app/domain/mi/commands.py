@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models.mi import Mi
-from .status_engine import process_status, get_badge_id
+from .status_engine import process_status
 from .date_engine import apply_edd_logic, parse_date
 from .utils import normalize_ckt
 
@@ -36,13 +36,11 @@ def update_site_command(site_id: int, payload: dict, db: Session):
     process_status(site, payload, db, previous_state)
     apply_edd_logic(site)
 
-    # Set invoice/wcc Pending on completion
-    if site.completion_date:
+    # Set WCC Pending on completion (invoice logic removed to match DB schema)
+    if site.completion_date and site.wcc is None:
+        from .status_engine import get_badge_id
         pending_doc_id = get_badge_id(db, "doc_state", "pend")
-        if site.invoice_status_badge_id is None:
-            site.invoice_status_badge_id = pending_doc_id
-        if site.wcc is None:
-            site.wcc = pending_doc_id
+        site.wcc = pending_doc_id
 
     db.commit()
     db.refresh(site)

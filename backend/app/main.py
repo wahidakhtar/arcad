@@ -10,6 +10,8 @@ from app.api.routes.mi import router as mi_router
 from app.api.routes.badge import router as badge_router
 from app.api.routes.fe import router as fe_router
 from app.api.routes.finance import router as finance_router
+from app.api.routes.project_fields import router as project_fields_router
+from app.api.routes.project_sites import router as project_sites_router
 
 from app.core.database import engine, Base
 from app.core.security import get_password_hash
@@ -24,10 +26,7 @@ import app.models.mi
 import app.models.fe
 import app.models.entity_type
 import app.models.badge_entity_map
-import app.models.rate_card
 import app.models.badge_transition
-import app.models.rate_card
-
 
 app = FastAPI()
 
@@ -48,23 +47,26 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(project_router)
 app.include_router(mi_router)
+app.include_router(project_sites_router)
 app.include_router(badge_router)
 app.include_router(fe_router)
 app.include_router(finance_router)
+app.include_router(project_fields_router)
 
 
 @app.on_event("startup")
 def startup():
-    # ensure schemas
     with engine.connect() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS schema_core"))
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS schema_mi"))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS schema_ma"))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS schema_mc"))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS schema_md"))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS schema_bb"))
         conn.commit()
 
-    # create tables
     Base.metadata.create_all(bind=engine)
 
-    # seed admin user
     with Session(engine) as db:
         existing_admin = db.query(User).filter(User.email == "admin@arcad.com").first()
 
