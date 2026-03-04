@@ -1,5 +1,5 @@
+from sqlalchemy import text
 from app.authz.policies.base_policy import BaseProjectPolicy
-from app.models.role_field_permissions import RoleFieldPermission
 
 
 class MiPolicy(BaseProjectPolicy):
@@ -12,14 +12,18 @@ class MiPolicy(BaseProjectPolicy):
 
     def _load_permissions(self):
 
-        rows = (
-            self.db.query(RoleFieldPermission)
-            .filter(
-                RoleFieldPermission.dept_badge_id == self.role.department_id,
-                RoleFieldPermission.level_badge_id == self.role.level_id,
-            )
-            .all()
-        )
+        rows = self.db.execute(
+            text("""
+                SELECT column_name, can_view, can_edit
+                FROM schema_mi.role_field_permissions
+                WHERE dept_badge_id = :dept
+                AND level_badge_id = :level
+            """),
+            {
+                "dept": self.role.department_id,
+                "level": self.role.level_id,
+            },
+        ).fetchall()
 
         return {
             r.column_name: {
