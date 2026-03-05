@@ -13,7 +13,7 @@ from app.domain.mi.create_command import create_site_command
 from app.services.mi_service import get_mi_sites, get_mi_site
 
 router = APIRouter(
-    prefix="/api/v1/mi",
+    prefix="/api/v1",
     tags=["mi"]
 )
 
