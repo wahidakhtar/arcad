@@ -1,30 +1,22 @@
 import { Link } from "react-router-dom"
-import { api } from "../../lib/api"
+import BadgeCell from "../../components/BadgeCell"
 
 export default function CellRenderer({
   site,
   field,
-  badgeMap,
-  transitions,
   isBadge,
   refresh,
   projectCode,
   permissions
 }: any){
 
-  const value = site[field.column_name]
+  const key = field.column_name
+  const value = site[key]
 
-  console.log("PERMISSIONS:", permissions)
-
-  if(field.column_name === "ckt_id"){
-
-    if(value == null){
-      return "-"
-    }
+  if(key === "ckt_id"){
+    if(value == null) return "-"
 
     const canEdit = permissions?.ckt_id?.edit
-
-    console.log("CKT EDIT PERMISSION:", canEdit)
 
     if(canEdit){
       return (
@@ -39,38 +31,22 @@ export default function CellRenderer({
 
   if(isBadge){
 
-    const badge = badgeMap[value]
-    if(!badge) return "-"
-
-    const options = transitions[value] || []
-
-    const update = async(v:number)=>{
-      await api.put(`/${projectCode}/site/${site.id}`,{[field.column_name]:v})
-      refresh()
+    const entityMap:any = {
+      status_badge_id: 2,
+      wcc: 5
     }
 
-    return(
-      <select
-        value={value ?? ""}
-        style={{backgroundColor: badge.color}}
-        onChange={e=>update(Number(e.target.value))}
-      >
-        <option value={value}>{badge.label}</option>
+    const entityTypeId = entityMap[key]
 
-        {options
-          .filter((o:any)=>o.id!==value)
-          .map((o:any)=>(
-            <option key={o.id} value={o.id}>
-              {o.description}
-            </option>
-        ))}
-      </select>
+    return(
+      <BadgeCell
+        site={site}
+        field={key}
+        entityTypeId={entityTypeId}
+        reload={refresh}
+      />
     )
   }
 
-  if(field.column_name === "fe_id"){
-    if(!value) return "-"
-    return badgeMap[value]?.label || value
-  }
   return value ?? "-"
 }

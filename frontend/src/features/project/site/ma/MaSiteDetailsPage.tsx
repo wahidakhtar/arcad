@@ -1,8 +1,8 @@
 import { useOutletContext } from "react-router-dom"
 import { useState } from "react"
 import { api } from "../../../../lib/api"
-import DocBadgeSelectCell from "../../components/DocBadgeSelectCell"
-import StatusBadgeSelectCell from "../../components/StatusBadgeSelectCell"
+import BadgeSelectCell from "../../components/BadgeSelectCell"
+import BadgeCell from "../../../../components/BadgeCell"
 
 export default function MaSiteDetailsPage() {
   const { site, reload } = useOutletContext<any>()
@@ -18,12 +18,12 @@ export default function MaSiteDetailsPage() {
 
       <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
 
-        <StatusBadgeSelectCell
+        <BadgeCell
           site={site}
           reload={reload}
         />
 
-        <DocBadgeSelectCell
+        <BadgeSelectCell
           site={site}
           field="po_status_badge_id"
           entityTypeId={4}
@@ -32,13 +32,13 @@ export default function MaSiteDetailsPage() {
 
         {site.completion_date && (
           <>
-            <DocBadgeSelectCell
+            <BadgeSelectCell
               site={site}
               field="wcc_badge_id"
               entityTypeId={5}
               reload={reload}
             />
-            <DocBadgeSelectCell
+            <BadgeSelectCell
               site={site}
               field="invoice_status_badge_id"
               entityTypeId={3}

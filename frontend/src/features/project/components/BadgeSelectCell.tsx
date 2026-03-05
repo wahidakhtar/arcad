@@ -27,26 +27,26 @@ export default function BadgeSelectCell({
     })
 
     if (type === "status") {
-      api.get("/badge/status", {
+      api.get("/badge/transitions", {
         params: {
+          entity_type_id: 2,
           project_id: site.project_id,
-          project_id: site.project_id,
-          current_status_id: site.status_badge_id,
-        },
+          current_badge_id: site[field],
+        }
       }).then(res => setBadges(res.data))
     }
 
     if (type === "doc" && entityTypeId) {
-      api.get("/badge/doc_state", {
+      api.get("/badge/transitions", {
         params: {
           entity_type_id: entityTypeId,
           project_id: site.project_id,
-          site_id: site.id,
-        },
+          current_badge_id: site[field],
+        }
       }).then(res => setBadges(res.data))
     }
 
-  }, [site])
+  }, [site, field, type, entityTypeId])
 
   const handleUpdate = async (badgeId: number | null) => {
     await api.put(`/mi/site/${site.id}`, {

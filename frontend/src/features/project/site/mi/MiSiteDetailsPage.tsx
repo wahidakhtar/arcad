@@ -1,88 +1,50 @@
 import { useOutletContext } from "react-router-dom"
-import { useState } from "react"
-import { api } from "../../../../lib/api"
+import BadgeCell from "../../../../components/BadgeCell"
 
 export default function MiSiteDetailsPage(){
 
   const { site, reload, permissions, columns } = useOutletContext<any>()
-  const [form,setForm] = useState({...site})
 
-  const handleSave = async () => {
+  const badgeFields = ["status_badge_id","wcc"]
 
-    const payload:any = {}
-
-    for(const k in form){
-      if(permissions?.[k]?.edit){
-        payload[k] = form[k]
-      }
-    }
-
-    await api.put(`/mi/site/${site.id}`,payload)
-
-    reload()
+  const entityMap:any = {
+    status_badge_id: 2,
+    wcc: 5
   }
 
   const renderField = (col:any) => {
 
     const key = col.column_name
+    const value = site[key]
 
     if(key==="id" || key==="project_id" || key==="fe_id") return null
-
     if(!permissions?.[key]?.view) return null
 
-    const label = col.label || key
-
-    const editable = permissions?.[key]?.edit
-
-    const value = form[key] ?? ""
-
-    if(!editable){
-      return (
+    if(badgeFields.includes(key)){
+      return(
         <>
-          <label>{label}</label>
-          <div>{value || "-"}</div>
-        </>
-      )
-    }
+          <label>{col.label || key}</label>
 
-    if(key.includes("date")){
-      return (
-        <>
-          <label>{label}</label>
-          <input
-            type="date"
-            value={value}
-            onChange={e=>setForm({...form,[key]:e.target.value})}
+          <BadgeCell
+            site={site}
+            field={key}
+            entityTypeId={entityMap[key]}
+            reload={reload}
           />
         </>
       )
     }
 
-    if(typeof value === "number"){
-      return (
-        <>
-          <label>{label}</label>
-          <input
-            type="number"
-            value={value}
-            onChange={e=>setForm({...form,[key]:e.target.value})}
-          />
-        </>
-      )
-    }
-
-    return (
+    return(
       <>
-        <label>{label}</label>
-        <input
-          value={value}
-          onChange={e=>setForm({...form,[key]:e.target.value})}
-        />
+        <label>{col.label || key}</label>
+        <div>{value || "-"}</div>
       </>
     )
   }
 
   return(
+
     <div style={{maxWidth:1100}}>
 
       <div
@@ -93,20 +55,12 @@ export default function MiSiteDetailsPage(){
           marginTop:30
         }}
       >
-
         {columns?.map((c:any)=>(
           <div key={c.column_name} style={{display:"contents"}}>
             {renderField(c)}
           </div>
         ))}
-
       </div>
-
-      <br/>
-
-      <button onClick={handleSave}>
-        Save
-      </button>
 
     </div>
   )
