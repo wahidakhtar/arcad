@@ -19,7 +19,7 @@ router = APIRouter(
 
 
 class MiCreate(BaseModel):
-    project_id: int
+    project_code: str
     ckt_id: str
     customer: str
     receiving_date: date
@@ -47,7 +47,7 @@ def get_site_fields(db: Session = Depends(get_db)):
 
 @router.get("/{project_id}")
 def get_sites(
-    project_id: int,
+    project_code: str,
     role=Depends(get_role),
     db: Session = Depends(get_db),
 ):
@@ -85,10 +85,29 @@ def create_site(
     role=Depends(get_role),
     db: Session = Depends(get_db),
 ):
-    policy = resolve_policy_for_project(role, payload.project_id, db)
+
+    project = db.execute(
+        text("""
+        SELECT id
+        FROM schema_core.project
+        WHERE code = :code
+        """),
+        {"code": payload.project_code}
+    ).fetchone()
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Invalid project code")
+
+    project_id = project.id
+
+    policy = resolve_policy_for_project(role, project_id, db)
     require(policy.can_create_site())
 
-    return create_site_command(payload, db)
+    payload_dict = payload.dict()
+    payload_dict["project_id"] = project_id
+
+    return create_site_command(type("Obj", (), payload_dict), db)
+
 
 
 @router.put("/site/{site_id}")

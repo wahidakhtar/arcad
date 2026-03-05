@@ -1,6 +1,7 @@
 class RoleSet:
     def __init__(
         self,
+        role_id: int,
         project_id: int,
         project_code: str,
         department_id: int,
@@ -8,6 +9,7 @@ class RoleSet:
         level_id: int,
         level_code: str,
     ):
+        self.role_id = role_id
         self.project_id = project_id
         self.project_code = project_code
         self.department_id = department_id

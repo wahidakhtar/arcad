@@ -3,7 +3,7 @@ from fastapi import HTTPException
 
 from app.models.project import Project
 from app.authz.guard import require
-from app.authz.policies.mi_policy import MiPolicy
+from app.authz.policies.project_policy import ProjectPolicy
 
 
 def resolve_policy_for_project(role, project_id: int, db: Session):
@@ -16,6 +16,6 @@ def resolve_policy_for_project(role, project_id: int, db: Session):
 
     # All mast-type projects use the same policy
     if project.code in ["mi","md","ma","mc","bb"]:
-        return MiPolicy(role_set, project_id, db)
+        return ProjectPolicy(role_set, project_id, db)
 
     raise HTTPException(status_code=403, detail="No policy for this project")

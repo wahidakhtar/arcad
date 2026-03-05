@@ -1,5 +1,5 @@
-import { useParams } from "react-router-dom"
-import { useOutletContext } from "react-router-dom"
+import { useParams, useOutletContext } from "react-router-dom"
+import { useEffect } from "react"
 import { useMiSites } from "./hooks/useMiSites"
 import SiteTable from "./SiteTable"
 import AddSiteModal from "./AddSiteModal"
@@ -15,9 +15,14 @@ const PROJECT_LABELS: Record<string, string> = {
 export default function ProjectPage() {
 
   const { projectCode } = useParams()
-  const { showModal, setShowModal } = useOutletContext<any>()
+  const { showModal, setShowModal, setCanAddSite } = useOutletContext<any>()
 
-  const { siteList, fieldPermissions, columns, reload } = useMiSites(projectCode)
+  const { siteList, fieldPermissions, columns, canAddSite, reload } =
+    useMiSites(projectCode)
+
+  useEffect(() => {
+    setCanAddSite(canAddSite)
+  }, [canAddSite])
 
   if (!projectCode) return null
 

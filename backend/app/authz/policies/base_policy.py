@@ -9,8 +9,12 @@ class BaseProjectPolicy:
     def can_edit_site(self):
         return False
 
-    def can_create_site(self):
+    def can_add_site(self):
         return False
+
+    # backward compatibility
+    def can_create_site(self):
+        return self.can_add_site()
 
     def can_view_finance(self):
         return False

@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom"
 
 interface ProjectListProps {
   projects: string[]
-  onActivePlusClick: () => void
+  onActivePlusClick?: () => void
 }
 
 const PROJECT_LABELS: Record<string, string> = {
@@ -10,18 +10,20 @@ const PROJECT_LABELS: Record<string, string> = {
   md: "Mast Dismantle",
   ma: "Mast Audit",
   mc: "Mast CM",
-  bb: "BB",
+  bb: "Broadband",
 }
 
 export default function ProjectList({
   projects,
   onActivePlusClick,
 }: ProjectListProps) {
+
   const location = useLocation()
 
   return (
     <>
       {projects.map((projectCode) => {
+
         const isActive = location.pathname.startsWith("/" + projectCode)
 
         return (
@@ -41,7 +43,7 @@ export default function ProjectList({
               {PROJECT_LABELS[projectCode] || projectCode}
             </Link>
 
-            {isActive && (
+            {isActive && onActivePlusClick && (
               <button
                 style={{
                   background: "white",
@@ -55,6 +57,7 @@ export default function ProjectList({
                 +
               </button>
             )}
+
           </div>
         )
       })}

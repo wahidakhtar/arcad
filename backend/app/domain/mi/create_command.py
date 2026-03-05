@@ -22,8 +22,6 @@ def create_site_command(payload, db: Session):
         lc=payload.lc,
 
         status_badge_id=perm_wait_id,
-        po_status_badge_id=pending_doc_id,
-        invoice_status_badge_id=None,
         wcc=None,
 
         permission_date=None,
@@ -34,13 +32,8 @@ def create_site_command(payload, db: Session):
         db.add(new_site)
         db.commit()
         db.refresh(new_site)
-    except IntegrityError:
+    except IntegrityError as e:
         db.rollback()
-        raise ValueError({
-            "message": "Duplicate CKT ID in this project",
-            "existing_site": {
-                "ckt_id": normalized_ckt
-            }
-        })
+        raise ValueError(str(e))
 
     return new_site

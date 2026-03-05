@@ -54,5 +54,6 @@ def get_sites(
     return {
         "data": policy.filter_site_response(rows),
         "field_permissions": policy.permissions,
-        "columns": columns
+        "can_add_site": policy.can_add_site(),
+        "columns": columns,
     }

@@ -2,7 +2,7 @@ from sqlalchemy import text
 from app.authz.policies.base_policy import BaseProjectPolicy
 
 
-class MiPolicy(BaseProjectPolicy):
+class ProjectPolicy(BaseProjectPolicy):
 
     def __init__(self, role, project_id, db):
         self.role = role
@@ -12,17 +12,29 @@ class MiPolicy(BaseProjectPolicy):
 
     def _load_permissions(self):
 
-        rows = self.db.execute(
+        project = self.db.execute(
             text("""
-                SELECT column_name, can_view, can_edit
-                FROM schema_mi.role_field_permissions
-                WHERE dept_badge_id = :dept
-                AND level_badge_id = :level
+                SELECT site_schema
+                FROM schema_core.project
+                WHERE id = :project_id
             """),
-            {
-                "dept": self.role.department_id,
-                "level": self.role.level_id,
-            },
+            {"project_id": self.project_id},
+        ).fetchone()
+
+        schema = project.site_schema
+
+        rows = self.db.execute(
+            text(f"""
+                SELECT
+                    rfp.column_name,
+                    ps.can_view,
+                    ps.can_edit
+                FROM {schema}.role_field_permissions rfp
+                JOIN schema_core.permission_state ps
+                  ON ps.id = rfp.permission_state_id
+                WHERE rfp.role_id = :role_id
+            """),
+            {"role_id": self.role.role_id},
         ).fetchall()
 
         return {
@@ -39,8 +51,22 @@ class MiPolicy(BaseProjectPolicy):
     def can_edit_site(self):
         return any(p["edit"] for p in self.permissions.values())
 
+    def can_add_site(self):
+        row = self.db.execute(
+            text("""
+                SELECT 1
+                FROM schema_core.operation_permission
+                WHERE role_id = :role_id
+                AND op_key = 'add_site'
+            """),
+            {"role_id": self.role.role_id},
+        ).fetchone()
+
+        return row is not None
+
+    # backward compatibility
     def can_create_site(self):
-        return False
+        return self.can_add_site()
 
     def filter_site_response(self, data):
 

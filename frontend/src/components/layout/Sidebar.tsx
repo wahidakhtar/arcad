@@ -3,11 +3,12 @@ import { Link } from "react-router-dom"
 import ProjectList from "./ProjectList"
 
 interface SidebarProps {
-  projects: any[]
-  onActivePlusClick: () => void
+  projects: string[]
+  onActivePlusClick?: () => void
+  canAddSite?: boolean
 }
 
-export default function Sidebar({ projects, onActivePlusClick }: SidebarProps) {
+export default function Sidebar({ projects, onActivePlusClick, canAddSite }: SidebarProps) {
   const [open, setOpen] = useState(true)
 
   return (
@@ -45,7 +46,7 @@ export default function Sidebar({ projects, onActivePlusClick }: SidebarProps) {
             <div style={{ marginTop: 10 }}>
               <ProjectList
                 projects={projects}
-                onActivePlusClick={onActivePlusClick}
+                onActivePlusClick={canAddSite ? onActivePlusClick : undefined}
               />
             </div>
           )}

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { getProjectForm } from "./forms/formRegistry"
 import { createMiSite } from "./services/miClient"
 
 export default function AddSiteModal({
@@ -10,21 +11,21 @@ export default function AddSiteModal({
   onClose: () => void
   onCreated: () => void
 }) {
-  const [form, setForm] = useState({
-    ckt_id: "",
-    customer: "",
-    receiving_date: "",
-    height_m: "",
-    city: "",
-    lc: "",
-  })
+
+  const fields = getProjectForm(project_id)
+  const [form, setForm] = useState<any>({})
 
   const handleSubmit = async () => {
-    const result = await createMiSite({
-      project_id: Number(project_id),
-      ...form,
-      height_m: Number(form.height_m),
-    })
+
+    const payload:any = {
+      project_code: project_id,
+      ...form
+    }
+
+    if (payload.height_m)
+      payload.height_m = Number(payload.height_m)
+
+    const result = await createMiSite(payload)
 
     if (result.success) {
       onCreated()
@@ -32,32 +33,49 @@ export default function AddSiteModal({
       return
     }
 
-    if (result.duplicate) {
-      const s = result.existing_site
-      alert(
-        `Duplicate CKT ID Detected\n\n` +
-        `CKT: ${s.ckt_id}\n` +
-        `Customer: ${s.customer}\n` +
-        `City: ${s.city}\n` +
-        `Receiving Date: ${s.receiving_date}`
-      )
-      return
-    }
-
-    alert(result.error)
+    alert(JSON.stringify(result.error))
   }
 
   return (
-    <div style={{ position: "fixed", top: 100, left: 300, background: "white", padding: 20, border: "1px solid black" }}>
+    <div style={{
+      position:"fixed",
+      top:100,
+      left:300,
+      background:"white",
+      padding:20,
+      border:"1px solid black"
+    }}>
+
       <h3>Add Site</h3>
-      <input placeholder="CKT ID" onChange={e => setForm({...form, ckt_id: e.target.value})} />
-      <input placeholder="Customer" onChange={e => setForm({...form, customer: e.target.value})} />
-      <input type="date" onChange={e => setForm({...form, receiving_date: e.target.value})} />
-      <input placeholder="Height" onChange={e => setForm({...form, height_m: e.target.value})} />
-      <input placeholder="City" onChange={e => setForm({...form, city: e.target.value})} />
-      <input placeholder="LC" onChange={e => setForm({...form, lc: e.target.value})} />
+
+      {fields.map((f:any)=>{
+
+        if(f.type==="date"){
+          return(
+            <input
+              key={f.name}
+              type="date"
+              placeholder={f.label}
+              onChange={(e)=>setForm({...form,[f.name]:e.target.value})}
+            />
+          )
+        }
+
+        return(
+          <input
+            key={f.name}
+            placeholder={f.label}
+            onChange={(e)=>setForm({...form,[f.name]:e.target.value})}
+          />
+        )
+
+      })}
+
+      <br/>
+
       <button onClick={handleSubmit}>Save</button>
       <button onClick={onClose}>Cancel</button>
+
     </div>
   )
 }
