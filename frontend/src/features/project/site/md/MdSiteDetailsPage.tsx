@@ -1,61 +1,65 @@
-import { useEffect, useState } from "react"
-import { api } from "../../../../lib/api"
-import BadgeSelectCell from "../../components/BadgeSelectCell"
+import { useOutletContext } from "react-router-dom"
+import BadgeCell from "../../../../components/BadgeCell"
 
-export default function MdSiteDetailsPage() {
-  const [site,setSite] = useState<any>(null)
+export default function MdSiteDetailsPage(){
 
-  const reload = ()=>{
-    api.get("/site/current").then(res=>{
-      setSite(res.data)
-    })
+  const { site, reload, permissions, columns } = useOutletContext<any>()
+
+  const badgeFields = ["status_badge_id","wcc"]
+
+  const entityMap:any = {
+    status_badge_id: 2,
+    wcc: 5
   }
 
-  useEffect(()=>{
-    reload()
-  },[])
+  const renderField = (col:any) => {
 
-  if(!site){
-    return "Loading..."
+    const key = col.column_name
+    const value = site[key]
+
+    if(key==="id" || key==="project_id" || key==="fe_id") return null
+    if(!permissions?.[key]?.view) return null
+
+    if(badgeFields.includes(key)){
+      return(
+        <>
+          <label>{col.label || key}</label>
+
+          <BadgeCell
+            site={site}
+            field={key}
+            entityTypeId={entityMap[key]}
+            reload={reload}
+          />
+        </>
+      )
+    }
+
+    return(
+      <>
+        <label>{col.label || key}</label>
+        <div>{value || "-"}</div>
+      </>
+    )
   }
 
-  return (
-    <div style={{ maxWidth: 1100 }}>
+  return(
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+    <div style={{maxWidth:1100}}>
 
-        <BadgeSelectCell
-          site={site}
-          field="status_badge_id"
-          entityTypeId={2}
-          reload={reload}
-        />
-
-        <BadgeSelectCell
-          site={site}
-          field="po_status_badge_id"
-          entityTypeId={4}
-          reload={reload}
-        />
-
-        {site.completion_date && (
-          <>
-            <BadgeSelectCell
-              site={site}
-              field="wcc_badge_id"
-              entityTypeId={5}
-              reload={reload}
-            />
-
-            <BadgeSelectCell
-              site={site}
-              field="billing_status_badge_id"
-              entityTypeId={6}
-              reload={reload}
-            />
-          </>
-        )}
-
+      <div
+        style={{
+          display:"grid",
+          gridTemplateColumns:"200px 1fr",
+          gap:"10px",
+          marginTop:30
+        }}
+      >
+        {columns?.map((c:any)=>(
+          <div key={c.column_name} style={{display:"contents"}}>
+            {renderField(c)}
+          </div>
+        ))}
       </div>
 
     </div>

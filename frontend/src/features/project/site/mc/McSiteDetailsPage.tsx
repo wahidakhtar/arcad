@@ -1,57 +1,65 @@
 import { useOutletContext } from "react-router-dom"
-import { useState } from "react"
-import { api } from "../../../../lib/api"
-import BadgeSelectCell from "../../components/BadgeSelectCell"
+import BadgeCell from "../../../../components/BadgeCell"
 
-export default function McSiteDetailsPage() {
-  const { site, reload } = useOutletContext<any>()
-  const [form, setForm] = useState({ ...site })
+export default function McSiteDetailsPage(){
 
-  const handleSave = async () => {
-    await api.put(`/site/${site.id}`, form)
-    reload()
+  const { site, reload, permissions, columns } = useOutletContext<any>()
+
+  const badgeFields = ["status_badge_id","wcc"]
+
+  const entityMap:any = {
+    status_badge_id: 2,
+    wcc: 5
   }
 
-  return (
-    <div style={{ maxWidth: 1100 }}>
+  const renderField = (col:any) => {
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+    const key = col.column_name
+    const value = site[key]
 
-        <BadgeSelectCell
-          site={site}
-          field="status_badge_id"
-          type="status"
-          reload={reload}
-        />
+    if(key==="id" || key==="project_id" || key==="fe_id") return null
+    if(!permissions?.[key]?.view) return null
 
-        <BadgeSelectCell
-          site={site}
-          field="po_status_badge_id"
-          type="doc"
-          entityTypeId={4}
-          reload={reload}
-        />
+    if(badgeFields.includes(key)){
+      return(
+        <>
+          <label>{col.label || key}</label>
 
-        {site.completion_date && (
-          <>
-            <BadgeSelectCell
-              site={site}
-              field="wcc_badge_id"
-              type="doc"
-              entityTypeId={5}
-              reload={reload}
-            />
+          <BadgeCell
+            site={site}
+            field={key}
+            entityTypeId={entityMap[key]}
+            reload={reload}
+          />
+        </>
+      )
+    }
 
-            <BadgeSelectCell
-              site={site}
-              field="billing_status_badge_id"
-              type="doc"
-              entityTypeId={6}
-              reload={reload}
-            />
-          </>
-        )}
+    return(
+      <>
+        <label>{col.label || key}</label>
+        <div>{value || "-"}</div>
+      </>
+    )
+  }
 
+  return(
+
+    <div style={{maxWidth:1100}}>
+
+      <div
+        style={{
+          display:"grid",
+          gridTemplateColumns:"200px 1fr",
+          gap:"10px",
+          marginTop:30
+        }}
+      >
+        {columns?.map((c:any)=>(
+          <div key={c.column_name} style={{display:"contents"}}>
+            {renderField(c)}
+          </div>
+        ))}
       </div>
 
     </div>

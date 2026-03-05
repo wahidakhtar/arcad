@@ -1,13 +1,22 @@
 import { useOutletContext } from "react-router-dom"
 import { useState } from "react"
 import { api } from "../../../../lib/api"
+import BadgeCell from "../../../../components/BadgeCell"
 
-export default function MiSiteDetailsPage(){
+export default function BbSiteDetailsPage(){
 
-  const { site, reload, permissions, columns } = useOutletContext<any>()
+  const { site, reload, permissions, columns, projectCode } = useOutletContext<any>()
+
   const [form,setForm] = useState({...site})
   const [saving,setSaving] = useState(false)
   const [saved,setSaved] = useState(false)
+
+  const badgeFields = ["status_badge_id","wcc"]
+
+  const entityMap:any = {
+    status_badge_id: 2,
+    wcc: 5
+  }
 
   const handleSave = async () => {
 
@@ -22,7 +31,7 @@ export default function MiSiteDetailsPage(){
       }
     }
 
-    await api.put(`/mi/site/${site.id}`,payload)
+    await api.put(`/site/${site.id}`,payload)
 
     setSaving(false)
     setSaved(true)
@@ -42,6 +51,21 @@ export default function MiSiteDetailsPage(){
     const label = col.label || key
     const editable = permissions?.[key]?.edit
     const value = form[key] ?? ""
+
+    if(badgeFields.includes(key)){
+      return(
+        <>
+          <label>{label}</label>
+
+          <BadgeCell
+            site={site}
+            field={key}
+            entityTypeId={entityMap[key]}
+            reload={reload}
+          />
+        </>
+      )
+    }
 
     if(!editable){
       return (
