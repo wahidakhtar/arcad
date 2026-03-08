@@ -6,7 +6,6 @@ import os
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.project import router as project_router
-from app.api.routes.mi import router as mi_router
 from app.api.routes.badge import router as badge_router
 from app.api.routes.fe import router as fe_router
 from app.api.routes.finance import router as finance_router
@@ -46,7 +45,6 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(project_router)
-app.include_router(mi_router)
 app.include_router(project_sites_router)
 app.include_router(badge_router)
 app.include_router(fe_router)

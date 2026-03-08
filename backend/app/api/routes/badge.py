@@ -32,7 +32,6 @@ def badge_map(db: Session = Depends(get_db)):
 @router.get("/transitions")
 def badge_transitions(
     entity_type_id: int = Query(...),
-    project_id: int = Query(...),
     current_badge_id: int = Query(...),
     db: Session = Depends(get_db),
 ):
@@ -43,12 +42,10 @@ def badge_transitions(
         FROM schema_core.badge_transition bt
         JOIN schema_core.badge b ON b.id = bt.to_badge_id
         WHERE bt.entity_type_id = :entity_type_id
-        AND bt.project_id = :project_id
         AND bt.from_badge_id = :current_badge_id
         """),
         {
             "entity_type_id": entity_type_id,
-            "project_id": project_id,
             "current_badge_id": current_badge_id,
         },
     ).fetchall()
