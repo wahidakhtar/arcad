@@ -20,7 +20,7 @@ export default function SiteLayout(){
 
     try{
 
-      const siteRes = await api.get(`/site/${siteId}`)
+      const siteRes = await api.get(`/project/${projectCode}/site/${siteId}`)
       const tableRes = await api.get(`/project/${projectCode}/sites`)
 
       const siteData = siteRes.data?.data ?? siteRes.data
@@ -62,16 +62,30 @@ export default function SiteLayout(){
   }
 
   return (
-    <Outlet
-      context={{
-        site,
-        reload: load,
-        permissions,
-        columns,
-        badgeMap,
-        transitions,
-        projectCode
-      }}
-    />
+    <div>
+
+      <div style={{display:"flex",gap:20,padding:10,borderBottom:"1px solid #ccc"}}>
+        <button onClick={()=>navigate(`/${projectCode}/site/${siteId}/details`)}>
+          Details
+        </button>
+
+        <button onClick={()=>navigate(`/${projectCode}/site/${siteId}/fe`)}>
+          FE + Finance
+        </button>
+      </div>
+
+      <Outlet
+        context={{
+          site,
+          reload: load,
+          permissions,
+          columns,
+          badgeMap,
+          transitions,
+          projectCode
+        }}
+      />
+
+    </div>
   )
 }

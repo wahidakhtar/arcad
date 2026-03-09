@@ -7,11 +7,6 @@ export default function MaSiteDetailsPage(){
 
   const badgeFields = ["status_badge_id","wcc"]
 
-  const entityMap:any = {
-    status_badge_id: 2,
-    wcc: 5
-  }
-
   const renderField = (col:any) => {
 
     const key = col.column_name
@@ -28,7 +23,6 @@ export default function MaSiteDetailsPage(){
           <BadgeCell
             site={site}
             field={key}
-            entityTypeId={entityMap[key]}
             reload={reload}
           />
         </>

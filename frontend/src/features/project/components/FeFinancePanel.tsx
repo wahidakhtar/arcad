@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react"
 import { api } from "../../../lib/api"
 
-export default function FeFinancePanel({ site, onUpdated }: any) {
+export default function FeFinancePanel({ site, projectCode, onUpdated }: any) {
+
   const [feList, setFeList] = useState<any[]>([])
   const [feHistory, setFeHistory] = useState<any[]>([])
   const [financeHistory, setFinanceHistory] = useState<any[]>([])
@@ -12,54 +13,76 @@ export default function FeFinancePanel({ site, onUpdated }: any) {
   const [requestData, setRequestData] = useState<Record<number, any>>({})
 
   const load = async () => {
-    const feRes = await api.get(`/fe/list/${site.project_id}`)
-    const histRes = await api.get(`/fe/history/${site.project_id}/${site.id}`)
-    const finRes = await api.get(`/finance/site/${site.project_id}/${site.id}`)
 
-    setFeList(feRes.data)
-    setFeHistory(histRes.data)
-    setFinanceHistory(finRes.data.transactions || [])
-    setSummary(finRes.data.summary || null)
+    try {
+      const res = await api.get(`/fe/list/${projectCode}`)
+      setFeList(res.data || [])
+    } catch (err) {
+      console.error("FE list load failed", err)
+    }
+
+    try {
+      const res = await api.get(`/fe/history/${projectCode}/${site.id}`)
+      setFeHistory(res.data || [])
+    } catch (err) {
+      console.error("FE history load failed", err)
+    }
+
+    try {
+      const res = await api.get(`/finance/site/${projectCode}/${site.id}`)
+      setFinanceHistory(res.data?.transactions || [])
+      setSummary(res.data?.summary || null)
+    } catch (err: any) {
+      if (err?.response?.status === 403) {
+        console.warn("Finance access denied")
+      } else {
+        console.error("Finance load failed", err)
+      }
+    }
   }
 
-  useEffect(() => { load() }, [site])
+  useEffect(() => {
+    if (!site || !projectCode) return
+    load()
+  }, [site, projectCode])
 
   const assign = async () => {
+
     if (!selectedFe) return
-    await api.post("/fe/assign", {
-      project_id: site.project_id,
-      site_id: site.id,
+
+    await api.post(`/fe/assign/${projectCode}/${site.id}`, {
       fe_id: selectedFe
     })
+
     await load()
-    onUpdated()
+    onUpdated?.()
   }
 
   const close = async (row: any) => {
-    const cost = closeCost[row.id]
-    if (!cost && cost !== 0) return
 
-    await api.post("/fe/remove", {
-      project_id: site.project_id,
-      site_id: site.id,
+    const cost = closeCost[row.id]
+    if (cost === undefined) return
+
+    await api.post(`/fe/remove/${projectCode}/${site.id}`, {
       final_fe_cost: Number(cost)
     })
 
     await load()
-    onUpdated()
+    onUpdated?.()
   }
 
   const request = async (row: any) => {
+
     const data = requestData[row.fe_id]
     if (!data?.amount || !data?.type) return
 
     await api.post("/finance/request", {
-      project_id: site.project_id,
+      project_code: projectCode,
       site_id: site.id,
       fe_id: row.fe_id,
-      amount: data.amount,
+      amount: Number(data.amount),
       type: data.type,
-      approval: data.approval || false
+      approval: Boolean(data.approval)
     })
 
     await load()
@@ -69,6 +92,7 @@ export default function FeFinancePanel({ site, onUpdated }: any) {
     <div style={{ marginTop: 30 }}>
 
       <h4>Site Financial Summary</h4>
+
       {summary && (
         <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
           <div><strong>Base Budget:</strong> {summary.base_budget}</div>
@@ -82,12 +106,18 @@ export default function FeFinancePanel({ site, onUpdated }: any) {
       <h4>FE Management</h4>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-        <select value={selectedFe || ""} onChange={e => setSelectedFe(Number(e.target.value))}>
+        <select
+          value={selectedFe ?? ""}
+          onChange={e => setSelectedFe(Number(e.target.value))}
+        >
           <option value="">Assign FE</option>
           {feList.map((f: any) => (
-            <option key={f.id} value={f.id}>{f.name}</option>
+            <option key={f.id} value={f.id}>
+              {f.name}
+            </option>
           ))}
         </select>
+
         <button onClick={assign}>Assign</button>
       </div>
 
@@ -103,9 +133,11 @@ export default function FeFinancePanel({ site, onUpdated }: any) {
             <th>Request</th>
           </tr>
         </thead>
+
         <tbody>
           {feHistory.map((row: any) => (
             <tr key={row.id}>
+
               <td>{row.fe_name}</td>
               <td>{row.final_fe_cost}</td>
               <td>{row.paid}</td>
@@ -118,12 +150,18 @@ export default function FeFinancePanel({ site, onUpdated }: any) {
                     <input
                       type="number"
                       placeholder="Final cost"
-                      onChange={e =>
-                        setCloseCost({ ...closeCost, [row.id]: Number(e.target.value) })
-                      }
                       style={{ width: 100 }}
+                      onChange={e =>
+                        setCloseCost(prev => ({
+                          ...prev,
+                          [row.id]: Number(e.target.value)
+                        }))
+                      }
                     />
-                    <button onClick={() => close(row)}>Close</button>
+
+                    <button onClick={() => close(row)}>
+                      Close
+                    </button>
                   </>
                 )}
               </td>
@@ -134,26 +172,27 @@ export default function FeFinancePanel({ site, onUpdated }: any) {
                     <input
                       type="number"
                       placeholder="Amount"
+                      style={{ width: 80 }}
                       onChange={e =>
-                        setRequestData({
-                          ...requestData,
+                        setRequestData(prev => ({
+                          ...prev,
                           [row.fe_id]: {
-                            ...requestData[row.fe_id],
+                            ...prev[row.fe_id],
                             amount: Number(e.target.value)
                           }
-                        })
+                        }))
                       }
-                      style={{ width: 80 }}
                     />
+
                     <select
                       onChange={e =>
-                        setRequestData({
-                          ...requestData,
+                        setRequestData(prev => ({
+                          ...prev,
                           [row.fe_id]: {
-                            ...requestData[row.fe_id],
+                            ...prev[row.fe_id],
                             type: e.target.value
                           }
-                        })
+                        }))
                       }
                     >
                       <option value="">Type</option>
@@ -161,31 +200,39 @@ export default function FeFinancePanel({ site, onUpdated }: any) {
                       <option value="surcharge">Surcharge</option>
                       <option value="refund">Refund</option>
                     </select>
+
                     <label>
                       <input
                         type="checkbox"
                         onChange={e =>
-                          setRequestData({
-                            ...requestData,
+                          setRequestData(prev => ({
+                            ...prev,
                             [row.fe_id]: {
-                              ...requestData[row.fe_id],
+                              ...prev[row.fe_id],
                               approval: e.target.checked
                             }
-                          })
+                          }))
                         }
                       />
                       Approve
                     </label>
-                    <button onClick={() => request(row)}>Request</button>
+
+                    <button onClick={() => request(row)}>
+                      Request
+                    </button>
                   </>
                 )}
               </td>
+
             </tr>
           ))}
         </tbody>
       </table>
 
-      <h4 style={{ marginTop: 30 }}>Finance Requests</h4>
+      <h4 style={{ marginTop: 30 }}>
+        Finance Requests
+      </h4>
+
       <table border={1} cellPadding={6}>
         <thead>
           <tr>
@@ -196,12 +243,15 @@ export default function FeFinancePanel({ site, onUpdated }: any) {
             <th>Approval</th>
           </tr>
         </thead>
+
         <tbody>
           {financeHistory.map((f: any) => (
             <tr key={f.id}>
+
               <td>{f.fe_name}</td>
               <td>{f.amount}</td>
               <td>{f.type}</td>
+
               <td>
                 <select
                   value={f.state}
@@ -217,7 +267,9 @@ export default function FeFinancePanel({ site, onUpdated }: any) {
                   <option value="executed">Executed</option>
                 </select>
               </td>
+
               <td>{f.approval ? "Yes" : "No"}</td>
+
             </tr>
           ))}
         </tbody>

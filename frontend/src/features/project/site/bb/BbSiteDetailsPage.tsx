@@ -13,11 +13,6 @@ export default function BbSiteDetailsPage(){
 
   const badgeFields = ["status_badge_id","wcc"]
 
-  const entityMap:any = {
-    status_badge_id: 2,
-    wcc: 5
-  }
-
   const handleSave = async () => {
 
     setSaving(true)
@@ -60,7 +55,6 @@ export default function BbSiteDetailsPage(){
           <BadgeCell
             site={site}
             field={key}
-            entityTypeId={entityMap[key]}
             reload={reload}
           />
         </>
