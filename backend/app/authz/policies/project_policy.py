@@ -8,15 +8,19 @@ class ProjectPolicy(BaseProjectPolicy):
         self.role = role
         self.project_id = project_id
         self.db = db
+
+        self.schema = self._resolve_schema()
+
+        self.base_fields = self._load_base_fields()
         self.permissions = self._load_permissions()
 
     # --------------------------------------------------
-    # FIELD PERMISSIONS
+    # PROJECT RESOLUTION
     # --------------------------------------------------
 
-    def _load_permissions(self):
+    def _resolve_schema(self):
 
-        project = self.db.execute(
+        row = self.db.execute(
             text("""
                 SELECT site_schema
                 FROM schema_core.project
@@ -25,10 +29,34 @@ class ProjectPolicy(BaseProjectPolicy):
             {"project_id": self.project_id},
         ).fetchone()
 
-        if not project:
-            return {}
+        return row.site_schema if row else None
 
-        schema = project.site_schema
+    # --------------------------------------------------
+    # BASE FIELDS
+    # --------------------------------------------------
+
+    def _load_base_fields(self):
+
+        if not self.schema:
+            return set()
+
+        rows = self.db.execute(
+            text(f"""
+                SELECT column_name
+                FROM {self.schema}.project_base_fields
+            """)
+        ).fetchall()
+
+        return {r.column_name for r in rows}
+
+    # --------------------------------------------------
+    # FIELD PERMISSIONS
+    # --------------------------------------------------
+
+    def _load_permissions(self):
+
+        if not self.schema:
+            return {}
 
         rows = self.db.execute(
             text(f"""
@@ -36,7 +64,7 @@ class ProjectPolicy(BaseProjectPolicy):
                     rfp.column_name,
                     ps.can_view,
                     ps.can_edit
-                FROM {schema}.role_field_permissions rfp
+                FROM {self.schema}.role_field_permissions rfp
                 JOIN schema_core.permission_state ps
                   ON ps.id = rfp.permission_state_id
                 WHERE rfp.role_id = :role_id
@@ -44,13 +72,20 @@ class ProjectPolicy(BaseProjectPolicy):
             {"role_id": self.role.role_id},
         ).fetchall()
 
-        return {
+        permissions = {
             r.column_name: {
                 "view": r.can_view,
                 "edit": r.can_edit,
             }
             for r in rows
         }
+
+        # ensure base fields always have view permission
+        for field in self.base_fields:
+            if field not in permissions:
+                permissions[field] = {"view": True, "edit": False}
+
+        return permissions
 
     # --------------------------------------------------
     # SITE PERMISSIONS
@@ -68,25 +103,11 @@ class ProjectPolicy(BaseProjectPolicy):
 
     def _has_operation(self, op_key: str):
 
-        row = self.db.execute(
-            text("""
-                SELECT 1
-                FROM schema_core.operation_permission
-                WHERE role_id = :role_id
-                AND op_key = :op_key
-            """),
-            {
-                "role_id": self.role.role_id,
-                "op_key": op_key
-            },
-        ).fetchone()
-
-        return row is not None
+        return op_key in getattr(self.role, "permissions", set())
 
     def can_add_site(self):
         return self._has_operation("add_site")
 
-    # backward compatibility
     def can_create_site(self):
         return self.can_add_site()
 

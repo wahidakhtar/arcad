@@ -2,25 +2,30 @@ import { Link } from "react-router-dom"
 import BadgeCell from "../../components/BadgeCell"
 
 export default function CellRenderer({
-  site,
+  row,
   field,
   isBadge,
   refresh,
+  entity,
   projectCode,
   permissions
 }: any){
 
   const key = field.column_name
-  const value = site[key]
+  const value = row[key]
 
-  if(key === "ckt_id"){
+  // -----------------------------
+  // SITE DETAIL LINK
+  // -----------------------------
+  if(entity === "site" && key === "ckt_id"){
+
     if(value == null) return "-"
 
     const canEdit = permissions?.ckt_id?.edit
 
     if(canEdit){
       return (
-        <Link to={`/${projectCode}/site/${site.id}/details`}>
+        <Link to={`/${projectCode}/site/${row.id}/details`}>
           {value}
         </Link>
       )
@@ -29,6 +34,29 @@ export default function CellRenderer({
     return value
   }
 
+  // -----------------------------
+  // USER DETAIL LINK
+  // -----------------------------
+  if(entity === "user" && key === "name"){
+
+    if(value == null) return "-"
+
+    const canEdit = permissions?.name?.edit ?? true
+
+    if(canEdit){
+      return (
+        <Link to={`/people/${row.id}`}>
+          {value}
+        </Link>
+      )
+    }
+
+    return value
+  }
+
+  // -----------------------------
+  // BADGE CELLS
+  // -----------------------------
   if(isBadge){
 
     const entityMap:any = {
@@ -40,7 +68,7 @@ export default function CellRenderer({
 
     return(
       <BadgeCell
-        site={site}
+        site={row}
         field={key}
         entityTypeId={entityTypeId}
         reload={refresh}

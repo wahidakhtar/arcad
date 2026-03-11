@@ -1,10 +1,11 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, bindparam
 from app.authz.models import UserRole, RoleSet
 
 
-def resolve_user_role(user_id: int, db: Session) -> UserRole:
-    rows = db.execute(
+def resolve_user_role(user_id: int, db: Session):
+
+    role_rows = db.execute(
         text("""
             SELECT
                 ura.role_id,
@@ -15,7 +16,7 @@ def resolve_user_role(user_id: int, db: Session) -> UserRole:
                 r.level_badge_id AS level_badge_id,
                 l.badge_key AS level_code
             FROM schema_core.user_role_assignment ura
-            JOIN schema_core.badge p ON p.id = ura.project_badge_id
+            LEFT JOIN schema_core.badge p ON p.id = ura.project_badge_id
             JOIN schema_core.role r ON r.id = ura.role_id
             JOIN schema_core.badge d ON d.id = r.dept_badge_id
             JOIN schema_core.badge l ON l.id = r.level_badge_id
@@ -34,7 +35,33 @@ def resolve_user_role(user_id: int, db: Session) -> UserRole:
             level_id=row.level_badge_id,
             level_code=row.level_code,
         )
-        for row in rows
+        for row in role_rows
     ]
 
-    return UserRole(role_sets)
+    role_ids = [r.role_id for r in role_sets]
+
+    permissions = []
+
+    if role_ids:
+        perm_rows = db.execute(
+            text("""
+                SELECT DISTINCT op_key
+                FROM schema_core.operation_permission
+                WHERE role_id IN :role_ids
+            """).bindparams(
+                bindparam("role_ids", expanding=True)
+            ),
+            {"role_ids": role_ids},
+        ).fetchall()
+
+        permissions = [row.op_key for row in perm_rows]
+
+    user_role = UserRole(role_sets=role_sets)
+    user_role.permissions = set(permissions)
+
+    # useful for fast checks
+    user_role.project_badges = {
+        r.project_id for r in role_sets if r.project_id
+    }
+
+    return user_role, permissions

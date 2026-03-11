@@ -1,33 +1,25 @@
-import { useEffect, useState } from "react"
 import { Navigate } from "react-router-dom"
-import { api } from "../lib/api"
+import { useAuth } from "../context/AuthContext"
 
 export default function ProtectedRoute({
   children,
 }: {
   children: JSX.Element
 }) {
-  const [isValid, setIsValid] = useState<boolean | null>(null)
 
-  useEffect(() => {
-    const token = localStorage.getItem("access_token")
+  const { user, loading } = useAuth()
 
-    if (!token) {
-      setIsValid(false)
-      return
-    }
+  const token = localStorage.getItem("access_token")
 
-    api
-      .get("/auth/me")
-      .then(() => setIsValid(true))
-      .catch(() => {
-        localStorage.removeItem("access_token")
-        setIsValid(false)
-      })
-  }, [])
+  if (!token) {
+    return <Navigate to="/login" replace />
+  }
 
-  if (isValid === null) return null
-  if (!isValid) return <Navigate to="/login" replace />
+  if (loading) return null
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
 
   return children
 }

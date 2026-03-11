@@ -9,7 +9,7 @@ from app.authz.policy_resolver import resolve_policy_for_project
 from app.models.project import Project
 
 router = APIRouter(
-    prefix="/api/v1/project",
+    prefix="/project",
     tags=["project-sites"]
 )
 
@@ -24,21 +24,21 @@ def get_sites(
     project = db.query(Project).filter(Project.code == project_code).first()
     require(project is not None, "Invalid project")
 
-    policy = resolve_policy_for_project(role, project.id, db)
+    policy = resolve_policy_for_project(role, project.badge_id, db)
 
     rows = db.execute(
         text(f"""
-        select *
-        from {project.site_schema}.site
-        order by id
+        SELECT *
+        FROM {project.site_schema}.site
+        ORDER BY id
         """)
     ).mappings().all()
 
     columns = db.execute(
         text("""
         SELECT
-        a.attname AS column_name,
-        col_description(a.attrelid,a.attnum) AS label
+            a.attname AS column_name,
+            col_description(a.attrelid,a.attnum) AS label
         FROM pg_attribute a
         JOIN pg_class c ON a.attrelid=c.oid
         JOIN pg_namespace n ON c.relnamespace=n.oid
@@ -66,17 +66,11 @@ def get_site(
     role=Depends(get_role),
     db: Session = Depends(get_db),
 ):
-    """
-    Return a single site row from the project's site table.
-
-    Response shape matches existing MI endpoint: {"data": <site-row>}
-    Policy/permission checks are applied the same way as the list endpoint.
-    """
 
     project = db.query(Project).filter(Project.code == project_code).first()
     require(project is not None, "Invalid project")
 
-    policy = resolve_policy_for_project(role, project.id, db)
+    policy = resolve_policy_for_project(role, project.badge_id, db)
     require(policy.can_open_detail())
 
     row = db.execute(

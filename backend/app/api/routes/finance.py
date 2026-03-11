@@ -14,7 +14,7 @@ from app.authz.policy_resolver import resolve_policy_for_project
 from app.models.fe import Finance
 
 router = APIRouter(
-    prefix="/api/v1/finance",
+    prefix="/finance",
     tags=["finance"],
     dependencies=[Depends(get_current_user)]
 )

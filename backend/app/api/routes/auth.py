@@ -1,21 +1,25 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
 from app.core.database import get_db
 from app.models.user import User
 from app.core.security import verify_password, create_access_token
 from app.schemas.auth import LoginRequest
 from app.api.dependencies.auth import get_current_user
-
 from app.authz.resolver import resolve_user_role
 
-router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/login")
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
 
-    if not user or not verify_password(payload.password, user.password_hash):
+    user = db.query(User).filter(User.username == payload.username).first()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = create_access_token({"sub": str(user.id)})
@@ -23,14 +27,18 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user_id": user.id,
-        "name": user.name
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "username": user.username
+        }
     }
 
 
 @router.get("/me")
 def get_me(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
-    role = resolve_user_role(current_user.id, db)
+
+    role, permissions = resolve_user_role(current_user.id, db)
 
     roles = [
         {
@@ -44,6 +52,7 @@ def get_me(current_user=Depends(get_current_user), db: Session = Depends(get_db)
     return {
         "id": current_user.id,
         "name": current_user.name,
-        "email": current_user.email,
+        "username": current_user.username,
         "roles": roles,
+        "permissions": permissions
     }

@@ -11,7 +11,7 @@ from app.api.dependencies.auth import get_current_user
 from app.models.fe import FeAssignment, Finance
 
 router = APIRouter(
-    prefix="/api/v1/fe",
+    prefix="/fe",
     tags=["fe"],
     dependencies=[Depends(get_current_user)]
 )

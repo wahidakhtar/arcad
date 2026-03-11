@@ -1,55 +1,37 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { api } from "../../lib/api"
-import { useAuth } from "../../context/AuthContext"
 
-export default function LoginPage() {
+export default function SetupPage() {
 
   const navigate = useNavigate()
-  const { refreshAuth } = useAuth()
 
+  const [name, setName] = useState("")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    const checkSetup = async () => {
-      try {
-        const res = await api.get("/")
-
-        if (res.data.setup_required) {
-          navigate("/setup")
-          return
-        }
-      } catch {}
-
-      setLoading(false)
-    }
-
-    checkSetup()
-  }, [])
-
-  const handleLogin = async (e?: React.FormEvent) => {
+  const handleCreate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
 
     try {
-      const res = await api.post("/auth/login", {
+      setLoading(true)
+
+      await api.post("/setup/create-ceo", {
+        name,
         username,
         password
       })
 
-      localStorage.setItem("access_token", res.data.access_token)
+      navigate("/login")
 
-      await refreshAuth()
-
-      navigate("/")
     } catch {
-      setError("Invalid username or password")
+      setError("Failed to create CEO user")
+    } finally {
+      setLoading(false)
     }
   }
-
-  if (loading) return null
 
   return (
     <div
@@ -62,18 +44,33 @@ export default function LoginPage() {
       }}
     >
       <form
-        onSubmit={handleLogin}
+        onSubmit={handleCreate}
         style={{
           background: "white",
           padding: 40,
           borderRadius: 8,
-          width: 320,
+          width: 340,
           boxShadow: "0 4px 12px rgba(0,0,0,0.2)"
         }}
       >
+
         <h2 style={{ marginBottom: 25, textAlign: "center", color: "#8B1A1A" }}>
-          ARCAD Login
+          ARCAD Initial Setup
         </h2>
+
+        <input
+          type="text"
+          placeholder="CEO Name"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          style={{
+            width: "100%",
+            padding: 10,
+            marginBottom: 12,
+            border: "1px solid #ccc",
+            borderRadius: 4
+          }}
+        />
 
         <input
           type="text"
@@ -110,6 +107,7 @@ export default function LoginPage() {
 
         <button
           type="submit"
+          disabled={loading}
           style={{
             width: "100%",
             marginTop: 18,
@@ -122,8 +120,9 @@ export default function LoginPage() {
             cursor: "pointer"
           }}
         >
-          Login
+          {loading ? "Creating..." : "Create CEO"}
         </button>
+
       </form>
     </div>
   )

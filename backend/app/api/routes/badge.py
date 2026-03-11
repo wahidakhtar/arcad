@@ -7,7 +7,7 @@ from app.api.dependencies.auth import get_current_user
 from app.models.badge import Badge
 
 router = APIRouter(
-    prefix="/api/v1/badge",
+    prefix="/badge",
     tags=["badge"],
     dependencies=[Depends(get_current_user)]
 )

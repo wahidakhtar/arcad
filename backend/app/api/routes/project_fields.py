@@ -5,7 +5,7 @@ from sqlalchemy import text
 from app.core.database import get_db
 from app.models.project import Project
 
-router = APIRouter(prefix="/api/v1/project", tags=["project-fields"])
+router = APIRouter(prefix="/project", tags=["project-fields"])
 
 
 @router.get("/{project_code}/fields")

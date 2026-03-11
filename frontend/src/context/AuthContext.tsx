@@ -7,11 +7,19 @@ interface Role {
   level: string
 }
 
+interface AuthUser {
+  id: number
+  name: string
+  username: string
+}
+
 interface AuthContextType {
-  user: any
+  user: AuthUser | null
   roles: Role[]
+  permissions: string[]
   loading: boolean
   refreshAuth: () => void
+
   getRole: (projectCode: string) => Role | undefined
   canOpenDetail: (projectCode: string) => boolean
   canViewFinance: (projectCode: string) => boolean
@@ -21,15 +29,20 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>(null)
+
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [roles, setRoles] = useState<Role[]>([])
+  const [permissions, setPermissions] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchAuth = () => {
+
     const token = localStorage.getItem("access_token")
+
     if (!token) {
       setUser(null)
       setRoles([])
+      setPermissions([])
       setLoading(false)
       return
     }
@@ -38,12 +51,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     api.get("/auth/me")
       .then((res) => {
-        setUser(res.data)
-        setRoles(res.data.roles || [])
+
+        const data = res.data
+
+        setUser({
+          id: data.id,
+          name: data.name,
+          username: data.username
+        })
+
+        setRoles(data.roles || [])
+        setPermissions(data.permissions || [])
+
       })
       .catch(() => {
         setUser(null)
         setRoles([])
+        setPermissions([])
       })
       .finally(() => setLoading(false))
   }
@@ -56,24 +80,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     roles.find(r => r.project === projectCode)
 
   const canOpenDetail = (projectCode: string) => {
+
     const role = getRole(projectCode)
     if (!role) return false
+
     if (role.department === "mgmt") return true
     if (role.department === "ops") return ["l2", "l3"].includes(role.level)
+
     return false
   }
 
   const canViewFinance = (projectCode: string) => {
+
     const role = getRole(projectCode)
     if (!role) return false
+
     if (["acc", "mgmt"].includes(role.department)) return true
     if (role.department === "ops") return ["l2", "l3"].includes(role.level)
+
     return false
   }
 
   const canCreateSite = (projectCode: string) => {
+
     const role = getRole(projectCode)
     if (!role) return false
+
     return role.department === "ops" && role.level === "l3"
   }
 
@@ -82,12 +114,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         roles,
+        permissions,
         loading,
         refreshAuth: fetchAuth,
         getRole,
         canOpenDetail,
         canViewFinance,
-        canCreateSite,
+        canCreateSite
       }}
     >
       {children}
@@ -96,7 +129,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useAuth() {
+
   const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error("AuthContext not initialized")
+
+  if (!ctx) {
+    throw new Error("AuthContext not initialized")
+  }
+
   return ctx
 }

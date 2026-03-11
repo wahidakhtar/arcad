@@ -2,27 +2,38 @@ import { useParams, useOutletContext } from "react-router-dom"
 import { useEffect } from "react"
 import { useMiSites } from "./hooks/useMiSites"
 import SiteTable from "./SiteTable"
-import AddSiteModal from "./AddSiteModal"
+import AddModal from "../../common/AddModal"
 
 const PROJECT_LABELS: Record<string, string> = {
   mi: "Mast Installation",
   md: "Mast Dismantle",
   ma: "Mast Audit",
   mc: "Mast CM",
-  bb: "BB",
+  bb: "Broadband",
 }
 
 export default function ProjectPage() {
 
   const { projectCode } = useParams()
-  const { showModal, setShowModal, setCanAddSite } = useOutletContext<any>()
 
-  const { siteList, fieldPermissions, columns, canAddSite, reload } =
-    useMiSites(projectCode)
+  const {
+    showModal,
+    modalType,
+    setShowModal,
+    setCanAddSite
+  } = useOutletContext<any>()
+
+  const {
+    siteList,
+    fieldPermissions,
+    columns,
+    canAddSite,
+    reload
+  } = useMiSites(projectCode)
 
   useEffect(() => {
     setCanAddSite(canAddSite)
-  }, [canAddSite])
+  }, [canAddSite, setCanAddSite])
 
   if (!projectCode) return null
 
@@ -31,9 +42,10 @@ export default function ProjectPage() {
 
       <h2>{PROJECT_LABELS[projectCode] || projectCode}</h2>
 
-      {showModal && (
-        <AddSiteModal
-          project_id={projectCode}
+      {showModal && modalType === "site" && (
+        <AddModal
+          entity="site"
+          context={{ project_code: projectCode }}
           onClose={() => setShowModal(false)}
           onCreated={reload}
         />

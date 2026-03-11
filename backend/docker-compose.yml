@@ -2,6 +2,8 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -17,6 +19,8 @@ services:
   api:
     build: .
     restart: unless-stopped
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
@@ -25,10 +29,17 @@ services:
       PORT: ${BACKEND_PORT}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
       SECRET_KEY: ${SECRET_KEY}
+      API_PREFIX: ${API_PREFIX}
     ports:
       - "${BACKEND_HOST_PORT}:${BACKEND_PORT}"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json')"
+        ]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -36,6 +47,8 @@ services:
   backup:
     image: postgres:16-alpine
     restart: unless-stopped
+    env_file:
+      - .env
     depends_on:
       - db
     environment:

@@ -31,11 +31,19 @@ class UserRole:
 
         code = project_code.strip().lower()
 
+        global_role = None
+
         for rs in self.role_sets:
+
+            # project-specific role
             if rs.project_code == code:
                 return rs
 
-        return None
+            # remember global role (project_code = "")
+            if rs.project_code == "":
+                global_role = rs
+
+        return global_role
 
     def all_projects(self):
         return [r.project_code for r in self.role_sets]

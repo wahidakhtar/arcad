@@ -35,8 +35,9 @@ export default function SiteTable({ siteList, reload, fieldPermissions, columns 
             {fields.map((f:any)=>(
               <td key={f.column_name}>
                 <CellRenderer
-                  site={site}
+                  row={site}
                   field={f}
+                  entity="site"
                   isBadge={badgeFields.includes(f.column_name)}
                   refresh={reload}
                   projectCode={projectCode}

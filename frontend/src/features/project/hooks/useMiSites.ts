@@ -3,34 +3,49 @@ import { api } from "../../../lib/api"
 
 export function useMiSites(projectCode: string | undefined) {
 
-  const [siteList,setSiteList] = useState<any[]>([])
-  const [fieldPermissions,setFieldPermissions] = useState<any>({})
-  const [columns,setColumns] = useState<any[]>([])
-  const [canAddSite,setCanAddSite] = useState(false)
+  const [siteList, setSiteList] = useState<any[]>([])
+  const [fieldPermissions, setFieldPermissions] = useState<any>({})
+  const [columns, setColumns] = useState<any[]>([])
+  const [canAddSite, setCanAddSite] = useState(false)
 
   const loadData = async () => {
 
-    if(!projectCode) return
+    if (!projectCode) return
 
-    const res = await api.get(`/project/${projectCode}/sites`)
+    try {
 
-    setSiteList(res.data.data || [])
-    setFieldPermissions(res.data.field_permissions || {})
-    setColumns(res.data.columns || []);
-    setCanAddSite(res.data.can_add_site || false)
-    setCanAddSite(res.data.can_add_site || false)
+      const res = await api.get(`/project/${projectCode}/sites`)
+
+      const data = res.data || {}
+
+      setSiteList(data.data || [])
+      setFieldPermissions(data.field_permissions || {})
+      setColumns(data.columns || [])
+      setCanAddSite(data.can_add_site || false)
+
+    } catch (err) {
+
+      console.error("Failed to load sites:", err)
+
+      setSiteList([])
+      setFieldPermissions({})
+      setColumns([])
+      setCanAddSite(false)
+
+    }
   }
 
-  useEffect(()=>{
-
-    setSiteList([])
-    setFieldPermissions({})
-    setColumns([])
-    setCanAddSite(false)
+  useEffect(() => {
 
     loadData()
 
-  },[projectCode])
+  }, [projectCode])
 
-  return { siteList, fieldPermissions, columns, canAddSite, reload: loadData }
+  return {
+    siteList,
+    fieldPermissions,
+    columns,
+    canAddSite,
+    reload: loadData
+  }
 }
