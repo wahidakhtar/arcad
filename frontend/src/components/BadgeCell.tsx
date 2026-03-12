@@ -2,15 +2,11 @@ import { useEffect, useState } from "react"
 import { api } from "../lib/api"
 import { useParams } from "react-router-dom"
 
-const COLUMN_ENTITY_MAP: Record<string, number> = {
-  status_badge_id: 2,
-  wcc: 5
-}
-
 export default function BadgeCell({
   site,
   field,
-  reload
+  reload,
+  permissions
 }: any){
 
   const { projectCode } = useParams()
@@ -19,16 +15,33 @@ export default function BadgeCell({
   const [options, setOptions] = useState<number[]>([])
 
   const currentBadgeId = site[field]
-  const entityTypeId = COLUMN_ENTITY_MAP[field]
+
+  const fieldPerm = permissions?.[field] || {}
+  const canEdit = fieldPerm.edit === true
 
   useEffect(()=>{
+
+    let mounted = true
+
     api.get("/badge/map").then(res=>{
-      setBadgeMap(res.data || {})
+      if(mounted){
+        setBadgeMap(res.data || {})
+      }
     })
+
+    return ()=>{ mounted = false }
+
   },[])
 
+  const badge = badgeMap[currentBadgeId]
+
+  const entityTypeId = badge?.type
+
   useEffect(()=>{
+
     if(!currentBadgeId || !entityTypeId) return
+
+    let mounted = true
 
     api.get("/badge/transitions",{
       params:{
@@ -36,23 +49,34 @@ export default function BadgeCell({
         current_badge_id: currentBadgeId
       }
     }).then(res=>{
-      const ids = (res.data || []).map((r:any)=>r.to_badge_id ?? r.id)
+      if(!mounted) return
+
+      const ids = (res.data || []).map((r:any)=>r.id)
       setOptions(ids)
     })
 
+    return ()=>{ mounted = false }
+
   },[currentBadgeId, entityTypeId])
 
-  const badge = badgeMap[currentBadgeId]
-
   const update = async(v:number)=>{
+
+    if(!canEdit) return
+
     await api.put(`/${projectCode}/site/${site.id}`,{
       [field]: v
     })
+
     reload()
   }
 
   if(!badge){
     return "-"
+  }
+
+  // read-only display
+  if(!canEdit){
+    return badge.label
   }
 
   return(
@@ -62,7 +86,7 @@ export default function BadgeCell({
       onChange={e=>update(Number(e.target.value))}
     >
       <option value={currentBadgeId}>
-        {badge.description || badge.name || badge.label}
+        {badge.label}
       </option>
 
       {options
@@ -72,7 +96,7 @@ export default function BadgeCell({
           if(!b) return null
           return (
             <option key={id} value={id}>
-              {b.description || b.name || b.label}
+              {b.label}
             </option>
           )
         })}

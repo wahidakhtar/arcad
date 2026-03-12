@@ -25,7 +25,6 @@ export default function AppLayout() {
   if (loading) return null
 
   const hasFinance = roles.some((r: any) => r.department === "acc")
-
   const canAddUser = permissions.includes("user_manage")
 
   const menu = [
@@ -36,7 +35,11 @@ export default function AppLayout() {
       : []),
 
     ...(hasFinance
-      ? [{ label: "Finance", path: "/finance" }]
+      ? [
+          { label: "Rate Card", path: "/finance/rate-card" },
+          { label: "PO-Invoice", path: "/finance/po-invoice" },
+          { label: "Requests", path: "/finance/requests" }
+        ]
       : []),
 
     { label: "Operations", path: "/operations" }

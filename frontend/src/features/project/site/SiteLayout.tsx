@@ -10,8 +10,6 @@ export default function SiteLayout(){
   const [site,setSite] = useState<any>(null)
   const [permissions,setPermissions] = useState<any>({})
   const [columns,setColumns] = useState<any[]>([])
-  const [badgeMap,setBadgeMap] = useState<any>({})
-  const [transitions,setTransitions] = useState<any>({})
   const [error,setError] = useState<string | null>(null)
 
   const load = async () => {
@@ -33,8 +31,6 @@ export default function SiteLayout(){
       setSite(siteData)
       setPermissions(tableRes.data?.field_permissions || {})
       setColumns(tableRes.data?.columns || [])
-      setBadgeMap(tableRes.data?.badges || {})
-      setTransitions(tableRes.data?.transitions || {})
 
     }catch(err:any){
 
@@ -80,8 +76,6 @@ export default function SiteLayout(){
           reload: load,
           permissions,
           columns,
-          badgeMap,
-          transitions,
           projectCode
         }}
       />

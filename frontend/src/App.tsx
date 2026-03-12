@@ -17,8 +17,14 @@ import SiteFeFinancePage from "./features/project/site/SiteFeFinancePage"
 import PeoplePage from "./features/people/PeoplePage"
 import UserDetailPage from "./features/people/UserDetailPage"
 
+import FinancePage from "./features/finance/FinancePage"
+import RateCardPage from "./features/finance/RateCardPage"
+import PoInvoicePage from "./features/finance/PoInvoicePage"
+import FinanceRequestsPage from "./features/finance/FinanceRequestsPage"
+
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
+
   const { user, loading } = useAuth()
 
   if (loading) return <div />
@@ -32,8 +38,10 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 
 export default function App() {
+
   return (
     <BrowserRouter>
+
       <Routes>
 
         {/* public routes */}
@@ -71,8 +79,16 @@ export default function App() {
 
           <Route path="dashboard" element={<DashboardPage />} />
 
-          <Route path="/people" element={<PeoplePage />} />
-          <Route path="/people/:userId" element={<UserDetailPage />} />
+          {/* people */}
+          <Route path="people" element={<PeoplePage />} />
+          <Route path="people/:userId" element={<UserDetailPage />} />
+
+          {/* finance */}
+          <Route path="finance" element={<FinancePage />}>
+            <Route path="rate-card" element={<RateCardPage />} />
+            <Route path="po-invoice" element={<PoInvoicePage />} />
+            <Route path="requests" element={<FinanceRequestsPage />} />
+          </Route>
 
           {/* project pages */}
           <Route path=":projectCode" element={<ProjectPage />} />
@@ -91,6 +107,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/login" replace />} />
 
       </Routes>
+
     </BrowserRouter>
   )
 }

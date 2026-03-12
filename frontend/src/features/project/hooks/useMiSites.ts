@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { api } from "../../../lib/api"
 
 export function useMiSites(projectCode: string | undefined) {
@@ -8,20 +8,19 @@ export function useMiSites(projectCode: string | undefined) {
   const [columns, setColumns] = useState<any[]>([])
   const [canAddSite, setCanAddSite] = useState(false)
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
 
     if (!projectCode) return
 
     try {
 
       const res = await api.get(`/project/${projectCode}/sites`)
+      const data = res?.data || {}
 
-      const data = res.data || {}
-
-      setSiteList(data.data || [])
+      setSiteList(Array.isArray(data.data) ? data.data : [])
       setFieldPermissions(data.field_permissions || {})
-      setColumns(data.columns || [])
-      setCanAddSite(data.can_add_site || false)
+      setColumns(Array.isArray(data.columns) ? data.columns : [])
+      setCanAddSite(Boolean(data.can_add_site))
 
     } catch (err) {
 
@@ -33,13 +32,14 @@ export function useMiSites(projectCode: string | undefined) {
       setCanAddSite(false)
 
     }
-  }
+
+  }, [projectCode])
 
   useEffect(() => {
 
     loadData()
 
-  }, [projectCode])
+  }, [loadData])
 
   return {
     siteList,

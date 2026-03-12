@@ -14,6 +14,9 @@ class ProjectPolicy(BaseProjectPolicy):
         self.base_fields = self._load_base_fields()
         self.permissions = self._load_permissions()
 
+        self.detail_fields = self._compute_detail_fields()
+        self.table_fields = self._compute_table_fields()
+
     # --------------------------------------------------
     # PROJECT RESOLUTION
     # --------------------------------------------------
@@ -62,6 +65,7 @@ class ProjectPolicy(BaseProjectPolicy):
             text(f"""
                 SELECT
                     rfp.column_name,
+                    rfp.show_in_table,
                     ps.can_view,
                     ps.can_edit
                 FROM {self.schema}.role_field_permissions rfp
@@ -76,23 +80,47 @@ class ProjectPolicy(BaseProjectPolicy):
             r.column_name: {
                 "view": r.can_view,
                 "edit": r.can_edit,
+                "table": bool(r.show_in_table),
             }
             for r in rows
         }
 
-        # ensure base fields always have view permission
+        # base fields are always visible in both views
         for field in self.base_fields:
-            if field not in permissions:
-                permissions[field] = {"view": True, "edit": False}
+            permissions.setdefault(
+                field,
+                {"view": True, "edit": False, "table": True},
+            )
 
         return permissions
+
+    # --------------------------------------------------
+    # FIELD SETS
+    # --------------------------------------------------
+
+    def _compute_detail_fields(self):
+
+        return {
+            col for col, perm in self.permissions.items()
+            if perm["view"]
+        }
+
+    def _compute_table_fields(self):
+
+        table_fields = set(self.base_fields)
+
+        for col, perm in self.permissions.items():
+            if perm.get("table"):
+                table_fields.add(col)
+
+        return table_fields
 
     # --------------------------------------------------
     # SITE PERMISSIONS
     # --------------------------------------------------
 
     def can_open_detail(self):
-        return any(p["view"] for p in self.permissions.values())
+        return bool(self.detail_fields)
 
     def can_edit_site(self):
         return any(p["edit"] for p in self.permissions.values())
@@ -102,7 +130,6 @@ class ProjectPolicy(BaseProjectPolicy):
     # --------------------------------------------------
 
     def _has_operation(self, op_key: str):
-
         return op_key in getattr(self.role, "permissions", set())
 
     def can_add_site(self):
@@ -124,14 +151,25 @@ class ProjectPolicy(BaseProjectPolicy):
     # RESPONSE FILTERING
     # --------------------------------------------------
 
-    def filter_site_response(self, data):
+    def filter_table_response(self, data):
 
         if isinstance(data, list):
-            return [self._filter_one(d) for d in data]
+            return [self._filter_one(d, self.table_fields) for d in data]
 
-        return self._filter_one(data)
+        return self._filter_one(data, self.table_fields)
 
-    def _filter_one(self, site):
+    def filter_detail_response(self, data):
+
+        if isinstance(data, list):
+            return [self._filter_one(d, self.detail_fields) for d in data]
+
+        return self._filter_one(data, self.detail_fields)
+
+    # backward compatibility (existing routes)
+    def filter_site_response(self, data):
+        return self.filter_detail_response(data)
+
+    def _filter_one(self, site, allowed_fields):
 
         result = {}
 
@@ -141,7 +179,7 @@ class ProjectPolicy(BaseProjectPolicy):
                 result[k] = v
                 continue
 
-            if self.permissions.get(k, {}).get("view", False):
+            if k in allowed_fields:
                 result[k] = v
 
         return result

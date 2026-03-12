@@ -14,6 +14,8 @@ export default function CellRenderer({
   const key = field.column_name
   const value = row[key]
 
+  const fieldPerm = permissions?.[key] || {}
+
   // -----------------------------
   // SITE DETAIL LINK
   // -----------------------------
@@ -21,9 +23,9 @@ export default function CellRenderer({
 
     if(value == null) return "-"
 
-    const canEdit = permissions?.ckt_id?.edit
+    const canView = fieldPerm.view
 
-    if(canEdit){
+    if(canView){
       return (
         <Link to={`/${projectCode}/site/${row.id}/details`}>
           {value}
@@ -41,9 +43,9 @@ export default function CellRenderer({
 
     if(value == null) return "-"
 
-    const canEdit = permissions?.name?.edit ?? true
+    const canView = fieldPerm.view ?? true
 
-    if(canEdit){
+    if(canView){
       return (
         <Link to={`/people/${row.id}`}>
           {value}
@@ -59,19 +61,12 @@ export default function CellRenderer({
   // -----------------------------
   if(isBadge){
 
-    const entityMap:any = {
-      status_badge_id: 2,
-      wcc: 5
-    }
-
-    const entityTypeId = entityMap[key]
-
     return(
       <BadgeCell
         site={row}
         field={key}
-        entityTypeId={entityTypeId}
         reload={refresh}
+        permissions={permissions}
       />
     )
   }
