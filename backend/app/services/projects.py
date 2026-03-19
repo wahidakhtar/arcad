@@ -204,7 +204,7 @@ def list_project_buckets(db: Session, user: UserContext, project_key: str) -> li
     bucket_keys = [
         value
         for key, value in budget_params.items()
-        if isinstance(value, str) and key.endswith("bucket")
+        if isinstance(value, str) and "bucket" in key
     ]
     if not bucket_keys:
         return []
