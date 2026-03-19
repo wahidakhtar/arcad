@@ -1,6 +1,6 @@
 import axios from "axios"
 
-const baseURL = import.meta.env.VITE_API_URL || "/api/v1"
+const baseURL = import.meta.env.VITE_API_URL || "https://arcad-production.up.railway.app/api/v1"
 
 export const api = axios.create({
   baseURL,
