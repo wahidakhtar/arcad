@@ -14,7 +14,7 @@ type SidebarProject = {
 }
 
 export default function Sidebar() {
-  const { user, logout } = useAuth()
+  const { user, roles, logout } = useAuth()
   const [projects, setProjects] = useState<SidebarProject[]>([])
   const [counts, setCounts] = useState({ transactions: 0, tickets: 0 })
 
@@ -24,6 +24,19 @@ export default function Sidebar() {
       setCounts(countsResponse.data)
     })
   }, [])
+
+  const depts = new Set(roles.map((r) => r.dept_key))
+  const isMgmt = depts.has("mgmt")
+  const isAcc = depts.has("acc")
+  const isOps = depts.has("ops")
+  const isHr = depts.has("hr")
+  const isFo = depts.has("fo")
+
+  const canSeePeople = isMgmt || isHr
+  const canSeeProjectAdmin = isMgmt
+  const canSeeTransactions = isMgmt || isAcc || isOps || isFo
+  const canSeeTickets = isMgmt || isOps || isFo
+  const canSeeBilling = isMgmt || isAcc
 
   return (
     <aside className="glass-panel flex h-full w-[260px] shrink-0 flex-col overflow-hidden">
@@ -39,8 +52,8 @@ export default function Sidebar() {
 
       <nav className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-5 text-sm">
         <SectionLink to="/dashboard" label="Dashboard" />
-        <SectionLink to="/people" label="People" />
-        <SectionLink to="/projects-admin" label="Projects" />
+        {canSeePeople && <SectionLink to="/people" label="People" />}
+        {canSeeProjectAdmin && <SectionLink to="/projects-admin" label="Projects" />}
 
         <div className="space-y-3">
           <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-jscolors-text/40">Project Modules</p>
@@ -78,13 +91,16 @@ export default function Sidebar() {
             ))}
         </div>
 
-        <SectionLink to="/transactions" label={`Transactions (${counts.transactions})`} />
-        <SectionLink to="/tickets" label={`Tickets (${counts.tickets})`} />
-        <div className="space-y-2">
-          <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-jscolors-text/40">Billing</p>
-          <SectionLink to="/billing/pos" label="PO" compact />
-          <SectionLink to="/billing/invoices" label="Invoice" compact />
-        </div>
+        {canSeeTransactions && <SectionLink to="/transactions" label={`Transactions (${counts.transactions})`} />}
+        {canSeeTickets && <SectionLink to="/tickets" label={`Tickets (${counts.tickets})`} />}
+        {canSeeBilling && (
+          <div className="space-y-2">
+            <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-jscolors-text/40">Billing</p>
+            <SectionLink to="/billing/pos" label="PO" compact />
+            <SectionLink to="/billing/invoices" label="Invoice" compact />
+            <SectionLink to="/billing/rate-card" label="Rate Card" compact />
+          </div>
+        )}
       </nav>
 
       <div className="border-t border-jscolors-crimson/10 px-4 py-4">

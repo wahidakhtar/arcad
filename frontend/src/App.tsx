@@ -13,6 +13,7 @@ import SiteDetailPage from "./features/sites/SiteDetailPage"
 import TransactionsPage from "./features/transactions/TransactionsPage"
 import POsPage from "./features/billing/POsPage"
 import InvoicesPage from "./features/billing/InvoicesPage"
+import RateCardPage from "./features/billing/RateCardPage"
 import TicketsPage from "./features/tickets/TicketsPage"
 import UpdatesPage from "./features/updates/UpdatesPage"
 
@@ -74,6 +75,7 @@ export default function App() {
         <Route path="/transactions" element={<TransactionsPage />} />
         <Route path="/billing/pos" element={<POsPage />} />
         <Route path="/billing/invoices" element={<InvoicesPage />} />
+        <Route path="/billing/rate-card" element={<RateCardPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
         <Route path="/updates/:siteId" element={<UpdatesPage />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -11,6 +11,11 @@ from app.services import billing as billing_service
 router = APIRouter(prefix="/billing", tags=["billing"])
 
 
+@router.get("/rate-card", dependencies=[Depends(permission_required("billing", "read"))])
+def list_rate_card(db: Session = Depends(get_db)):
+    return billing_service.list_rate_card(db)
+
+
 @router.get("/pos", dependencies=[Depends(permission_required("billing", "read"))])
 def list_pos(db: Session = Depends(get_db)):
     return billing_service.list_pos(db)
