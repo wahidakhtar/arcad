@@ -12,7 +12,12 @@ router = APIRouter(prefix="/tickets", tags=["tickets"])
 
 @router.get("", dependencies=[Depends(permission_required("site", "read"))])
 def list_tickets(db: Session = Depends(get_db)):
-    return ticket_service.list_open_tickets(db)
+    return ticket_service.list_all_tickets(db)
+
+
+@router.get("/{ticket_id}", dependencies=[Depends(permission_required("site", "read"))])
+def get_ticket(ticket_id: int, db: Session = Depends(get_db)):
+    return ticket_service.get_ticket(db, ticket_id)
 
 
 @router.post("", dependencies=[Depends(permission_required("site", "write"))])
@@ -21,5 +26,5 @@ def create_ticket(payload: dict, db: Session = Depends(get_db)):
 
 
 @router.patch("/{ticket_id}/close", dependencies=[Depends(permission_required("site", "write"))])
-def close_ticket(ticket_id: int, payload: dict, db: Session = Depends(get_db)):
-    return ticket_service.close_ticket(db, ticket_id, payload)
+def close_ticket(ticket_id: int, db: Session = Depends(get_db)):
+    return ticket_service.close_ticket(db, ticket_id)

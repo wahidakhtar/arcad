@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
 
 import DataTable from "../../components/ui/DataTable"
 import { api } from "../../lib/api"
@@ -29,13 +30,14 @@ type TicketRow = Record<string, unknown> & {
   project_label: string
   ckt_id: string
   ticket_date: string | null
-  closing_date: string | null
+  status: string
 }
 
 export default function TicketsPage() {
   const [rows, setRows] = useState<TicketRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const navigate = useNavigate()
 
   useEffect(() => {
     let cancelled = false
@@ -54,15 +56,13 @@ export default function TicketsPage() {
 
         const projectById = new Map(projects.map((p) => [p.id, p]))
 
-        // collect unique project keys referenced by tickets
         const projectKeysNeeded = new Set<string>()
         for (const ticket of tickets) {
           const proj = projectById.get(ticket.project_id)
           if (proj) projectKeysNeeded.add(proj.key)
         }
 
-        // fetch site list per project key to resolve site_id → ckt_id
-        const siteMap = new Map<string, string>() // `${project_key}:${site_id}` → ckt_id
+        const siteMap = new Map<string, string>()
         await Promise.all(
           [...projectKeysNeeded].map(async (key) => {
             try {
@@ -88,7 +88,7 @@ export default function TicketsPage() {
             project_label: proj?.label ?? String(ticket.project_id),
             ckt_id: siteMap.get(cktKey) ?? String(ticket.site_id),
             ticket_date: ticket.ticket_date ?? null,
-            closing_date: ticket.closing_date ?? null,
+            status: ticket.closing_date ? "Closed" : "Open",
           }
         })
 
@@ -120,15 +120,38 @@ export default function TicketsPage() {
     <div className="space-y-6">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/42">Tickets</p>
-        <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">Open ticket queue across projects</h1>
+        <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">Ticket queue across projects</h1>
       </div>
       <DataTable
         columns={[
-          { key: "ticket_ref", label: "Ticket Number" },
+          {
+            key: "ticket_ref",
+            label: "Ticket Number",
+            render: (_value, row) => (
+              <button
+                type="button"
+                className="text-jscolors-crimson underline-offset-2 hover:underline text-sm"
+                onClick={() => navigate(`/tickets/${(row as unknown as TicketRow).id}`)}
+              >
+                {(row as unknown as TicketRow).ticket_ref}
+              </button>
+            ),
+          },
           { key: "project_label", label: "Project" },
           { key: "ckt_id", label: "Site" },
           { key: "ticket_date", label: "Date" },
-          { key: "closing_date", label: "Closing" },
+          {
+            key: "status",
+            label: "Status",
+            render: (_value, row) => {
+              const status = (row as unknown as TicketRow).status
+              return (
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status === "Closed" ? "bg-gray-100 text-gray-600" : "bg-green-50 text-green-700"}`}>
+                  {status}
+                </span>
+              )
+            },
+          },
         ]}
         rows={rows}
       />

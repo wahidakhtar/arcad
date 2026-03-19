@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { useParams } from "react-router-dom"
 
 import FieldRenderer, { type FieldDefinition } from "../../components/ui/FieldRenderer"
+import Modal from "../../components/ui/Modal"
 import { api } from "../../lib/api"
 
 type SiteDetail = {
@@ -77,6 +78,7 @@ type TicketRow = {
   site_id: number
   ticket_date: string
   rfo?: string | null
+  closing_date?: string | null
 }
 
 type TransactionRow = {
@@ -125,6 +127,7 @@ export default function SiteDetailPage() {
   const [updateForm, setUpdateForm] = useState({ date: TODAY, update: "", followup_date: "" })
   const [ticketForm, setTicketForm] = useState({ ticket_date: TODAY, rfo: "" })
   const [assignmentForm, setAssignmentForm] = useState({ bucket_id: "", fe_id: "" })
+  const [removeModal, setRemoveModal] = useState<{ open: boolean; fe_id: number; bucket_id: number; fe_label: string; final_cost: string }>({ open: false, fe_id: 0, bucket_id: 0, fe_label: "", final_cost: "" })
 
   async function loadPage() {
     setLoading(true)
@@ -450,12 +453,64 @@ export default function SiteDetailPage() {
             </div>
             <div className="mt-4 space-y-3">
               {tickets.length ? tickets.map((row) => (
-                <InfoRow key={row.id} title={row.ticket_date} text={row.rfo || "Open ticket"} />
-              )) : <EmptyState text="No open tickets" />}
+                <div key={row.id} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-jscolors-text">{row.ticket_date}</div>
+                      <div className="mt-1 text-sm text-jscolors-text/60">{row.rfo || "Open ticket"}</div>
+                    </div>
+                    {!row.closing_date && (
+                      <button
+                        type="button"
+                        className="premium-button-secondary shrink-0"
+                        onClick={() => {
+                          void api.patch(`/tickets/${row.id}/close`).then(() => loadPage())
+                        }}
+                      >
+                        Close
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )) : <EmptyState text="No tickets" />}
             </div>
           </ActionPanel>
 
           <ActionPanel title="FE Assignment">
+            <Modal
+              open={removeModal.open}
+              title={`Remove ${removeModal.fe_label}`}
+              onClose={() => setRemoveModal((m) => ({ ...m, open: false }))}
+            >
+              <div className="space-y-4">
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Final Cost (₹) — optional</span>
+                  <input
+                    type="number"
+                    value={removeModal.final_cost}
+                    onChange={(e) => setRemoveModal((m) => ({ ...m, final_cost: e.target.value }))}
+                    placeholder="Leave blank if unknown"
+                    className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="premium-button w-full"
+                  onClick={() => {
+                    const { fe_id, bucket_id, final_cost } = removeModal
+                    setRemoveModal((m) => ({ ...m, open: false }))
+                    void api
+                      .patch(`/sites/${projectKey}/${currentSite.id}/assignments/${fe_id}/${bucket_id}/remove`, {
+                        final_cost: final_cost ? Number(final_cost) : null,
+                      })
+                      .then(() => loadPage())
+                  }}
+                >
+                  Confirm Remove
+                </button>
+              </div>
+            </Modal>
+
             <div className="grid gap-3 md:grid-cols-2">
               {jobBuckets.length > 1 && (
                 <select
@@ -480,21 +535,36 @@ export default function SiteDetailPage() {
                 ))}
               </select>
             </div>
-            <button
-              type="button"
-              className="premium-button mt-3"
-              onClick={() => {
-                if (!assignmentForm.bucket_id || !assignmentForm.fe_id) return
-                void api
-                  .post(`/sites/${projectKey}/${currentSite.id}/assignments`, { bucket_id: Number(assignmentForm.bucket_id), fe_id: Number(assignmentForm.fe_id) })
-                  .then(() => {
-                    setAssignmentForm({ bucket_id: "", fe_id: "" })
-                    return loadPage()
-                  })
-              }}
-            >
-              Assign FE
-            </button>
+            {(() => {
+              const alreadyAssigned =
+                !!assignmentForm.fe_id &&
+                !!assignmentForm.bucket_id &&
+                currentSite.fe_rows.some(
+                  (r) =>
+                    r.active &&
+                    r.fe_id === Number(assignmentForm.fe_id) &&
+                    r.bucket_key === jobBuckets.find((b) => String(b.id) === assignmentForm.bucket_id)?.key,
+                )
+              return (
+                <button
+                  type="button"
+                  className="premium-button mt-3"
+                  disabled={alreadyAssigned}
+                  title={alreadyAssigned ? "This FE is already assigned to this site and bucket" : undefined}
+                  onClick={() => {
+                    if (!assignmentForm.bucket_id || !assignmentForm.fe_id) return
+                    void api
+                      .post(`/sites/${projectKey}/${currentSite.id}/assignments`, { bucket_id: Number(assignmentForm.bucket_id), fe_id: Number(assignmentForm.fe_id) })
+                      .then(() => {
+                        setAssignmentForm({ bucket_id: "", fe_id: "" })
+                        return loadPage()
+                      })
+                  }}
+                >
+                  {alreadyAssigned ? "Already Assigned" : "Assign FE"}
+                </button>
+              )
+            })()}
             <div className="mt-4 space-y-3">
               {currentSite.fe_rows.length ? currentSite.fe_rows.map((row) => {
                 const draftKey = transactionDraftKey(row.fe_id, row.bucket_key)
@@ -507,18 +577,32 @@ export default function SiteDetailPage() {
                         <div className="text-sm font-semibold text-jscolors-text">{row.fe_label} · {bucketLabel(jobBuckets, row.bucket_key)}</div>
                         <div className="mt-1 text-sm text-jscolors-text/60">Cost {row.cost} • Paid {row.paid} • Balance {row.balance}</div>
                       </div>
-                      <button
-                        type="button"
-                        className="premium-button-secondary"
-                        onClick={() =>
-                          setTransactionDrafts((current) => ({
-                            ...current,
-                            [draftKey]: { ...draft, open: !draft.open },
-                          }))
-                        }
-                      >
-                        Request Transaction
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="premium-button-secondary"
+                          onClick={() =>
+                            setTransactionDrafts((current) => ({
+                              ...current,
+                              [draftKey]: { ...draft, open: !draft.open },
+                            }))
+                          }
+                        >
+                          Request Transaction
+                        </button>
+                        {row.active && (
+                          <button
+                            type="button"
+                            className="rounded-2xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition"
+                            onClick={() => {
+                              const bucket = jobBuckets.find((b) => b.key === row.bucket_key)
+                              setRemoveModal({ open: true, fe_id: row.fe_id, bucket_id: bucket?.id ?? 0, fe_label: row.fe_label, final_cost: "" })
+                            }}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
                     </div>
                     {draft.open ? (
                       <div className="mt-4 grid gap-3">

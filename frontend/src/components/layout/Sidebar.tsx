@@ -19,10 +19,8 @@ export default function Sidebar() {
   const [counts, setCounts] = useState({ transactions: 0, tickets: 0 })
 
   useEffect(() => {
-    void Promise.all([api.get("/projects"), api.get("/projects/counts")]).then(([projectsResponse, countsResponse]) => {
-      setProjects(projectsResponse.data)
-      setCounts(countsResponse.data)
-    })
+    void api.get("/projects").then((r) => setProjects(r.data)).catch(() => {})
+    void api.get("/projects/counts").then((r) => setCounts(r.data)).catch(() => {})
   }, [])
 
   const depts = new Set(roles.map((r) => r.dept_key))
@@ -32,11 +30,14 @@ export default function Sidebar() {
   const isHr = depts.has("hr")
   const isFo = depts.has("fo")
 
+  const isOpsL2orAbove = roles.some((r) => r.dept_key === "ops" && (r.level_key === "l2" || r.level_key === "l3"))
+
   const canSeePeople = isMgmt || isHr
   const canSeeProjectAdmin = isMgmt
   const canSeeTransactions = isMgmt || isAcc || isOps || isFo
   const canSeeTickets = isMgmt || isOps || isFo
   const canSeeBilling = isMgmt || isAcc
+  const canSeeRateCard = isMgmt || isAcc || isOpsL2orAbove
 
   return (
     <aside className="glass-panel flex h-full w-[260px] shrink-0 flex-col overflow-hidden">
@@ -89,12 +90,12 @@ export default function Sidebar() {
 
         {canSeeTransactions && <SectionLink to="/transactions" label={`Transactions (${counts.transactions})`} />}
         {canSeeTickets && <SectionLink to="/tickets" label={`Tickets (${counts.tickets})`} />}
+        {canSeeRateCard && <SectionLink to="/billing/rate-card" label="Rate Card" />}
         {canSeeBilling && (
           <div className="space-y-2">
             <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-jscolors-text/40">Billing</p>
             <SectionLink to="/billing/pos" label="PO" compact />
             <SectionLink to="/billing/invoices" label="Invoice" compact />
-            <SectionLink to="/billing/rate-card" label="Rate Card" compact />
           </div>
         )}
       </nav>

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 import logging
+from decimal import Decimal
 from typing import Any, Optional
 
 from fastapi import HTTPException
@@ -345,6 +346,27 @@ def update_site(db: Session, user: UserContext, project_key: str, site_id: int, 
     db.commit()
     db.refresh(site)
     return model_to_dict(site)
+
+
+def remove_fe_assignment(db: Session, user: UserContext, project_key: str, site_id: int, fe_id: int, bucket_id: int, final_cost: Optional[Decimal]) -> SiteOut:
+    project = get_project(db, project_key)
+    ensure_permission(user, db, project_key=project_key, tag="site", action="write")
+    assignment = db.execute(
+        select(FEAssignment).where(
+            FEAssignment.project_id == project.id,
+            FEAssignment.site_id == site_id,
+            FEAssignment.bucket_id == bucket_id,
+            FEAssignment.fe_id == fe_id,
+            FEAssignment.active.is_(True),
+        )
+    ).scalar_one_or_none()
+    if assignment is None:
+        raise HTTPException(status_code=404, detail="Active assignment not found")
+    assignment.active = False
+    if final_cost is not None:
+        assignment.final_cost = final_cost
+    db.commit()
+    return get_site(db, user, project_key, site_id)
 
 
 def assign_fe(db: Session, user: UserContext, project_key: str, site_id: int, payload: FEAssignmentRequest) -> SiteOut:

@@ -15,6 +15,7 @@ import POsPage from "./features/billing/POsPage"
 import InvoicesPage from "./features/billing/InvoicesPage"
 import RateCardPage from "./features/billing/RateCardPage"
 import TicketsPage from "./features/tickets/TicketsPage"
+import TicketDetailPage from "./features/tickets/TicketDetailPage"
 import UpdatesPage from "./features/updates/UpdatesPage"
 
 function PublicOnly({ children }: { children: React.ReactNode }) {
@@ -77,6 +78,7 @@ export default function App() {
         <Route path="/billing/invoices" element={<InvoicesPage />} />
         <Route path="/billing/rate-card" element={<RateCardPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
+        <Route path="/tickets/:ticketId" element={<TicketDetailPage />} />
         <Route path="/updates/:siteId" element={<UpdatesPage />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Route>
