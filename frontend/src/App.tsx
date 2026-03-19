@@ -1,113 +1,85 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom"
+
 import { useAuth } from "./context/AuthContext"
-
-import AppLayout from "./components/layout/AppLayout"
-import ProtectedRoute from "./components/ProtectedRoute"
-
+import PageLayout from "./components/layout/PageLayout"
+import DashboardPage from "./features/dashboard/DashboardPage"
 import LoginPage from "./features/auth/LoginPage"
 import SetupPage from "./features/auth/SetupPage"
-
-import DashboardPage from "./features/dashboard/DashboardPage"
-import ProjectPage from "./features/project/ProjectPage"
-
-import SiteLayout from "./features/project/site/SiteLayout"
-import ProjectSiteDetailsRouter from "./features/project/site/ProjectSiteDetailsRouter"
-import SiteFeFinancePage from "./features/project/site/SiteFeFinancePage"
-
 import PeoplePage from "./features/people/PeoplePage"
 import UserDetailPage from "./features/people/UserDetailPage"
+import ProjectsPage from "./features/projects/ProjectsPage"
+import SiteListPage from "./features/sites/SiteListPage"
+import SiteDetailPage from "./features/sites/SiteDetailPage"
+import TransactionsPage from "./features/transactions/TransactionsPage"
+import POsPage from "./features/billing/POsPage"
+import InvoicesPage from "./features/billing/InvoicesPage"
+import TicketsPage from "./features/tickets/TicketsPage"
+import UpdatesPage from "./features/updates/UpdatesPage"
 
-import FinancePage from "./features/finance/FinancePage"
-import RateCardPage from "./features/finance/RateCardPage"
-import PoInvoicePage from "./features/finance/PoInvoicePage"
-import FinanceRequestsPage from "./features/finance/FinanceRequestsPage"
-
-
-function PublicRoute({ children }: { children: React.ReactNode }) {
-
-  const { user, loading } = useAuth()
-
-  if (loading) return <div />
-
-  if (user) {
-    return <Navigate to="/" replace />
-  }
-
+function PublicOnly({ children }: { children: React.ReactNode }) {
+  const location = useLocation()
+  const { user, loading, setupRequired } = useAuth()
+  const hasStoredToken = Boolean(localStorage.getItem("access_token"))
+  if (loading) return <div className="page-shell" />
+  if (hasStoredToken || user) return <Navigate to="/dashboard" replace />
+  if (setupRequired && location.pathname !== "/setup") return <Navigate to="/setup" replace />
   return <>{children}</>
 }
 
+function ProtectedApp() {
+  const { user, loading, setupRequired } = useAuth()
+  const hasStoredToken = Boolean(localStorage.getItem("access_token"))
+  if (loading) {
+    return <div className="page-shell flex items-center justify-center font-syne text-2xl text-jscolors-crimson">ARCAD</div>
+  }
+  if (setupRequired) return <Navigate to="/setup" replace />
+  if (!hasStoredToken && !user) return <Navigate to="/login" replace />
+  return (
+    <PageLayout>
+      <Outlet />
+    </PageLayout>
+  )
+}
 
 export default function App() {
+  const { setupRequired } = useAuth()
 
   return (
-    <BrowserRouter>
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          <PublicOnly>
+            <LoginPage />
+          </PublicOnly>
+        }
+      />
+      <Route
+        path="/setup"
+        element={
+          <PublicOnly>
+            <SetupPage />
+          </PublicOnly>
+        }
+      />
 
-      <Routes>
+      <Route element={<ProtectedApp />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/people" element={<PeoplePage />} />
+        <Route path="/people/:userId" element={<UserDetailPage />} />
+        <Route path="/projects-admin" element={<ProjectsPage />} />
+        <Route path="/projects/:projectKey" element={<SiteListPage />} />
+        <Route path="/projects/:projectKey/sub/:subprojectId" element={<SiteListPage />} />
+        <Route path="/projects/:projectKey/site/:siteId" element={<SiteDetailPage />} />
+        <Route path="/transactions" element={<TransactionsPage />} />
+        <Route path="/billing/pos" element={<POsPage />} />
+        <Route path="/billing/invoices" element={<InvoicesPage />} />
+        <Route path="/tickets" element={<TicketsPage />} />
+        <Route path="/updates/:siteId" element={<UpdatesPage />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      </Route>
 
-        {/* public routes */}
-
-        <Route
-          path="/login"
-          element={
-            <PublicRoute>
-              <LoginPage />
-            </PublicRoute>
-          }
-        />
-
-        <Route
-          path="/setup"
-          element={
-            <PublicRoute>
-              <SetupPage />
-            </PublicRoute>
-          }
-        />
-
-        {/* protected application */}
-
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <AppLayout />
-            </ProtectedRoute>
-          }
-        >
-
-          <Route index element={<Navigate to="dashboard" />} />
-
-          <Route path="dashboard" element={<DashboardPage />} />
-
-          {/* people */}
-          <Route path="people" element={<PeoplePage />} />
-          <Route path="people/:userId" element={<UserDetailPage />} />
-
-          {/* finance */}
-          <Route path="finance" element={<FinancePage />}>
-            <Route path="rate-card" element={<RateCardPage />} />
-            <Route path="po-invoice" element={<PoInvoicePage />} />
-            <Route path="requests" element={<FinanceRequestsPage />} />
-          </Route>
-
-          {/* project pages */}
-          <Route path=":projectCode" element={<ProjectPage />} />
-
-          {/* site pages */}
-          <Route path=":projectCode/site/:siteId" element={<SiteLayout />}>
-            <Route index element={<Navigate to="details" />} />
-            <Route path="details" element={<ProjectSiteDetailsRouter />} />
-            <Route path="fe" element={<SiteFeFinancePage />} />
-          </Route>
-
-        </Route>
-
-        {/* fallback */}
-
-        <Route path="*" element={<Navigate to="/login" replace />} />
-
-      </Routes>
-
-    </BrowserRouter>
+      <Route path="*" element={<Navigate to={setupRequired ? "/setup" : "/dashboard"} replace />} />
+    </Routes>
   )
 }

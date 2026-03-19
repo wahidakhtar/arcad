@@ -1,18 +1,66 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Syne:wght@400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
 * {
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   margin: 0;
 }
 
 body {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  background-color: #f5f5f5;
-  color: #111;
+  @apply font-dm-sans bg-jscolors-bg text-jscolors-text antialiased;
+  background-image:
+    radial-gradient(circle at top left, rgba(201, 168, 76, 0.22), transparent 28%),
+    radial-gradient(circle at top right, rgba(139, 26, 26, 0.14), transparent 24%),
+    linear-gradient(180deg, #fbf6f3 0%, #f2e8e8 100%);
 }
 
 a {
+  color: inherit;
   text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.page-shell {
+  @apply relative h-screen overflow-hidden;
+}
+
+.page-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: theme("backgroundImage.arcad-grid");
+  background-size: 32px 32px;
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.glass-panel {
+  @apply rounded-[28px] border border-white/50 bg-white/75 shadow-panel backdrop-blur-xl;
+}
+
+.premium-button {
+  @apply inline-flex items-center justify-center rounded-full bg-jscolors-crimson px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#721313];
+}
+
+.premium-button-secondary {
+  @apply inline-flex items-center justify-center rounded-full border border-jscolors-crimson/20 bg-white px-5 py-2.5 text-sm font-semibold text-jscolors-crimson transition hover:-translate-y-0.5 hover:border-jscolors-crimson/40 hover:bg-white/90;
 }

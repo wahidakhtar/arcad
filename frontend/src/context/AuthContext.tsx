@@ -1,112 +1,156 @@
-import { createContext, useContext, useEffect, useState } from "react"
+import {
+  createContext,
+  startTransition,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react"
+
 import { api } from "../lib/api"
+import { decodeJWT, hasPermission, type AuthRole, type AuthUser } from "../lib/auth"
 
-interface Role {
-  project: string
-  department: string
-  level: string
-}
-
-interface AuthUser {
-  id: number
-  name: string
-  username: string
-}
-
-interface AuthContextType {
+type AuthContextValue = {
   user: AuthUser | null
-  roles: Role[]
-  permissions: string[]
+  roles: AuthRole[]
   loading: boolean
-  refreshAuth: () => void
-
-  getRole: (projectCode: string) => Role | undefined
-  canOpenDetail: (projectCode: string) => boolean
-  canViewFinance: (projectCode: string) => boolean
-  canCreateSite: (projectCode: string) => boolean
+  setupRequired: boolean
+  login: (username: string, password: string, deviceLabel?: string) => Promise<void>
+  logout: () => Promise<void>
+  refreshAuth: () => Promise<void>
+  can: (projectId: number | null, tag: string, action: "read" | "write") => boolean
 }
 
-const AuthContext = createContext<AuthContextType | null>(null)
+const AuthContext = createContext<AuthContextValue | null>(null)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+type LoginResponse = {
+  access_token: string
+  refresh_token: string
+  user_id: number
+  username: string
+  label: string
+  roles: AuthRole[]
+}
 
+type MeResponse = {
+  id: number
+  username: string
+  label: string
+  roles: AuthRole[]
+}
+
+function applySession(data: LoginResponse | null) {
+  if (!data) {
+    clearStoredSession()
+    return
+  }
+  localStorage.setItem("access_token", data.access_token)
+  localStorage.setItem("refresh_token", data.refresh_token)
+}
+
+function clearStoredSession() {
+  localStorage.removeItem("access_token")
+  localStorage.removeItem("refresh_token")
+  localStorage.removeItem("auth_user")
+  localStorage.removeItem("auth_roles")
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
-  const [roles, setRoles] = useState<Role[]>([])
-  const [permissions, setPermissions] = useState<string[]>([])
+  const [roles, setRoles] = useState<AuthRole[]>([])
   const [loading, setLoading] = useState(true)
+  const [setupRequired, setSetupRequired] = useState(false)
 
-  const fetchAuth = () => {
-
-    const token = localStorage.getItem("access_token")
-
-    if (!token) {
-      setUser(null)
-      setRoles([])
-      setPermissions([])
-      setLoading(false)
-      return
+  async function fetchSetupRequired() {
+    try {
+      const response = await api.get<{ setup_required: boolean; user_count: number }>("/setup/status")
+      const nextValue = Boolean(response.data.setup_required)
+      setSetupRequired(nextValue)
+      return nextValue
+    } catch {
+      setSetupRequired(false)
+      return false
     }
+  }
 
-    setLoading(true)
+  async function refreshAuth() {
+    const token = localStorage.getItem("access_token")
+    let nextUser: AuthUser | null = null
+    let nextRoles: AuthRole[] = []
+    let nextSetupRequired = false
+    try {
+      if (!token) {
+        nextSetupRequired = await fetchSetupRequired()
+        return
+      }
 
-    api.get("/auth/me")
-      .then((res) => {
+      const payload = decodeJWT(token)
+      if (!payload?.sub) {
+        clearStoredSession()
+        nextSetupRequired = await fetchSetupRequired()
+        return
+      }
 
-        const data = res.data
-
-        setUser({
-          id: data.id,
-          name: data.name,
-          username: data.username
-        })
-
-        setRoles(data.roles || [])
-        setPermissions(data.permissions || [])
-
+      const response = await api.get<MeResponse>("/auth/me")
+      nextUser = {
+        id: response.data.id,
+        username: response.data.username,
+        label: response.data.label,
+      }
+      nextRoles = response.data.roles
+      localStorage.setItem("auth_user", JSON.stringify(nextUser))
+      localStorage.setItem("auth_roles", JSON.stringify(nextRoles))
+      nextSetupRequired = false
+    } catch {
+      clearStoredSession()
+      nextSetupRequired = await fetchSetupRequired()
+    } finally {
+      startTransition(() => {
+        setUser(nextUser)
+        setRoles(nextRoles)
+        setSetupRequired(nextSetupRequired)
+        setLoading(false)
       })
-      .catch(() => {
-        setUser(null)
-        setRoles([])
-        setPermissions([])
-      })
-      .finally(() => setLoading(false))
+    }
   }
 
   useEffect(() => {
-    fetchAuth()
+    void refreshAuth()
   }, [])
 
-  const getRole = (projectCode: string) =>
-    roles.find(r => r.project === projectCode)
-
-  const canOpenDetail = (projectCode: string) => {
-
-    const role = getRole(projectCode)
-    if (!role) return false
-
-    if (role.department === "mgmt") return true
-    if (role.department === "ops") return ["l2", "l3"].includes(role.level)
-
-    return false
+  async function login(username: string, password: string, deviceLabel?: string) {
+    const response = await api.post<LoginResponse>("/auth/login", {
+      username,
+      password,
+      device_label: deviceLabel ?? "office-browser",
+    })
+    applySession(response.data)
+    localStorage.setItem(
+      "auth_user",
+      JSON.stringify({ id: response.data.user_id, username: response.data.username, label: response.data.label }),
+    )
+    localStorage.setItem("auth_roles", JSON.stringify(response.data.roles))
+    startTransition(() => {
+      setUser({ id: response.data.user_id, username: response.data.username, label: response.data.label })
+      setRoles(response.data.roles)
+      setSetupRequired(false)
+      setLoading(false)
+    })
   }
 
-  const canViewFinance = (projectCode: string) => {
-
-    const role = getRole(projectCode)
-    if (!role) return false
-
-    if (["acc", "mgmt"].includes(role.department)) return true
-    if (role.department === "ops") return ["l2", "l3"].includes(role.level)
-
-    return false
-  }
-
-  const canCreateSite = (projectCode: string) => {
-
-    const role = getRole(projectCode)
-    if (!role) return false
-
-    return role.department === "ops" && role.level === "l3"
+  async function logout() {
+    try {
+      await api.delete("/auth/logout")
+    } finally {
+      clearStoredSession()
+      startTransition(() => {
+        setUser(null)
+        setRoles([])
+        setLoading(false)
+      })
+      await fetchSetupRequired()
+      window.location.assign("/login")
+    }
   }
 
   return (
@@ -114,13 +158,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         roles,
-        permissions,
         loading,
-        refreshAuth: fetchAuth,
-        getRole,
-        canOpenDetail,
-        canViewFinance,
-        canCreateSite
+        setupRequired,
+        login,
+        logout,
+        refreshAuth,
+        can: (projectId, tag, action) => hasPermission(roles, projectId, tag, action),
       }}
     >
       {children}
@@ -129,12 +172,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useAuth() {
-
-  const ctx = useContext(AuthContext)
-
-  if (!ctx) {
-    throw new Error("AuthContext not initialized")
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error("AuthContext is not available")
   }
-
-  return ctx
+  return context
 }

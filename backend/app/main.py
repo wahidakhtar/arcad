@@ -1,103 +1,69 @@
+from __future__ import annotations
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text, select, func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-import os
 
 from app.api.routes.auth import router as auth_router
-from app.api.routes.project import router as project_router
-from app.api.routes.badge import router as badge_router
-from app.api.routes.fe import router as fe_router
-from app.api.routes.finance import router as finance_router
-from app.api.routes.project_fields import router as project_fields_router
-from app.api.routes.project_sites import router as project_sites_router
-from app.api.routes.users import router as users_router
+from app.api.routes.badges import router as badges_router
+from app.api.routes.billing import router as billing_router
+from app.api.routes.dashboard import router as dashboard_router
+from app.api.routes.media import router as media_router
+from app.api.routes.projects import router as projects_router
+from app.api.routes.reports import router as reports_router
 from app.api.routes.setup import router as setup_router
+from app.api.routes.sites import router as sites_router
+from app.api.routes.states import router as states_router
+from app.api.routes.tickets import router as tickets_router
+from app.api.routes.transactions import router as transactions_router
+from app.api.routes.updates import router as updates_router
+from app.api.routes.users import router as users_router
+from app.core.config import get_settings
+from app.core.database import engine
+from app.models.hr import User
 
-from app.core.database import engine, Base
-from app.models.user import User
+import app.models.acc  # noqa: F401
+import app.models.auth  # noqa: F401
+import app.models.bb  # noqa: F401
+import app.models.core  # noqa: F401
+import app.models.ma  # noqa: F401
+import app.models.mc  # noqa: F401
+import app.models.md  # noqa: F401
+import app.models.media  # noqa: F401
+import app.models.mi  # noqa: F401
+import app.models.ops  # noqa: F401
+import app.models.updates  # noqa: F401
 
-# force model imports
-import app.models.project
-import app.models.user
-import app.models.badge
-import app.models.rate_card
-import app.models.mi
-import app.models.fe
-import app.models.entity_type
-import app.models.badge_entity_map
-import app.models.badge_transition
-
-
-app = FastAPI()
-
-# -----------------------
-# Environment
-# -----------------------
-
-API_PREFIX = os.getenv("API_PREFIX", "")
-
-# -----------------------
-# CORS
-# -----------------------
-
-origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
-origins = [o.strip() for o in origins_env.split(",") if o.strip()]
-
-if not origins:
-    origins = ["http://localhost:5173"]
+settings = get_settings()
+app = FastAPI(title="ARCAD")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=settings.allowed_origins or ["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# -----------------------
-# Routers
-# -----------------------
+app.include_router(auth_router, prefix=settings.api_prefix)
+app.include_router(badges_router, prefix=settings.api_prefix)
+app.include_router(setup_router, prefix=settings.api_prefix)
+app.include_router(users_router, prefix=settings.api_prefix)
+app.include_router(projects_router, prefix=settings.api_prefix)
+app.include_router(sites_router, prefix=settings.api_prefix)
+app.include_router(states_router, prefix=settings.api_prefix)
+app.include_router(transactions_router, prefix=settings.api_prefix)
+app.include_router(billing_router, prefix=settings.api_prefix)
+app.include_router(tickets_router, prefix=settings.api_prefix)
+app.include_router(updates_router, prefix=settings.api_prefix)
+app.include_router(media_router, prefix=settings.api_prefix)
+app.include_router(reports_router, prefix=settings.api_prefix)
+app.include_router(dashboard_router, prefix=settings.api_prefix)
 
-app.include_router(auth_router, prefix=API_PREFIX)
-app.include_router(project_router, prefix=API_PREFIX)
-app.include_router(project_sites_router, prefix=API_PREFIX)
-app.include_router(badge_router, prefix=API_PREFIX)
-app.include_router(fe_router, prefix=API_PREFIX)
-app.include_router(finance_router, prefix=API_PREFIX)
-app.include_router(project_fields_router, prefix=API_PREFIX)
-app.include_router(setup_router, prefix=API_PREFIX)
-app.include_router(users_router, prefix=API_PREFIX)
 
-# -----------------------
-# Startup
-# -----------------------
-
-@app.on_event("startup")
-def startup():
-
-    with engine.connect() as conn:
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS schema_core"))
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS schema_mi"))
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS schema_ma"))
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS schema_mc"))
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS schema_md"))
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS schema_bb"))
-        conn.commit()
-
-    Base.metadata.create_all(bind=engine)
-
-# -----------------------
-# Root
-# -----------------------
-
-@app.get(f"{API_PREFIX}/")
+@app.get(f"{settings.api_prefix}/")
 def root():
-
     with Session(engine) as db:
-        user_count = db.scalar(select(func.count()).select_from(User))
-
-    return {
-        "status": "arcad api running",
-        "setup_required": user_count == 0
-    }
+        user_count = db.scalar(select(func.count()).select_from(User)) or 0
+    return {"status": "arcad api running", "setup_required": user_count == 0}

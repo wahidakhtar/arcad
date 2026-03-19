@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from pydantic import BaseModel
 
+
 class CreateCEORequest(BaseModel):
-    name: str
+    label: str
     username: str
     password: str

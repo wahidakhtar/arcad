@@ -1,58 +1,48 @@
-from fastapi import APIRouter, Depends, HTTPException
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, Header
 from sqlalchemy.orm import Session
 
+from app.api.auth import UserContext, get_current_user
 from app.core.database import get_db
-from app.models.user import User
-from app.core.security import verify_password, create_access_token
-from app.schemas.auth import LoginRequest
-from app.api.dependencies.auth import get_current_user
-from app.authz.resolver import resolve_user_role
+from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
+from app.services import auth as auth_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/login")
+@router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    return auth_service.login(db, payload.username, payload.password, payload.device_label)
 
-    user = db.query(User).filter(User.username == payload.username).first()
 
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    if not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    access_token = create_access_token({"sub": str(user.id)})
-
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": {
-            "id": user.id,
-            "name": user.name,
-            "username": user.username
-        }
-    }
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
+    return auth_service.refresh(db, payload.refresh_token)
 
 
 @router.get("/me")
-def get_me(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
-
-    role, permissions = resolve_user_role(current_user.id, db)
-
-    roles = [
-        {
-            "project": rs.project_code,
-            "department": rs.department_code,
-            "level": rs.level_code,
-        }
-        for rs in role.role_sets
-    ]
-
+def me(user: UserContext = Depends(get_current_user)):
     return {
-        "id": current_user.id,
-        "name": current_user.name,
-        "username": current_user.username,
-        "roles": roles,
-        "permissions": permissions
+        "id": user.user_id,
+        "username": user.username,
+        "label": user.label,
+        "roles": [
+            {
+                "id": role.role_id,
+                "key": role.role_key,
+                "label": role.role_label,
+                "dept_key": role.dept_key,
+                "level_key": role.level_key,
+                "project_id": role.project_id,
+            }
+            for role in user.roles
+        ],
     }
+
+
+@router.delete("/logout", status_code=204)
+@router.post("/logout", status_code=204)
+def logout(authorization: str = Header(default=""), db: Session = Depends(get_db)):
+    token = authorization.removeprefix("Bearer ").strip()
+    auth_service.logout(db, token)

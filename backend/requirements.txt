@@ -1,8 +1,13 @@
 fastapi
 pydantic[email]
+pydantic-settings
 uvicorn[standard]
 sqlalchemy
+alembic
 psycopg2-binary
 python-jose
 passlib[bcrypt]
 bcrypt==4.0.1
+python-multipart
+jinja2
+weasyprint

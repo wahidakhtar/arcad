@@ -1,28 +1,45 @@
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+import hashlib
+from typing import Any
+
+from jose import JWTError, jwt
 from passlib.context import CryptContext
-from jose import jwt
-from datetime import datetime, timedelta
-import os
+
+from app.core.config import get_settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise RuntimeError("SECRET_KEY not set")
-
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+settings = get_settings()
 
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password):
+def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(data: dict):
-    to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+def verify_password(password: str, password_hash: str) -> bool:
+    return pwd_context.verify(password, password_hash)
+
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def create_access_token(subject: str, payload: dict[str, Any]) -> tuple[str, datetime]:
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.jwt_expiry_hours)
+    data = {"sub": subject, "exp": expires_at, **payload}
+    return jwt.encode(data, settings.effective_jwt_secret, algorithm=ALGORITHM), expires_at
+
+
+def create_refresh_token(subject: str, session_id: str) -> tuple[str, datetime]:
+    expires_at = datetime.now(timezone.utc) + timedelta(days=settings.refresh_expiry_days)
+    data = {"sub": subject, "sid": session_id, "type": "refresh", "exp": expires_at}
+    return jwt.encode(data, settings.effective_jwt_secret, algorithm=ALGORITHM), expires_at
+
+
+def decode_token(token: str) -> dict[str, Any]:
+    try:
+        return jwt.decode(token, settings.effective_jwt_secret, algorithms=[ALGORITHM])
+    except JWTError as exc:
+        raise ValueError("Invalid token") from exc

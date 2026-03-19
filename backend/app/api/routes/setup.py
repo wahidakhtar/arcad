@@ -1,45 +1,24 @@
-from fastapi import APIRouter, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import select, func, text
+from __future__ import annotations
 
-from app.core.database import engine
-from app.core.security import get_password_hash
-from app.models.user import User
+from fastapi import APIRouter, Depends
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.schemas.auth import TokenResponse
 from app.schemas.setup import CreateCEORequest
+from app.models.hr import User
+from app.services.auth import setup_ceo
 
 router = APIRouter(prefix="/setup", tags=["setup"])
 
 
-@router.post("/create-ceo")
-def create_ceo(data: CreateCEORequest):
+@router.get("/status")
+def setup_status(db: Session = Depends(get_db)):
+    user_count = db.scalar(select(func.count()).select_from(User)) or 0
+    return {"setup_required": user_count == 0, "user_count": user_count}
 
-    with Session(engine) as db:
 
-        user_count = db.scalar(select(func.count()).select_from(User))
-
-        if user_count > 0:
-            raise HTTPException(status_code=403, detail="System already initialized")
-
-        user = User(
-            name=data.name,
-            username=data.username,
-            password_hash=get_password_hash(data.password),
-            is_active=True,
-        )
-
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-
-        db.execute(
-            text("""
-            INSERT INTO schema_core.user_role_assignment
-            (user_id, role_id, project_badge_id)
-            VALUES (:user_id, 12, NULL)
-            """),
-            {"user_id": user.id}
-        )
-
-        db.commit()
-
-        return {"status": "CEO created"}
+@router.post("", response_model=TokenResponse)
+def setup(payload: CreateCEORequest, db: Session = Depends(get_db)):
+    return setup_ceo(db, payload.label, payload.username, payload.password)

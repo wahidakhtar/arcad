@@ -1,0 +1,41 @@
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from app.api.auth import UserContext, get_current_user
+from app.core.database import get_db
+from app.schemas.site import SubprojectCreate
+from app.services import projects as project_service
+
+router = APIRouter(prefix="/projects", tags=["projects"])
+
+
+@router.get("")
+def list_projects(user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    return project_service.list_projects(db, user)
+
+
+@router.get("/counts")
+def counts(db: Session = Depends(get_db)):
+    return project_service.sidebar_counts(db)
+
+
+@router.get("/{project_key}/ui-fields")
+def ui_fields(project_key: str, user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    return project_service.list_ui_fields(db, user, project_key)
+
+
+@router.get("/{project_key}/badge-transitions")
+def badge_transitions(project_key: str, user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    return project_service.list_badge_transitions(db, user, project_key)
+
+
+@router.get("/{project_key}/job-buckets")
+def project_job_buckets(project_key: str, user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    return project_service.list_project_buckets(db, user, project_key)
+
+
+@router.post("/subprojects")
+def create_subproject(payload: SubprojectCreate, user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    return project_service.create_subproject(db, user, payload.project_key, payload.batch_date, payload.rows)
