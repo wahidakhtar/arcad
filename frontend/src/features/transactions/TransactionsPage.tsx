@@ -72,20 +72,22 @@ export default function TransactionsPage() {
 
   async function loadData() {
     try {
-      const [txResponse, projectsResponse, badgesResponse, transitionsResponse] = await Promise.all([
+      const [txResponse, projectsResponse, badgesResponse] = await Promise.all([
         api.get<TxRaw[]>("/transactions"),
         api.get<ProjectEntry[]>("/projects"),
         api.get<BadgeEntry[]>("/badges"),
-        api.get<TransitionEntry[]>("/transactions/transitions"),
       ])
 
       const transactions: TxRaw[] = txResponse.data ?? []
       const projects: ProjectEntry[] = Array.isArray(projectsResponse.data) ? projectsResponse.data : []
       const allBadges: BadgeEntry[] = Array.isArray(badgesResponse.data) ? badgesResponse.data : []
-      const allTransitions: TransitionEntry[] = Array.isArray(transitionsResponse.data) ? transitionsResponse.data : []
 
       setBadges(allBadges)
-      setTransitions(allTransitions)
+
+      // Fetch transitions independently — failure must not block the transaction list
+      api.get<TransitionEntry[]>("/transactions/transitions").then((res) => {
+        setTransitions(Array.isArray(res.data) ? res.data : [])
+      }).catch(() => {/* transitions unavailable — dropdowns simply won't show */})
 
       const projectById = new Map(projects.map((p) => [p.id, p]))
       const badgeById = new Map(allBadges.map((b) => [b.id, b]))

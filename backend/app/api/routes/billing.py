@@ -21,7 +21,7 @@ def list_rate_card(db: Session = Depends(get_db)):
     return billing_service.list_rate_card(db)
 
 
-@router.post("/rate-card", dependencies=[Depends(permission_required("rate", "write"))])
+@router.post("/rate-card", dependencies=[Depends(permission_required("billing", "write"))])
 def create_rate_card(payload: RateCardCreate, db: Session = Depends(get_db)):
     return billing_service.create_rate_card(db, payload)
 
