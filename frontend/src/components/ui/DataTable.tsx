@@ -6,6 +6,7 @@ type Column = {
   key: string
   label: string
   type?: string
+  render?: (value: unknown) => React.ReactNode
 }
 
 type DataTableProps<T extends Record<string, unknown>> = {
@@ -31,8 +32,10 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
               {columns.map((column) => (
                 <div key={column.key} className="min-w-0">
                   <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/35 md:hidden">{column.label}</div>
-                  <div className="truncate text-sm text-jscolors-text">
-                    <FieldRenderer type={column.type} value={row[column.key]} />
+                  <div className="text-sm text-jscolors-text">
+                    {column.render ? column.render(row[column.key]) : (
+                      <div className="truncate"><FieldRenderer type={column.type} value={row[column.key]} /></div>
+                    )}
                   </div>
                 </div>
               ))}

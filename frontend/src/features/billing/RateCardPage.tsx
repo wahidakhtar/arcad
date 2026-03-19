@@ -5,6 +5,7 @@ type RateCardRow = {
   id: number
   job_id: number
   job_key: string
+  job_label: string
   date: string
   cost: number | string
 }
@@ -23,7 +24,7 @@ export default function RateCardPage() {
       </div>
       <DataTable
         columns={[
-          { key: "job_key", label: "Job" },
+          { key: "job_label", label: "Job" },
           { key: "date", label: "Effective From" },
           { key: "cost", label: "Rate (₹)" },
         ]}

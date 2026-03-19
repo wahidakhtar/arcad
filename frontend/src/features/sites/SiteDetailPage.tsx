@@ -191,6 +191,12 @@ export default function SiteDetailPage() {
     void loadPage()
   }, [projectKey, siteId])
 
+  useEffect(() => {
+    if (jobBuckets.length === 1) {
+      setAssignmentForm((current) => ({ ...current, bucket_id: String(jobBuckets[0].id) }))
+    }
+  }, [jobBuckets])
+
   const badgeById = useMemo(() => new Map(badges.map((badge) => [badge.id, badge])), [badges])
   const stateById = useMemo(() => new Map(states.map((state) => [state.id, state])), [states])
   const project = useMemo(() => projectByKey(projects, projectKey), [projectKey, projects])
@@ -443,16 +449,18 @@ export default function SiteDetailPage() {
 
           <ActionPanel title="FE Assignment">
             <div className="grid gap-3 md:grid-cols-2">
-              <select
-                value={assignmentForm.bucket_id}
-                onChange={(event) => setAssignmentForm((current) => ({ ...current, bucket_id: event.target.value }))}
-                className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-              >
-                <option value="">Select Bucket</option>
-                {jobBuckets.map((bucket) => (
-                  <option key={bucket.id} value={bucket.id}>{bucket.label}</option>
-                ))}
-              </select>
+              {jobBuckets.length > 1 && (
+                <select
+                  value={assignmentForm.bucket_id}
+                  onChange={(event) => setAssignmentForm((current) => ({ ...current, bucket_id: event.target.value }))}
+                  className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
+                >
+                  <option value="">Select Bucket</option>
+                  {jobBuckets.map((bucket) => (
+                    <option key={bucket.id} value={bucket.id}>{bucket.label}</option>
+                  ))}
+                </select>
+              )}
               <select
                 value={assignmentForm.fe_id}
                 onChange={(event) => setAssignmentForm((current) => ({ ...current, fe_id: event.target.value }))}

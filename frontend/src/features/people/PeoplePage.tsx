@@ -14,7 +14,7 @@ type UserRow = {
   username: string
   active: boolean
   department: string
-  project: string
+  project: string[]
   access: string
 }
 
@@ -79,7 +79,7 @@ export default function PeoplePage() {
           username: user.username,
           active: user.active,
           department: deptLabels.length ? deptLabels.join(", ") : "-",
-          project: projectLabels.length ? projectLabels.join(", ") : "-",
+          project: projectLabels.length ? projectLabels : ["-"],
           access: accessLabels.length ? accessLabels.join(", ") : "-",
         }
       }),
@@ -147,10 +147,24 @@ export default function PeoplePage() {
         </form>
       </Modal>
       <DataTable
-        columns={config.listColumns}
-        rows={rows}
-        rowHref={(row) => `/people/${row.id}`}
-        getRowClassName={(row) => (!row.active ? "opacity-40" : "")}
+        columns={config.listColumns.map((col) =>
+          col.key === "project"
+            ? {
+                key: "project",
+                label: "Project",
+                render: (value) => (
+                  <div className="space-y-0.5">
+                    {(value as string[]).map((projectLabel, index) => (
+                      <div key={index} className="truncate">{projectLabel}</div>
+                    ))}
+                  </div>
+                ),
+              }
+            : col,
+        )}
+        rows={rows as unknown as Record<string, unknown>[]}
+        rowHref={(row) => `/people/${(row as unknown as UserRow).id}`}
+        getRowClassName={(row) => (!(row as unknown as UserRow).active ? "opacity-40" : "")}
       />
       <Link to="/dashboard" className="premium-button-secondary">
         Back to Dashboard

@@ -22,6 +22,9 @@ REFUND_TYPE = "ref"
 EXECUTED_STATUS = "exct"
 COMPLETED_STATUS = "comp"
 
+# These jobs are not bool-gated: every site in their project type has qty=1
+ALWAYS_ONE_JOBS = {"mi", "mdv", "md", "ma"}
+
 
 @dataclass
 class RateCardRow:
@@ -58,6 +61,8 @@ def _as_decimal(value: Any) -> Decimal:
 def _job_quantity(site: dict[str, Any], job_key: str) -> Decimal:
     if job_key == "ec":
         return _as_decimal(site.get("ec"))
+    if job_key in ALWAYS_ONE_JOBS:
+        return Decimal("1")
     raw = site.get(job_key)
     return Decimal("1") if raw else ZERO
 

@@ -4,11 +4,27 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.acc import Invoice, PO, RateCard
+from app.models.core import Job
 from app.schemas.billing import InvoiceCreate, POCreate
 
 
-def list_rate_card(db: Session) -> list[RateCard]:
-    return db.execute(select(RateCard).order_by(RateCard.job_id.asc(), RateCard.date.desc())).scalars().all()
+def list_rate_card(db: Session) -> list[dict]:
+    rows = db.execute(
+        select(RateCard, Job.label.label("job_label"))
+        .join(Job, Job.id == RateCard.job_id)
+        .order_by(RateCard.job_id.asc(), RateCard.date.desc())
+    ).all()
+    return [
+        {
+            "id": row.RateCard.id,
+            "job_id": row.RateCard.job_id,
+            "job_key": row.RateCard.job_key,
+            "job_label": row.job_label,
+            "date": row.RateCard.date,
+            "cost": row.RateCard.cost,
+        }
+        for row in rows
+    ]
 
 
 def list_pos(db: Session) -> list[PO]:
