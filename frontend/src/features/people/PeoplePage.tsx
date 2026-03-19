@@ -1,20 +1,23 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 
 import FieldRenderer from "../../components/ui/FieldRenderer"
 import Modal from "../../components/ui/Modal"
-import DataTable from "../../components/ui/DataTable"
 import { getPageConfig } from "../../config"
 import { useListPage } from "../../hooks/useListPage"
 import { api } from "../../lib/api"
 
-type FlatRoleRow = {
-  user_id: number
-  name: string
-  active: boolean
+type RoleEntry = {
   department: string
   project: string
   access: string
+}
+
+type UserGroup = {
+  user_id: number
+  name: string
+  active: boolean
+  roles: RoleEntry[]
 }
 
 type ProjectEntry = {
@@ -25,6 +28,7 @@ type ProjectEntry = {
 
 export default function PeoplePage() {
   const config = getPageConfig("people")
+  const navigate = useNavigate()
   const [openAddUser, setOpenAddUser] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
@@ -61,35 +65,22 @@ export default function PeoplePage() {
     })
   }, [])
 
-  const rows = useMemo<FlatRoleRow[]>(() => {
-    const result: FlatRoleRow[] = []
-    for (const user of data ?? []) {
+  const groups = useMemo<UserGroup[]>(() => {
+    return (data ?? []).map((user) => {
       const roles = user.roles ?? []
-      if (!roles.length) {
-        result.push({ user_id: user.id, name: user.label, active: user.active, department: "-", project: "-", access: "-" })
-        continue
-      }
-      roles.forEach((role, index) => {
-        result.push({
-          user_id: user.id,
-          name: index === 0 ? user.label : "",
-          active: user.active,
-          department: badgeLabels.department[role.dept_key] ?? role.dept_key,
-          project: role.project_id != null ? (projectMap[role.project_id] ?? String(role.project_id)) : "Global",
-          access: badgeLabels.level[role.level_key] ?? role.level_key,
-        })
-      })
-    }
-    return result
+      const roleEntries: RoleEntry[] = roles.length
+        ? roles.map((role) => ({
+            department: badgeLabels.department[role.dept_key] ?? role.dept_key,
+            project: role.project_id != null ? (projectMap[role.project_id] ?? String(role.project_id)) : "Global",
+            access: badgeLabels.level[role.level_key] ?? role.level_key,
+          }))
+        : [{ department: "-", project: "-", access: "-" }]
+      return { user_id: user.id, name: user.label, active: user.active, roles: roleEntries }
+    })
   }, [badgeLabels.department, badgeLabels.level, projectMap, data])
 
-  if (loading) {
-    return <div className="glass-panel p-6">Loading people...</div>
-  }
-
-  if (loadError) {
-    return <div className="glass-panel p-6 text-red-700">{loadError}</div>
-  }
+  if (loading) return <div className="glass-panel p-6">Loading people...</div>
+  if (loadError) return <div className="glass-panel p-6 text-red-700">{loadError}</div>
 
   return (
     <div className="space-y-6">
@@ -102,6 +93,7 @@ export default function PeoplePage() {
           + Add User
         </button>
       </Header>
+
       <Modal open={openAddUser} title="Add User" onClose={() => setOpenAddUser(false)}>
         <form
           className="space-y-4"
@@ -143,20 +135,51 @@ export default function PeoplePage() {
           </button>
         </form>
       </Modal>
-      <DataTable
-        columns={[
-          { key: "name", label: "Name" },
-          { key: "department", label: "Department" },
-          { key: "project", label: "Project" },
-          { key: "access", label: "Access" },
-        ]}
-        rows={rows as unknown as Record<string, unknown>[]}
-        rowHref={(row) => `/people/${(row as unknown as FlatRoleRow).user_id}`}
-        getRowClassName={(row) => {
-          const r = row as unknown as FlatRoleRow
-          return [!r.active ? "opacity-40" : "", r.name ? "" : "border-t-0"].filter(Boolean).join(" ")
-        }}
-      />
+
+      <div className="overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
+        <table className="min-w-full border-collapse">
+          <thead>
+            <tr className="border-b border-jscolors-crimson/10 bg-jscolors-crimson/[0.03]">
+              {["Name", "Department", "Project", "Access"].map((col) => (
+                <th key={col} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50">
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map((group) =>
+              group.roles.map((role, roleIndex) => (
+                <tr
+                  key={`${group.user_id}-${roleIndex}`}
+                  className={`cursor-pointer border-b border-jscolors-crimson/8 transition hover:bg-jscolors-gold/10 ${!group.active ? "opacity-40" : ""}`}
+                  onClick={() => navigate(`/people/${group.user_id}`)}
+                >
+                  {roleIndex === 0 && (
+                    <td
+                      rowSpan={group.roles.length}
+                      className="px-5 py-4 align-middle text-sm font-medium text-jscolors-text"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Link
+                        to={`/people/${group.user_id}`}
+                        className="hover:text-jscolors-crimson"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {group.name}
+                      </Link>
+                    </td>
+                  )}
+                  <td className="px-5 py-4 text-sm text-jscolors-text">{role.department}</td>
+                  <td className="px-5 py-4 text-sm text-jscolors-text">{role.project}</td>
+                  <td className="px-5 py-4 text-sm text-jscolors-text">{role.access}</td>
+                </tr>
+              )),
+            )}
+          </tbody>
+        </table>
+      </div>
+
       <Link to="/dashboard" className="premium-button-secondary">
         Back to Dashboard
       </Link>
