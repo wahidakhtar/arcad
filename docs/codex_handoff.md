@@ -7,76 +7,86 @@
   - `/Users/wahidakhtar/software/backend/venv/bin/python3.9 -m compileall /Users/wahidakhtar/software/backend/app /Users/wahidakhtar/software/backend/migrations`
   - `npm run build` in `/Users/wahidakhtar/software/frontend`
   - `/Users/wahidakhtar/software/backend/venv/bin/alembic upgrade head`
-- Deployed on Railway. Latest git push: `4c5d001` (main). Both backend and frontend auto-deploy on push to main.
+- Latest git push: `0b211e8` (main). Both backend and frontend auto-deploy on push to main.
 - Railway DB: `autorack.proxy.rlwy.net:33504`, fully seeded with 18 users and all schema data.
 
 ---
 
-## What was fixed in this session (2026-03-19)
-
-### Permission system
-- `check_field_write_scope` in `backend/app/api/auth.py` now short-circuits for `mgmt` dept users — they bypass the per-field scope check and can write any site field. Previously this caused silent 500s when management tried to save site fields.
-- Global `PermissionDenied` exception handler added to `backend/app/main.py` — unhandled `PermissionDenied` now returns HTTP 403 instead of 500.
-- POST `/billing/rate-card` was using `permission_required("rate", "write")` — there are no `PermissionTag` rows with `tag="rate"` in the DB, so it always denied. Fixed to use `permission_required("billing", "write")` which is correctly seeded.
-
-### Cost calculator
-- `_job_quantity` in `backend/app/config/calculator.py` now returns `site.get("height")` for `mi`, `ma`, `md`, `mdv` jobs instead of a flat `Decimal("1")`. These jobs scale with tower height. The bmc sub-jobs (`mpaint`, `mnbr`, `ep`, `ec`, `arr`) remain bool-gated as before.
-- Previously cost showed `0.00` for all sites because the old code used `site.get("mi")` which is always `None` (no such column). That was first fixed to return `1`, then corrected again to return `height`.
-
-### Billing — Rate Card
-- Added `GET /billing/jobs` endpoint returning all jobs from `schema_core.jobs`.
-- Added `POST /billing/rate-card` endpoint. Payload: `{job_id, date, cost}`. Service derives `job_key` from the `Job` row.
-- Rate Card page (`frontend/src/features/billing/RateCardPage.tsx`) rebuilt as a native `<table table-fixed>` with `colgroup` (Job=50%, Effective From=25%, Rate=25%). Rate column is right-aligned with ₹ prefix and `en-IN` locale formatting. No hover/click behaviour.
-- `+ Add Rate` button opens a modal with Job dropdown (fetched from `/billing/jobs`), date, and rate number fields.
-
-### Sidebar
-- Added role/dept-based visibility gating: People visible to `mgmt|hr`; Projects admin to `mgmt`; Transactions to `mgmt|acc|ops|fo`; Tickets to `mgmt|ops|fo`; Billing section to `mgmt|acc`.
-- ARCAD/Operations Console text removed from sidebar header. Logo image now fills full header width (`w-full h-16 object-contain`).
-- Files: `frontend/src/components/layout/Sidebar.tsx`
-
-### People page
-- Now renders one row per role assignment using a native `<table>` with `rowSpan` on the name cell. Users with multiple roles show a merged name cell vertically spanning all their role sub-rows (dept | project | access).
-- Clicking any row navigates to user detail. Name cell has its own `<Link>`.
-- File: `frontend/src/features/people/PeoplePage.tsx`
-
-### Site detail — Save Fields
-- `savingFields` spinner now shows "Saving..." text. Errors from the PATCH response are displayed inline next to the button.
-- Frontend file: `frontend/src/features/sites/SiteDetailPage.tsx`
+## What was fixed today (2026-03-20)
 
 ### Transaction transitions
-- Added `GET /transactions/transitions` endpoint in `backend/app/api/routes/transactions.py`.
-- `list_transitions` in `backend/app/services/transactions.py` tries schemas in order: `schema_acc → schema_mi → schema_md → schema_ma → schema_mc`, returning the first that has rows. This is resilient to the transitions being seeded in different schemas across environments.
-- Migration `20260319_0004` seeds `req → exct` for all project schemas.
-- Transactions page now shows an interactive status dropdown per row. Selecting "Executed" opens a date picker modal before confirming. Other transitions (cancel, reject) apply immediately.
-- Transitions fetch is now independent from the main `Promise.all` in the frontend — a transitions failure never blocks the transaction list from loading.
+- Migration `20260319_0005` creates `schema_acc.badge_transitions` table and seeds `req → cancel`, `req → rej`, `req → exct` (transition type = transaction).
+- `list_transitions` in `backend/app/services/transactions.py` now reads exclusively from `schema_acc.badge_transitions` — no fallback to project schemas.
+- File: `backend/app/services/transactions.py`
+
+### Transaction status dropdown — role gating
+- `TransactionsPage.tsx` now imports `useAuth` and derives `isAccUser = roles.some(r => r.dept_key === "acc")`.
+- Interactive dropdown (with Cancelled / Rejected / Executed options) shown only to acc dept users.
+- All other depts (mgmt, ops, fo) see plain text status.
+- Execution date modal fires when acc user selects Executed (req → exct transition).
 - File: `frontend/src/features/transactions/TransactionsPage.tsx`
 
-### Footer
-- Copyright text changed from `text-[9px]` → `text-sm` (14px). Color corrected from `text-gray-300` → `text-gray-800`.
-- File: `frontend/src/components/layout/PageLayout.tsx`
+### Dockerfile — auto-migrate on deploy
+- `CMD` updated to `alembic upgrade head && uvicorn ...` so migrations apply automatically on every Railway deploy.
+- File: `backend/Dockerfile`
 
-### User seeding
-- 18 users seeded on Railway DB with bcrypt-hashed password `changeme123`.
-- Roles: wahid/sandeep → mgmt; riya/vaishali/sonal/shivani → acc; babita/tamanna/ashwini/sarita/danish/parvati/raziya/anushka → ops; saddam/saquib/munna/dileep → fo.
+### Tickets — status column
+- `GET /tickets` now returns ALL tickets (open + closed), not just open ones.
+- Tickets list page: closing date column removed, replaced with a STATUS badge (green "Open" / grey "Closed").
+- Ticket number is now a clickable link that navigates to `/tickets/{id}`.
+- File: `frontend/src/features/tickets/TicketsPage.tsx`, `backend/app/services/tickets.py`, `backend/app/api/routes/tickets.py`
 
-### FE Assignment
-- Bucket dropdown auto-selects and hides when the project has only one job bucket (`useEffect` watching `jobBuckets`).
+### Ticket detail page
+- New page at `/tickets/:ticketId` (`frontend/src/features/tickets/TicketDetailPage.tsx`).
+- Shows: ticket number, project label, site ckt_id, date, note/RFO, open/closed status.
+- "Close Ticket" button visible on open tickets — calls `PATCH /tickets/{id}/close` which sets `closing_date = today` server-side.
+- Route added in `frontend/src/App.tsx`.
+
+### Close Ticket button — Site detail page
+- Site detail ticket panel now shows an inline "Close" button against each open ticket.
+- On click, calls `PATCH /tickets/{id}/close` and reloads the page.
 - File: `frontend/src/features/sites/SiteDetailPage.tsx`
 
-### DataTable
-- Added optional `render?: (value: unknown, row: Record<string, unknown>) => React.ReactNode` prop to `Column` type. When provided, bypasses FieldRenderer and renders custom JSX. The second `row` argument gives access to the full row for context-dependent rendering (e.g. transaction status dropdown).
-- File: `frontend/src/components/ui/DataTable.tsx`
+### FE duplicate assignment prevention
+- Assign FE button on Site detail disabled (shows "Already Assigned") when the selected FE + bucket combination is already active in `fe_rows`.
+- Remove button added to each active FE row — opens a modal prompting for an optional final cost before confirming.
+- New backend endpoint: `PATCH /sites/{project_key}/{site_id}/assignments/{fe_id}/{bucket_id}/remove` (service: `remove_fe_assignment` in `backend/app/services/sites.py`).
+- Files: `backend/app/services/sites.py`, `backend/app/api/routes/sites.py`, `frontend/src/features/sites/SiteDetailPage.tsx`
+
+### Rate Card — sidebar repositioning
+- Rate Card moved from inside the BILLING sub-section to a standalone top-level nav item.
+- Role gating: `mgmt | acc | ops L2/L3` (checks `r.level_key` for ops).
+- Billing sub-section now contains only PO and Invoice.
+- File: `frontend/src/components/layout/Sidebar.tsx`
+
+### Sidebar open ticket count
+- Projects fetch and counts fetch are now independent (`Promise.all` replaced with two separate `.catch`-guarded calls).
+- A projects API failure no longer silently zeroes the ticket/transaction counts.
+- File: `frontend/src/components/layout/Sidebar.tsx`
 
 ---
 
-## Needs verification on Railway after next deploy
+## Still open / not yet confirmed working
 
-The following fixes were pushed and should be live, but were not confirmed end-to-end in the browser due to session ending:
+1. **Add Rate "Unable to add rate"** — The `billing/write` permission fix was deployed in `4c5d001` and has been verified working on Railway (HTTP 200 confirmed). If it is still failing for a specific user, check `schema_core.permission_tags` on Railway DB for that user's role_id — the seeded rows should have `(role_id, tag='billing', write=true)` for accl2 (role_id=4) and accl1 (role_id=5). Needs Railway DB URL to debug further.
 
-1. **Add Rate** — fixed permission bug (billing tag). Needs live confirm: open Rate Card, click `+ Add Rate`, submit a new rate, confirm it appears in the table.
-2. **Save Fields** — mgmt field write scope fixed. Needs live confirm: open a site detail page as Management user, change height, click Save, reload and verify the new height persists.
-3. **Cost calculator** — height multiplier now applied. Needs live confirm: a site with `height = 30` should show cost ≈ rate × 30 (e.g. ₹78,000 if rate is ₹2,600). A site with `height = 1` should show ≈ ₹2,600.
-4. **Transaction dropdown for Accounts user (Riya)** — transitions now fetched with schema fallback. Needs live confirm: log in as Riya, go to Transactions, verify "Requested" rows show a dropdown with Executed/Cancelled/Rejected options.
+2. **Save Fields button on site detail not persisting** — mgmt field write scope fix was deployed in a prior session. Needs live confirmation: open a site as wahid/sandeep (mgmt), change height, click Save, reload and verify persistence.
+
+3. **Cost calculator not applying height multiplier** — `_job_quantity` now returns `site["height"]` for `mi/md/ma/mdv` jobs. Needs live confirmation: a site with `height = 30` should show cost ≈ rate × 30.
+
+4. **Transaction dropdown for Riya (acc)** — requires migration `0005` to have run on Railway DB. With Dockerfile now running `alembic upgrade head` on startup, it should apply on the next Railway deploy. Verify: log in as riya/riya, go to Transactions, confirm Requested rows show dropdown with Executed/Cancelled/Rejected.
+
+---
+
+## Railway deployment notes
+
+- **Backend URL**: `https://arcad-production.up.railway.app`
+- **Frontend URL**: `https://arcad-production-8cc4.up.railway.app`
+- **DB host**: `autorack.proxy.rlwy.net:33504`
+- **Migrations**: Now run automatically on container startup (`alembic upgrade head && uvicorn ...` in Dockerfile). Full Railway DB URL is available in Railway dashboard under the PostgreSQL service → Connect → "Postgres Connection URL". Set as `DATABASE_URL` env var in the backend service.
+- **Auto-deploy**: Railway deploys frontend + backend on every `git push origin main`.
+- **User passwords**: Mixed — not all users have `changeme123`. Riya's password is `riya`. Verify others in Railway DB if needed.
+- **Admin**: wahid or sandeep (mgmt dept, password unknown — check Railway DB or reset via `/users/{id}/reset-password`).
 
 ---
 
@@ -90,9 +100,9 @@ The following fixes were pushed and should be live, but were not confirmed end-t
   - `backend/app/api/routes/media.py`
   - `backend/app/api/routes/projects.py`
   - `backend/app/api/routes/reports.py`
-  - `backend/app/api/routes/sites.py`
+  - `backend/app/api/routes/sites.py` — includes `/assignments/{fe_id}/{bucket_id}/remove`
   - `backend/app/api/routes/states.py`
-  - `backend/app/api/routes/tickets.py`
+  - `backend/app/api/routes/tickets.py` — includes `GET /{ticket_id}` and `PATCH /{ticket_id}/close`
   - `backend/app/api/routes/transactions.py` — includes `/transitions` endpoint
   - `backend/app/api/routes/updates.py`
   - `backend/app/api/routes/users.py`
@@ -104,20 +114,21 @@ The following fixes were pushed and should be live, but were not confirmed end-t
 - `ec` is treated as numeric, not bool.
 - Dashboard backend is role/dept scoped with date filtering.
 - User management: get, patch identity/active, assign/remove role, reset password.
-- FE assignment: `POST /sites/{project_key}/{site_id}/assignments`.
+- FE assignment: `POST /sites/{project_key}/{site_id}/assignments`, `PATCH .../assignments/{fe_id}/{bucket_id}/remove`.
 - Project metadata: `GET /projects/{project_key}/badge-transitions`, `GET /projects/{project_key}/job-buckets`.
-- Transaction transitions: `GET /transactions/transitions` (schema-fallback logic).
-- Migrations through `20260319_0004`:
+- Transaction transitions: `GET /transactions/transitions` (reads from schema_acc only).
+- Migrations through `20260319_0005`:
   - `0001` — initial schema
   - `0002` — seed UI fields
   - `0003` — seed `req → cancel` transaction transitions in project schemas
   - `0004` — seed `req → exct` transaction transitions in project schemas
+  - `0005` — create `schema_acc.badge_transitions`, seed `req → cancel`, `req → rej`, `req → exct`
 
 ### Permission system
 - `ROLE_ACTION_RULES` in `backend/app/api/auth.py` defines tag-level access per dept.
 - `FIELD_WRITE_SCOPE` defines which fields each dept can write. `mgmt` users bypass this check entirely.
 - `PermissionDenied` raises as a plain exception; global handler in `main.py` converts to HTTP 403.
-- Important: only tags that have matching `PermissionTag` rows in the DB will pass `check_permission`. Known seeded tags: `billing`, `transaction`, `site`, `field`, `user`, `subproject`, `project`, `role`, `update`. The `rate` tag is NOT seeded — use `billing` for rate card writes.
+- Known seeded tags: `billing`, `transaction`, `site`, `field`, `user`, `subproject`, `project`, `role`, `update`. The `rate` tag is NOT seeded — use `billing` for rate card writes.
 
 ### Cost calculation
 - `backend/app/config/calculator.py`
@@ -136,46 +147,43 @@ The following fixes were pushed and should be live, but were not confirmed end-t
 - `frontend/src/config/` — page-level config (people, dashboard, etc.)
 - People page: native `<table>` with rowSpan for merged name cells; one row per role
 - Site list page: dynamic columns from project ui-fields, horizontal scroll
-- Site detail page: all ui_fields, badge transitions, save button, updates, tickets, FE assignment, transactions
-- Transactions page: interactive status dropdown with execution date modal
+- Site detail page: all ui_fields, badge transitions, save button, updates, tickets (with Close button), FE assignment (with duplicate guard + Remove modal), transactions
+- Transactions page: acc-only interactive status dropdown with execution date modal
 - Rate Card page: native `<table table-fixed>`, right-aligned ₹ rate column, Add Rate modal
-- Sidebar: dept-gated visibility, logo-only header
+- Ticket list page: status column (Open/Closed), clickable ticket numbers → detail page
+- Ticket detail page: ticket info, Close Ticket button
+- Sidebar: dept+level-gated visibility, Rate Card at top level, independent counts fetch
 - Dashboard: choropleth map, date filter, role-scoped summary
 - Footer: fixed bottom, `text-sm`, `text-gray-800`
+
+---
+
+## Opus architectural review findings (priority order)
+
+1. **Level-aware field permissions not implemented** — ops L1 and L2 currently have identical write access. Spec requires L1 to only edit doc badge fields. `FIELD_WRITE_SCOPE` in `auth.py` and sidebar gating need level checks.
+2. **Frontend config files duplicate API metadata** — `mi.ts`, `md.ts`, etc. in `frontend/src/config/` mirror data already in `schema_{key}.ui_fields`. Delete and fetch from API only.
+3. **No pagination on list endpoints** — `GET /tickets`, `/transactions`, `/sites/{key}` return all rows. Will break at scale. Add `limit`/`offset` query params.
+4. **`SiteDetailPage.tsx` is 700+ lines** — extract `TransactionSection`, `UpdateSection`, `TicketSection` into dedicated components.
+5. **Duplicated site models** (`MISite`, `MDSite`, etc.) — all are identical except extra columns. Consider SQLAlchemy table inheritance or a single `sites` table with a `project_key` discriminator long term.
 
 ---
 
 ## Important implementation notes
 
 - `backend/venv/` is present inside the repo. Do not commit it.
-- Two India map assets exist; current code uses `india-full.geojson` (district-level, heavier than ideal).
+- Two India map assets exist; current code uses `india-full.geojson` (district-level, ~3.8 MB — consider switching to state-level).
 - FE assignment UI is empty if no FO users are scoped to the project.
-- Transaction transitions are identical across project schemas. `list_transitions` tries schema_acc first, then mi/md/ma/mc.
+- Transaction transitions always read from `schema_acc.badge_transitions`. Project schema transitions are for site badge transitions only.
 - The `billing` permission tag covers all billing operations including rate card writes. The `rate` tag does not have DB entries — do not use it.
+- `PATCH /tickets/{id}/close` sets `closing_date = date.today()` server-side — no body required from frontend.
+- FE remove endpoint: `PATCH /sites/{key}/{site_id}/assignments/{fe_id}/{bucket_id}/remove`, body `{final_cost: number | null}`.
 
 ---
-
-## Likely next targets
-
-- Live verification of the 4 items listed under "Needs verification" above.
-- Reduce India map asset to state-level polygons (currently district-level, ~3.8 MB).
-- Site detail: consider extracting FE assignment and transaction panels into dedicated components.
-- Transaction workflow: currently only req→cancel and req→exct are seeded in project schemas. If req→reject is needed in site-detail transaction cards, seed it.
-- Review whether `schema_acc.badge_transitions` actually has transaction transitions — if so, confirm the fallback order is correct. If not, the mi/md fallback handles it.
-
----
-
-## Verification history
-
-- `psql arcad_db` — schema_mi.badge_transitions confirmed: `transaction: req → cancel`
-- `alembic upgrade head` — succeeded through `20260319_0004`
-- `npm run build` — clean as of commit `4c5d001`
-- `python3.9 -m compileall app/` — clean as of commit `4c5d001`
 
 ## Servers
 
 - Deployed to Railway. Auto-deploys on push to `main` branch.
 - Railway PostgreSQL: `autorack.proxy.rlwy.net:33504`
 - Backend API base: `https://arcad-production.up.railway.app/api/v1`
-- Frontend is built via Railway's static build from `frontend/` directory.
+- Frontend: `https://arcad-production-8cc4.up.railway.app`
 - Local dev: start backend with `uvicorn app.main:app --reload` from `backend/`, frontend with `npm run dev` from `frontend/`.
