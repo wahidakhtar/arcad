@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 
 import DataTable from "../../components/ui/DataTable"
 import Modal from "../../components/ui/Modal"
+import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
 
 type TxRaw = {
@@ -62,6 +63,8 @@ type ExecModal = {
 const TODAY = new Date().toISOString().slice(0, 10)
 
 export default function TransactionsPage() {
+  const { roles } = useAuth()
+  const isAccUser = roles.some((r) => r.dept_key === "acc")
   const [rows, setRows] = useState<TxRow[]>([])
   const [, setBadges] = useState<BadgeEntry[]>([])
   const [transitions, setTransitions] = useState<TransitionEntry[]>([])
@@ -217,6 +220,9 @@ export default function TransactionsPage() {
             label: "Status",
             render: (_value, row) => {
               const txRow = row as unknown as TxRow
+              if (!isAccUser) {
+                return <span className="text-sm">{txRow.status_label}</span>
+              }
               const availableTransitions = transitions.filter((t) => t.from_id === txRow.status_id)
               if (!availableTransitions.length || transitioning === txRow.id) {
                 return <span className="text-sm">{txRow.status_label}</span>
