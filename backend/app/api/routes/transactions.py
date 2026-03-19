@@ -11,6 +11,11 @@ from app.services import transactions as transaction_service
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 
+@router.get("/transitions", dependencies=[Depends(permission_required("transaction", "read"))])
+def list_transitions(db: Session = Depends(get_db)):
+    return transaction_service.list_transitions(db)
+
+
 @router.get("", dependencies=[Depends(permission_required("transaction", "read"))])
 def list_transactions(db: Session = Depends(get_db)):
     return transaction_service.list_transactions(db)

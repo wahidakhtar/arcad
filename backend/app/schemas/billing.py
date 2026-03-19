@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 from datetime import date
+from decimal import Decimal
 
 from pydantic import BaseModel
 
@@ -46,3 +47,9 @@ class InvoiceOut(BaseModel):
 
 class StatusUpdate(BaseModel):
     status_id: int
+
+
+class RateCardCreate(BaseModel):
+    job_id: int
+    date: date
+    cost: Decimal

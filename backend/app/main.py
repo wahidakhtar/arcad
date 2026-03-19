@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -21,6 +22,7 @@ from app.api.routes.updates import router as updates_router
 from app.api.routes.users import router as users_router
 from app.core.config import get_settings
 from app.core.database import engine
+from app.core.errors import PermissionDenied
 from app.models.hr import User
 
 import app.models.acc  # noqa: F401
@@ -37,6 +39,11 @@ import app.models.updates  # noqa: F401
 
 settings = get_settings()
 app = FastAPI(title="ARCAD")
+
+
+@app.exception_handler(PermissionDenied)
+async def permission_denied_handler(request: Request, exc: PermissionDenied) -> JSONResponse:
+    return JSONResponse(status_code=403, content={"detail": str(exc)})
 
 app.add_middleware(
     CORSMiddleware,

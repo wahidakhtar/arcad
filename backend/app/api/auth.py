@@ -126,6 +126,8 @@ def check_permission(roles: list[RoleContext], project_key: Optional[str], tag: 
 
 def check_field_write_scope(user: UserContext, field_name: str) -> bool:
     for role in user.roles:
+        if role.dept_key == "mgmt":
+            return True
         if field_name in FIELD_WRITE_SCOPE.get(role.dept_key, set()):
             return True
     return False

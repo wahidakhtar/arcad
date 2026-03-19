@@ -5,15 +5,25 @@ from sqlalchemy.orm import Session
 
 from app.api.auth import permission_required
 from app.core.database import get_db
-from app.schemas.billing import InvoiceCreate, POCreate, StatusUpdate
+from app.schemas.billing import InvoiceCreate, POCreate, RateCardCreate, StatusUpdate
 from app.services import billing as billing_service
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
 
+@router.get("/jobs", dependencies=[Depends(permission_required("billing", "read"))])
+def list_jobs(db: Session = Depends(get_db)):
+    return billing_service.list_jobs(db)
+
+
 @router.get("/rate-card", dependencies=[Depends(permission_required("billing", "read"))])
 def list_rate_card(db: Session = Depends(get_db)):
     return billing_service.list_rate_card(db)
+
+
+@router.post("/rate-card", dependencies=[Depends(permission_required("rate", "write"))])
+def create_rate_card(payload: RateCardCreate, db: Session = Depends(get_db)):
+    return billing_service.create_rate_card(db, payload)
 
 
 @router.get("/pos", dependencies=[Depends(permission_required("billing", "read"))])

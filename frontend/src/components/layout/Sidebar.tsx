@@ -40,13 +40,9 @@ export default function Sidebar() {
 
   return (
     <aside className="glass-panel flex h-full w-[260px] shrink-0 flex-col overflow-hidden">
-      <div className="border-b border-jscolors-crimson/10 px-5 py-5">
-        <Link to="/dashboard" className="flex items-center gap-3">
-          <img src="/logo.png" alt="ARCAD" className="h-12 w-12 rounded-2xl border border-jscolors-gold/30 bg-white p-2 shadow-glow" />
-          <div>
-            <div className="font-syne text-lg font-bold tracking-[0.18em] text-jscolors-crimson">ARCAD</div>
-            <div className="text-xs uppercase tracking-[0.24em] text-jscolors-text/50">Operations Console</div>
-          </div>
+      <div className="border-b border-jscolors-crimson/10 px-5 py-4">
+        <Link to="/dashboard">
+          <img src="/logo.png" alt="ARCAD" className="h-16 w-full rounded-2xl border border-jscolors-gold/30 bg-white object-contain p-2 shadow-glow" />
         </Link>
       </div>
 

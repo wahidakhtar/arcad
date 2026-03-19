@@ -5,7 +5,30 @@ from sqlalchemy.orm import Session
 
 from app.models.acc import Invoice, PO, RateCard
 from app.models.core import Job
-from app.schemas.billing import InvoiceCreate, POCreate
+from app.schemas.billing import InvoiceCreate, POCreate, RateCardCreate
+
+
+def list_jobs(db: Session) -> list[Job]:
+    return db.execute(select(Job).order_by(Job.id)).scalars().all()
+
+
+def create_rate_card(db: Session, payload: RateCardCreate) -> dict:
+    job = db.get(Job, payload.job_id)
+    if job is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Job not found")
+    row = RateCard(job_id=payload.job_id, job_key=job.job_key, date=payload.date, cost=payload.cost)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {
+        "id": row.id,
+        "job_id": row.job_id,
+        "job_key": row.job_key,
+        "job_label": job.label,
+        "date": row.date,
+        "cost": row.cost,
+    }
 
 
 def list_rate_card(db: Session) -> list[dict]:

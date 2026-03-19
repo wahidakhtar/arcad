@@ -120,6 +120,7 @@ export default function SiteDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [savingFields, setSavingFields] = useState(false)
+  const [saveError, setSaveError] = useState("")
   const [updatingBadgeKey, setUpdatingBadgeKey] = useState("")
   const [updateForm, setUpdateForm] = useState({ date: TODAY, update: "", followup_date: "" })
   const [ticketForm, setTicketForm] = useState({ ticket_date: TODAY, rfo: "" })
@@ -236,9 +237,13 @@ export default function SiteDetailPage() {
       return
     }
     setSavingFields(true)
+    setSaveError("")
     try {
       await api.patch(`/sites/${projectKey}/${currentSite.id}`, { data: payload })
       await loadPage()
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setSaveError(detail ?? "Save failed.")
     } finally {
       setSavingFields(false)
     }
@@ -324,9 +329,12 @@ export default function SiteDetailPage() {
         <section className="glass-panel p-6">
           <div className="flex items-center justify-between gap-4">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">All Site Fields</p>
-            <button type="button" className="premium-button" disabled={savingFields} onClick={() => void saveFields()}>
-              Save Fields
-            </button>
+            <div className="flex items-center gap-3">
+              {saveError ? <span className="text-sm text-red-600">{saveError}</span> : null}
+              <button type="button" className="premium-button" disabled={savingFields} onClick={() => void saveFields()}>
+                {savingFields ? "Saving..." : "Save Fields"}
+              </button>
+            </div>
           </div>
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             {regularFields.map((field) => {

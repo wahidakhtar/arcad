@@ -7,9 +7,31 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from sqlalchemy import text
 from app.models.core import Badge
 from app.models.acc import Transaction
 from app.schemas.transaction import TransactionCreate
+
+
+def list_transitions(db: Session) -> list[dict]:
+    """Return allowed transaction badge transitions (queries schema_mi as source of truth)."""
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT bt.from_id, b_from.key AS from_key, bt.to_id, b_to.key AS to_key, b_to.label AS to_label
+                FROM schema_mi.badge_transitions bt
+                JOIN schema_core.transition_types tt ON tt.id = bt.type_id
+                JOIN schema_core.badges b_from ON b_from.id = bt.from_id
+                JOIN schema_core.badges b_to ON b_to.id = bt.to_id
+                WHERE tt.key = 'transaction'
+                """
+            )
+        ).mappings().all()
+        return [dict(row) for row in rows]
+    except Exception:
+        db.rollback()
+        return []
 
 
 def list_transactions(db: Session) -> list[Transaction]:

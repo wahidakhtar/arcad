@@ -8,13 +8,12 @@ import { getPageConfig } from "../../config"
 import { useListPage } from "../../hooks/useListPage"
 import { api } from "../../lib/api"
 
-type UserRow = {
-  id: number
-  label: string
-  username: string
+type FlatRoleRow = {
+  user_id: number
+  name: string
   active: boolean
   department: string
-  project: string[]
+  project: string
   access: string
 }
 
@@ -62,29 +61,27 @@ export default function PeoplePage() {
     })
   }, [])
 
-  const rows = useMemo<UserRow[]>(
-    () =>
-      (data ?? []).map((user) => {
-        const roles = user.roles ?? []
-
-        const deptLabels = [...new Set(roles.map((r) => badgeLabels.department[r.dept_key]).filter(Boolean))]
-        const projectLabels = [...new Set(
-          roles.map((r) => (r.project_id != null ? (projectMap[r.project_id] ?? String(r.project_id)) : "Global"))
-        )]
-        const accessLabels = [...new Set(roles.map((r) => badgeLabels.level[r.level_key]).filter(Boolean))]
-
-        return {
-          id: user.id,
-          label: user.label,
-          username: user.username,
+  const rows = useMemo<FlatRoleRow[]>(() => {
+    const result: FlatRoleRow[] = []
+    for (const user of data ?? []) {
+      const roles = user.roles ?? []
+      if (!roles.length) {
+        result.push({ user_id: user.id, name: user.label, active: user.active, department: "-", project: "-", access: "-" })
+        continue
+      }
+      roles.forEach((role, index) => {
+        result.push({
+          user_id: user.id,
+          name: index === 0 ? user.label : "",
           active: user.active,
-          department: deptLabels.length ? deptLabels.join(", ") : "-",
-          project: projectLabels.length ? projectLabels : ["-"],
-          access: accessLabels.length ? accessLabels.join(", ") : "-",
-        }
-      }),
-    [badgeLabels.department, badgeLabels.level, projectMap, data],
-  )
+          department: badgeLabels.department[role.dept_key] ?? role.dept_key,
+          project: role.project_id != null ? (projectMap[role.project_id] ?? String(role.project_id)) : "Global",
+          access: badgeLabels.level[role.level_key] ?? role.level_key,
+        })
+      })
+    }
+    return result
+  }, [badgeLabels.department, badgeLabels.level, projectMap, data])
 
   if (loading) {
     return <div className="glass-panel p-6">Loading people...</div>
@@ -147,24 +144,18 @@ export default function PeoplePage() {
         </form>
       </Modal>
       <DataTable
-        columns={config.listColumns.map((col) =>
-          col.key === "project"
-            ? {
-                key: "project",
-                label: "Project",
-                render: (value) => (
-                  <div className="space-y-0.5">
-                    {(value as string[]).map((projectLabel, index) => (
-                      <div key={index} className="truncate">{projectLabel}</div>
-                    ))}
-                  </div>
-                ),
-              }
-            : col,
-        )}
+        columns={[
+          { key: "name", label: "Name" },
+          { key: "department", label: "Department" },
+          { key: "project", label: "Project" },
+          { key: "access", label: "Access" },
+        ]}
         rows={rows as unknown as Record<string, unknown>[]}
-        rowHref={(row) => `/people/${(row as unknown as UserRow).id}`}
-        getRowClassName={(row) => (!(row as unknown as UserRow).active ? "opacity-40" : "")}
+        rowHref={(row) => `/people/${(row as unknown as FlatRoleRow).user_id}`}
+        getRowClassName={(row) => {
+          const r = row as unknown as FlatRoleRow
+          return [!r.active ? "opacity-40" : "", r.name ? "" : "border-t-0"].filter(Boolean).join(" ")
+        }}
       />
       <Link to="/dashboard" className="premium-button-secondary">
         Back to Dashboard
