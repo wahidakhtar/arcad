@@ -5,13 +5,13 @@ from dataclasses import dataclass
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import Select, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.errors import PermissionDenied
 from app.core.security import decode_token
-from app.models.core import PermissionTag, Project
+from app.models.core import FieldPermission, PermissionTag, Project
 from app.models.hr import Role, User, UserRole
 
 security = HTTPBearer(auto_error=False)
@@ -22,14 +22,6 @@ ROLE_ACTION_RULES: dict[str, dict[str, set[str]]] = {
     "ops": {"read": {"project", "subproject", "site", "field", "transaction", "update"}, "write": {"subproject", "site", "field", "transaction", "update"}},
     "hr": {"read": {"user"}, "write": {"user"}},
     "fo": {"read": {"field", "transaction", "site", "update"}, "write": {"transaction"}},
-}
-FIELD_WRITE_SCOPE: dict[str, set[str]] = {
-    "ops": {
-        "receiving_date", "customer", "height", "address", "city", "state_id", "lc", "permission_date", "edd",
-        "followup_date", "completion_date", "visit_date", "outcome", "dismantle_date", "scrap_value", "audit_date",
-        "mpaint", "mnbr", "arr", "ep", "ec", "cm_date",
-    },
-    "acc": {"po_number", "invoice_number", "po_status_id", "invoice_status_id", "doc_status_id", "wcc_status_id", "fsr_status_id", "report_status_id"},
 }
 
 
@@ -124,11 +116,17 @@ def check_permission(roles: list[RoleContext], project_key: Optional[str], tag: 
     return False
 
 
-def check_field_write_scope(user: UserContext, field_name: str) -> bool:
+def check_field_write_scope(user: UserContext, field_name: str, db: Session) -> bool:
     for role in user.roles:
         if role.dept_key == "mgmt":
             return True
-        if field_name in FIELD_WRITE_SCOPE.get(role.dept_key, set()):
+        match = db.execute(
+            select(FieldPermission).where(
+                FieldPermission.field_key == field_name,
+                FieldPermission.dept_key == role.dept_key,
+            )
+        ).scalar_one_or_none()
+        if match is not None:
             return True
     return False
 
@@ -144,7 +142,7 @@ def ensure_permission(
 ) -> None:
     if not check_permission(user.roles, project_key, tag, action, db):
         raise PermissionDenied(f"{action} access denied for {tag}")
-    if action == "write" and field_name is not None and not check_field_write_scope(user, field_name):
+    if action == "write" and field_name is not None and not check_field_write_scope(user, field_name, db):
         raise PermissionDenied(f"Write denied for field {field_name}")
 
 

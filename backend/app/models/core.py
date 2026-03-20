@@ -62,6 +62,15 @@ class Job(Base):
     scale_by: Mapped[str] = mapped_column(String(16), nullable=False, default="unit")
 
 
+class FieldPermission(Base):
+    __tablename__ = "field_permissions"
+    __table_args__ = {"schema": "schema_core"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    field_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    dept_key: Mapped[str] = mapped_column(String(32), nullable=False)
+
+
 class IndianState(Base):
     __tablename__ = "indian_states"
     __table_args__ = {"schema": "schema_core"}
