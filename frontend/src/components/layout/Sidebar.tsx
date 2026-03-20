@@ -60,8 +60,10 @@ export default function Sidebar() {
                 <NavLink
                   to={projectDest}
                   className={({ isActive }) =>
-                    `flex items-center justify-between rounded-2xl px-3 py-2.5 transition ${
-                      isActive ? "bg-jscolors-crimson text-white shadow-glow" : "bg-white/60 text-jscolors-text hover:bg-white"
+                    `flex items-center justify-between rounded-full border px-5 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5 ${
+                      isActive
+                        ? "border-jscolors-crimson bg-jscolors-crimson text-white shadow-glow"
+                        : "border-jscolors-crimson/20 bg-white text-jscolors-crimson hover:border-jscolors-crimson/40 hover:bg-white/90"
                     }`
                   }
                 >
@@ -75,8 +77,10 @@ export default function Sidebar() {
                     key={subproject.id}
                     to={`/projects/${project.key}/sub/${subproject.id}`}
                     className={({ isActive }) =>
-                      `ml-4 flex rounded-xl px-3 py-2 text-xs transition ${
-                        isActive ? "bg-jscolors-gold/30 text-jscolors-text" : "text-jscolors-text/70 hover:bg-white/60"
+                      `ml-4 flex justify-center rounded-full border px-3 py-1.5 text-xs font-semibold transition hover:-translate-y-0.5 ${
+                        isActive
+                          ? "border-jscolors-gold/60 bg-jscolors-gold/20 text-jscolors-text"
+                          : "border-jscolors-crimson/15 bg-white text-jscolors-crimson/70 hover:border-jscolors-crimson/30"
                       }`
                     }
                   >
@@ -106,11 +110,7 @@ export default function Sidebar() {
           <div className="text-xs uppercase tracking-[0.24em] text-jscolors-text/40">Signed In</div>
           <div className="mt-1 font-syne text-base font-semibold text-jscolors-crimson">{user?.label ?? "Guest"}</div>
         </div>
-        <button
-          type="button"
-          onClick={() => void logout()}
-          className="flex w-full items-center rounded-2xl bg-white/60 px-3 py-2.5 text-sm transition hover:bg-white"
-        >
+        <button type="button" onClick={() => void logout()} className="premium-button-secondary w-full">
           Logout
         </button>
       </div>
@@ -123,8 +123,10 @@ function SectionLink({ to, label, compact = false }: { to: string; label: string
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `flex items-center rounded-2xl ${compact ? "ml-4 px-3 py-2 text-xs" : "px-3 py-2.5"} transition ${
-          isActive ? "bg-jscolors-crimson text-white shadow-glow" : "bg-white/60 text-jscolors-text hover:bg-white"
+        `flex items-center justify-center rounded-full border ${compact ? "ml-4 px-3 py-2 text-xs" : "px-5 py-2.5 text-sm"} font-semibold transition hover:-translate-y-0.5 ${
+          isActive
+            ? "border-jscolors-crimson bg-jscolors-crimson text-white shadow-glow"
+            : "border-jscolors-crimson/20 bg-white text-jscolors-crimson hover:border-jscolors-crimson/40 hover:bg-white/90"
         }`
       }
     >
