@@ -4,7 +4,7 @@ import Sidebar from "./Sidebar"
 
 export default function PageLayout({ children }: { children?: React.ReactNode }) {
   return (
-    <div className="page-shell pb-4">
+    <div className="page-shell pb-2">
       <div className="relative z-10 flex h-full gap-4 overflow-hidden p-4">
         <Sidebar />
         <main className="glass-panel flex flex-1 flex-col overflow-hidden">
