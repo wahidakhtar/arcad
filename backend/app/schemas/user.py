@@ -22,9 +22,11 @@ class PasswordResetRequest(BaseModel):
 
 
 class UserUpdate(BaseModel):
+    label: Optional[str] = None
     username: Optional[str] = None
     aadhaar: Optional[str] = None
     upi: Optional[str] = None
+    ctc: Optional[str] = None
     active: Optional[bool] = None
 
 

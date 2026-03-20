@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -103,10 +104,14 @@ def update_user(db: Session, user_id: int, payload: UserUpdate) -> UserOut:
             raise HTTPException(status_code=400, detail="Username already exists")
         user.username = payload.username
 
+    if payload.label is not None and payload.label:
+        user.label = payload.label
     if payload.aadhaar is not None:
         user.aadhaar = payload.aadhaar or None
     if payload.upi is not None:
         user.upi = payload.upi or None
+    if payload.ctc is not None:
+        user.ctc = payload.ctc or None
     if payload.active is not None:
         user.active = payload.active
 
@@ -129,6 +134,19 @@ def assign_role(db: Session, user_id: int, payload: UserRoleAssignment) -> UserO
     project_id = payload.project_id if needs_project else None
     if needs_project and project_id is None:
         raise HTTPException(status_code=400, detail="Project is required for this department")
+
+    # One-department-per-user enforcement
+    existing_assignments = db.execute(
+        select(UserRole, Role).join(Role, Role.id == UserRole.role_id).where(UserRole.user_id == user_id)
+    ).all()
+    if existing_assignments:
+        existing_depts = {r.dept_key for _, r in existing_assignments}
+        if payload.dept_key not in existing_depts:
+            existing_dept = next(iter(existing_depts))
+            raise HTTPException(
+                status_code=403,
+                detail=f"User already belongs to {existing_dept} department. Cross-department role assignment is not allowed.",
+            )
 
     existing = db.execute(
         select(UserRole).where(UserRole.user_id == user_id, UserRole.role_id == role.id, UserRole.project_id == project_id)
@@ -194,6 +212,14 @@ def get_available_roles(db: Session, user_id: int) -> list[dict]:
         ).scalars().all()
         taken_ops_l3_projects = {a.project_id for a in assignments if a.project_id is not None}
 
+    # One-department filter: if the target user already has roles, restrict to their dept
+    target_user_roles = db.execute(
+        select(UserRole, Role).join(Role, Role.id == UserRole.role_id).where(UserRole.user_id == user_id)
+    ).all()
+    allowed_depts: Optional[set[str]] = None
+    if target_user_roles:
+        allowed_depts = {role.dept_key for _, role in target_user_roles}
+
     # Load active projects only (for ops/fo scoping)
     projects = db.execute(select(Project).where(Project.active.is_(True))).scalars().all()
 
@@ -203,6 +229,9 @@ def get_available_roles(db: Session, user_id: int) -> list[dict]:
         if (dk, lk) in EXCLUDED:
             continue
         if (dk, lk) in taken_singletons:
+            continue
+        # One-department filter
+        if allowed_depts is not None and dk not in allowed_depts:
             continue
 
         if dk in {"ops", "fo"}:

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
 
+import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
 
 type UserDetail = {
@@ -9,6 +10,7 @@ type UserDetail = {
   label: string
   aadhaar?: string | null
   upi?: string | null
+  ctc?: string | null
   active: boolean
   roles: Array<{ id: number; label: string; key: string; dept_key: string; level_key: string; project_id: number | null }>
 }
@@ -25,13 +27,18 @@ type AvailableRole = {
 
 export default function UserDetailPage() {
   const { userId } = useParams()
+  const { tags } = useAuth()
+  const canWriteUser = tags.user?.write === true
+  const canReadAssignRole = tags.assign_role?.read === true
+  const canWriteAssignRole = tags.assign_role?.write === true
+
   const [user, setUser] = useState<UserDetail | null>(null)
   const [availableRoles, setAvailableRoles] = useState<AvailableRole[]>([])
   const [projects, setProjects] = useState<Array<{ id: number; key: string; label: string }>>([])
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const [passwordForm, setPasswordForm] = useState({ password: "", confirm_password: "" })
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ username: "", aadhaar: "", upi: "" })
+  const [form, setForm] = useState({ label: "", username: "", aadhaar: "", upi: "", ctc: "" })
   const [roleForm, setRoleForm] = useState({ dept_key: "", level_key: "", project_id: "" })
   const [deptLabels, setDeptLabels] = useState<Record<string, string>>({})
   const [levelLabels, setLevelLabels] = useState<Record<string, string>>({})
@@ -47,9 +54,11 @@ export default function UserDetailPage() {
       const nextUser = userResponse.data as UserDetail
       setUser(nextUser)
       setForm({
+        label: nextUser.label,
         username: nextUser.username,
         aadhaar: nextUser.aadhaar ?? "",
         upi: nextUser.upi ?? "",
+        ctc: nextUser.ctc ?? "",
       })
       setProjects(projectsResponse.data)
       setDeptLabels(Object.fromEntries((deptResponse.data as { key: string; label: string }[]).map((b) => [b.key, b.label])))
@@ -57,34 +66,30 @@ export default function UserDetailPage() {
     })
   }, [userId])
 
-  // Reload available roles whenever user changes (role added/removed)
+  // Reload available roles whenever user changes (role added/removed) — only if viewer can read assign_role
   useEffect(() => {
-    if (!userId) return
+    if (!userId || !canReadAssignRole) return
     void api.get<AvailableRole[]>(`/roles/available?user_id=${userId}`).then((r) => {
       setAvailableRoles(r.data)
-      // Reset form to first available dept
       const depts = [...new Set(r.data.map((x) => x.dept_key))]
       const firstDept = depts[0] ?? ""
       const firstLevel = r.data.find((x) => x.dept_key === firstDept)?.level_key ?? ""
       setRoleForm({ dept_key: firstDept, level_key: firstLevel, project_id: "" })
     }).catch(() => {})
-  }, [userId, user?.roles.length])
+  }, [userId, user?.roles.length, canReadAssignRole])
 
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects])
 
-  // Derived from availableRoles
   const availableDepts = useMemo(() => [...new Set(availableRoles.map((r) => r.dept_key))], [availableRoles])
   const needsProject = ["ops", "fo"].includes(roleForm.dept_key)
   const levelsForDept = useMemo(() => {
     let filtered = availableRoles.filter((r) => r.dept_key === roleForm.dept_key)
-    // For project-scoped depts, restrict levels to those available for the selected project
     if (needsProject && roleForm.project_id) {
       filtered = filtered.filter((r) => String(r.project_id) === roleForm.project_id)
     }
     return [...new Set(filtered.map((r) => r.level_key))]
   }, [availableRoles, roleForm.dept_key, roleForm.project_id, needsProject])
 
-  // When dept changes, reset level to first available
   function handleDeptChange(dept: string) {
     const firstLevel = availableRoles.find((r) => r.dept_key === dept)?.level_key ?? ""
     setRoleForm({ dept_key: dept, level_key: firstLevel, project_id: "" })
@@ -96,9 +101,11 @@ export default function UserDetailPage() {
     const nextUser = response.data as UserDetail
     setUser(nextUser)
     setForm({
+      label: nextUser.label,
       username: nextUser.username,
       aadhaar: nextUser.aadhaar ?? "",
       upi: nextUser.upi ?? "",
+      ctc: nextUser.ctc ?? "",
     })
   }
 
@@ -112,38 +119,67 @@ export default function UserDetailPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Identity</p>
         <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">{user.label}</h1>
         <div className="mt-6 space-y-4 text-sm">
-          <EditableRow label="Username" value={form.username} onChange={(value) => setForm((current) => ({ ...current, username: value }))} />
-          <EditableRow label="Aadhaar" value={form.aadhaar} onChange={(value) => setForm((current) => ({ ...current, aadhaar: value }))} />
-          <EditableRow label="UPI" value={form.upi} onChange={(value) => setForm((current) => ({ ...current, upi: value }))} />
-          <div className="flex gap-3">
-            <button
-              type="button"
-              className="premium-button"
-              disabled={saving}
-              onClick={() => {
-                setSaving(true)
-                void api
-                  .patch(`/users/${user.id}`, form)
-                  .then(() => reloadUser())
-                  .finally(() => setSaving(false))
-              }}
-            >
-              Save
-            </button>
-            <button type="button" className="premium-button-secondary" onClick={() => setChangePasswordOpen((current) => !current)}>
-              Change Password
-            </button>
-            <button
-              type="button"
-              className="premium-button-secondary"
-              onClick={() => {
-                void api.patch(`/users/${user.id}`, { active: !user.active }).then(() => reloadUser())
-              }}
-            >
-              {user.active ? "Deactivate" : "Activate"}
-            </button>
-          </div>
-          {changePasswordOpen ? (
+          <EditableRow
+            label="Name"
+            value={form.label}
+            editable={canWriteUser}
+            onChange={(value) => setForm((current) => ({ ...current, label: value }))}
+          />
+          <EditableRow
+            label="Username"
+            value={form.username}
+            editable={canWriteUser}
+            onChange={(value) => setForm((current) => ({ ...current, username: value }))}
+          />
+          <EditableRow
+            label="Aadhaar"
+            value={form.aadhaar}
+            editable={canWriteUser}
+            onChange={(value) => setForm((current) => ({ ...current, aadhaar: value }))}
+          />
+          <EditableRow
+            label="UPI"
+            value={form.upi}
+            editable={canWriteUser}
+            onChange={(value) => setForm((current) => ({ ...current, upi: value }))}
+          />
+          <EditableRow
+            label="CTC"
+            value={form.ctc}
+            editable={canWriteUser}
+            onChange={(value) => setForm((current) => ({ ...current, ctc: value }))}
+          />
+          {canWriteUser ? (
+            <div className="flex gap-3">
+              <button
+                type="button"
+                className="premium-button"
+                disabled={saving}
+                onClick={() => {
+                  setSaving(true)
+                  void api
+                    .patch(`/users/${user.id}`, form)
+                    .then(() => reloadUser())
+                    .finally(() => setSaving(false))
+                }}
+              >
+                Save
+              </button>
+              <button type="button" className="premium-button-secondary" onClick={() => setChangePasswordOpen((current) => !current)}>
+                Change Password
+              </button>
+              <button
+                type="button"
+                className="premium-button-secondary"
+                onClick={() => {
+                  void api.patch(`/users/${user.id}`, { active: !user.active }).then(() => reloadUser())
+                }}
+              >
+                {user.active ? "Deactivate" : "Activate"}
+              </button>
+            </div>
+          ) : null}
+          {canWriteUser && changePasswordOpen ? (
             <div className="rounded-[18px] border border-jscolors-crimson/10 bg-white px-4 py-4">
               <div className="grid gap-3 md:grid-cols-2">
                 <input
@@ -178,6 +214,7 @@ export default function UserDetailPage() {
           ) : null}
         </div>
       </section>
+
       <section className="glass-panel p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Assigned Roles</p>
         <div className="mt-5 space-y-3">
@@ -191,20 +228,22 @@ export default function UserDetailPage() {
                   {projectById.get(role.project_id ?? -1)?.label ?? "Global"}
                 </div>
               </div>
-              <button
-                type="button"
-                className="premium-button-secondary"
-                onClick={() => {
-                  void api.delete(`/users/${user.id}/roles/${role.id}`).then(() => reloadUser())
-                }}
-              >
-                Remove
-              </button>
+              {canWriteAssignRole ? (
+                <button
+                  type="button"
+                  className="premium-button-secondary"
+                  onClick={() => {
+                    void api.delete(`/users/${user.id}/roles/${role.id}`).then(() => reloadUser())
+                  }}
+                >
+                  Remove
+                </button>
+              ) : null}
             </div>
           )) : <div className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4 text-sm text-jscolors-text/60">No roles assigned</div>}
         </div>
 
-        {availableDepts.length > 0 ? (
+        {canWriteAssignRole && availableDepts.length > 0 ? (
           <div className="mt-6 rounded-[24px] border border-dashed border-jscolors-crimson/20 bg-jscolors-crimson/[0.03] p-5 text-sm text-jscolors-text/65">
             <div className="grid gap-4 md:grid-cols-3">
               <label className="block">
@@ -226,7 +265,6 @@ export default function UserDetailPage() {
                     value={roleForm.project_id}
                     onChange={(event) => {
                       const pid = event.target.value
-                      // Recompute first available level for this project
                       const firstLevel = availableRoles.find(
                         (r) => r.dept_key === roleForm.dept_key && String(r.project_id) === pid,
                       )?.level_key ?? ""
@@ -270,7 +308,11 @@ export default function UserDetailPage() {
               Assign
             </button>
           </div>
-        ) : (
+        ) : canReadAssignRole && !canWriteAssignRole ? (
+          <div className="mt-6 rounded-[24px] border border-dashed border-jscolors-crimson/20 bg-jscolors-crimson/[0.03] p-5 text-sm text-jscolors-text/60">
+            Role assignment is read-only for your account.
+          </div>
+        ) : !canReadAssignRole ? null : (
           <div className="mt-6 rounded-[24px] border border-dashed border-jscolors-crimson/20 bg-jscolors-crimson/[0.03] p-5 text-sm text-jscolors-text/60">
             No additional roles can be assigned.
           </div>
@@ -280,16 +322,30 @@ export default function UserDetailPage() {
   )
 }
 
-function EditableRow({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function EditableRow({
+  label,
+  value,
+  editable,
+  onChange,
+}: {
+  label: string
+  value: string
+  editable: boolean
+  onChange: (value: string) => void
+}) {
   return (
     <div className="rounded-[18px] border border-jscolors-crimson/10 bg-white px-4 py-3">
       <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-jscolors-text/40">{label}</div>
-      <input
-        type="text"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-1 w-full bg-transparent text-sm outline-none"
-      />
+      {editable ? (
+        <input
+          type="text"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="mt-1 w-full bg-transparent text-sm outline-none"
+        />
+      ) : (
+        <div className="mt-1 text-sm text-jscolors-text">{value || "—"}</div>
+      )}
     </div>
   )
 }

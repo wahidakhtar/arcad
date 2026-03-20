@@ -79,6 +79,7 @@ type UpdateRow = {
   date: string
   update: string
   followup_date?: string | null
+  update_type?: string
 }
 
 type TicketRow = {
@@ -249,6 +250,9 @@ export default function SiteDetailPage() {
 
   const docBadgeVisible = tags.doc_badge?.read === true
   const docBadgeEditable = tags.doc_badge?.write === true
+  const canAddUpdate = tags.update?.write === true || tags.acc_update?.write === true
+  const canReadOpsUpdates = tags.update?.read === true
+  const canReadAccUpdates = tags.acc_update?.read === true
   const outcomeId = typeof currentSite.fields.outcome === "number" ? currentSite.fields.outcome :
                     typeof currentSite.fields.outcome_id === "number" ? currentSite.fields.outcome_id : null
   const isAssetTransfer = outcomeId !== null && badgeById.get(outcomeId as number)?.label?.toLowerCase() === "asset transfer"
@@ -413,54 +417,64 @@ export default function SiteDetailPage() {
         </section>
 
         <section className="grid gap-6">
-          <ActionPanel title="Add Update">
-            <div className="grid gap-3">
-              <input
-                type="date"
-                value={updateForm.date}
-                onChange={(event) => setUpdateForm((current) => ({ ...current, date: event.target.value }))}
-                className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-              />
-              <textarea
-                value={updateForm.update}
-                onChange={(event) => setUpdateForm((current) => ({ ...current, update: event.target.value }))}
-                placeholder="Update"
-                rows={3}
-                className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-              />
-              <input
-                type="date"
-                value={updateForm.followup_date}
-                onChange={(event) => setUpdateForm((current) => ({ ...current, followup_date: event.target.value }))}
-                className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-              />
-              <button
-                type="button"
-                className="premium-button"
-                onClick={() => {
-                  void api
-                    .post("/updates", {
-                      project_id: project?.id,
-                      site_id: currentSite.id,
-                      date: updateForm.date,
-                      update: updateForm.update,
-                      followup_date: updateForm.followup_date || null,
-                    })
-                    .then(() => {
-                      setUpdateForm({ date: TODAY, update: "", followup_date: "" })
-                      return loadPage()
-                    })
-                }}
-              >
-                Add Update
-              </button>
-            </div>
-            <div className="mt-4 space-y-3">
-              {updates.length ? updates.map((row) => (
-                <InfoRow key={row.id} title={row.date} text={`${row.update}${row.followup_date ? ` • Follow-up ${row.followup_date}` : ""}`} />
-              )) : <EmptyState text="No updates yet" />}
-            </div>
-          </ActionPanel>
+          {canAddUpdate ? (
+            <ActionPanel title="Add Update">
+              <div className="grid gap-3">
+                <input
+                  type="date"
+                  value={updateForm.date}
+                  onChange={(event) => setUpdateForm((current) => ({ ...current, date: event.target.value }))}
+                  className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
+                />
+                <textarea
+                  value={updateForm.update}
+                  onChange={(event) => setUpdateForm((current) => ({ ...current, update: event.target.value }))}
+                  placeholder="Update"
+                  rows={3}
+                  className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
+                />
+                <input
+                  type="date"
+                  value={updateForm.followup_date}
+                  onChange={(event) => setUpdateForm((current) => ({ ...current, followup_date: event.target.value }))}
+                  className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
+                />
+                <button
+                  type="button"
+                  className="premium-button"
+                  onClick={() => {
+                    void api
+                      .post("/updates", {
+                        project_id: project?.id,
+                        site_id: currentSite.id,
+                        date: updateForm.date,
+                        update: updateForm.update,
+                        followup_date: updateForm.followup_date || null,
+                      })
+                      .then(() => {
+                        setUpdateForm({ date: TODAY, update: "", followup_date: "" })
+                        return loadPage()
+                      })
+                  }}
+                >
+                  Add Update
+                </button>
+              </div>
+              <div className="mt-4 space-y-3">
+                {updates.filter((row) => {
+                  const t = row.update_type ?? "ops"
+                  if (t === "finance") return canReadAccUpdates
+                  return canReadOpsUpdates
+                }).length ? updates.filter((row) => {
+                  const t = row.update_type ?? "ops"
+                  if (t === "finance") return canReadAccUpdates
+                  return canReadOpsUpdates
+                }).map((row) => (
+                  <InfoRow key={row.id} title={row.date} text={`${row.update}${row.followup_date ? ` • Follow-up ${row.followup_date}` : ""}${row.update_type === "finance" ? " [Finance]" : ""}`} />
+                )) : <EmptyState text="No updates yet" />}
+              </div>
+            </ActionPanel>
+          ) : null}
 
           <ActionPanel title="Add Ticket">
             <div className="grid gap-3">

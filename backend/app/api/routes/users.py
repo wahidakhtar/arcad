@@ -31,12 +31,12 @@ def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db)
     return user_service.update_user(db, user_id, payload)
 
 
-@router.post("/{user_id}/roles", response_model=UserOut, dependencies=[Depends(permission_required("user", "write"))])
+@router.post("/{user_id}/roles", response_model=UserOut, dependencies=[Depends(permission_required("assign_role", "write"))])
 def assign_role(user_id: int, payload: UserRoleAssignment, db: Session = Depends(get_db)):
     return user_service.assign_role(db, user_id, payload)
 
 
-@router.delete("/{user_id}/roles/{role_id}", response_model=UserOut, dependencies=[Depends(permission_required("user", "write"))])
+@router.delete("/{user_id}/roles/{role_id}", response_model=UserOut, dependencies=[Depends(permission_required("assign_role", "write"))])
 def remove_role(user_id: int, role_id: int, db: Session = Depends(get_db)):
     return user_service.remove_role(db, user_id, role_id)
 

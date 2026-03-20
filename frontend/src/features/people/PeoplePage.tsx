@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom"
 import FieldRenderer from "../../components/ui/FieldRenderer"
 import Modal from "../../components/ui/Modal"
 import { getPageConfig } from "../../config"
+import { useAuth } from "../../context/AuthContext"
 import { useListPage } from "../../hooks/useListPage"
 import { api } from "../../lib/api"
 
@@ -29,6 +30,8 @@ type ProjectEntry = {
 export default function PeoplePage() {
   const config = getPageConfig("people")
   const navigate = useNavigate()
+  const { tags } = useAuth()
+  const canWriteUser = tags.user?.write === true
   const [hoveredUserId, setHoveredUserId] = useState<number | null>(null)
   const [openAddUser, setOpenAddUser] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -90,12 +93,14 @@ export default function PeoplePage() {
         title="Users, departments, and access layers"
         summary="Create users here, then open any row for role visibility and identity details."
       >
-        <button type="button" className="premium-button-secondary" onClick={() => setOpenAddUser(true)}>
-          + Add User
-        </button>
+        {canWriteUser ? (
+          <button type="button" className="premium-button-secondary" onClick={() => setOpenAddUser(true)}>
+            + Add User
+          </button>
+        ) : null}
       </Header>
 
-      <Modal open={openAddUser} title="Add User" onClose={() => setOpenAddUser(false)}>
+      <Modal open={canWriteUser && openAddUser} title="Add User" onClose={() => setOpenAddUser(false)}>
         <form
           className="space-y-4"
           onSubmit={(event) => {

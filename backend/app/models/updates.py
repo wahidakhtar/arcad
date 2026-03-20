@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 from datetime import date
 
-from sqlalchemy import Date, ForeignKey, Integer, Text
+from sqlalchemy import Date, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -19,4 +19,5 @@ class Update(Base):
     date: Mapped[date] = mapped_column(Date, nullable=False)
     update: Mapped[str] = mapped_column(Text, nullable=False)
     followup_date: Optional[Mapped[date]] = mapped_column(Date)
+    update_type: Mapped[str] = mapped_column(String(16), nullable=False, default="ops")
 
