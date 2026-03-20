@@ -105,9 +105,12 @@ export default function Sidebar() {
         <div className="mb-3 rounded-2xl bg-jscolors-crimson/5 px-3 py-3">
           <div className="text-xs uppercase tracking-[0.24em] text-jscolors-text/40">Signed In</div>
           <div className="mt-1 font-syne text-base font-semibold text-jscolors-crimson">{user?.label ?? "Guest"}</div>
-          <div className="text-xs text-jscolors-text/60">{user?.username}</div>
         </div>
-        <button type="button" onClick={() => void logout()} className="premium-button-secondary w-full">
+        <button
+          type="button"
+          onClick={() => void logout()}
+          className="flex w-full items-center rounded-2xl bg-white/60 px-3 py-2.5 text-sm transition hover:bg-white"
+        >
           Logout
         </button>
       </div>
