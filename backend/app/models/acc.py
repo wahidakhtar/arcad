@@ -4,7 +4,9 @@ from typing import Optional
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Date, ForeignKey, Index, Integer, Numeric, String, Text
+from datetime import datetime
+
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -60,6 +62,8 @@ class Transaction(Base):
     execution_date: Optional[Mapped[date]] = mapped_column(Date)
     remarks: Optional[Mapped[str]] = mapped_column(Text)
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    deleted_at: Optional[Mapped[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_by: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_hr.users.id"), nullable=True)
 
 
 class RateCard(Base):

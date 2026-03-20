@@ -13,26 +13,33 @@ type UserDetail = {
   roles: Array<{ id: number; label: string; key: string; dept_key: string; level_key: string; project_id: number | null }>
 }
 
+type AvailableRole = {
+  role_id: number
+  dept_key: string
+  level_key: string
+  label: string
+  project_id: number | null
+  project_label: string | null
+  project_key: string | null
+}
+
 export default function UserDetailPage() {
   const { userId } = useParams()
   const [user, setUser] = useState<UserDetail | null>(null)
-  const [projects, setProjects] = useState<Array<{ id: number; key: string; label: string; recurring?: boolean }>>([])
-  const [departments, setDepartments] = useState<Array<{ key: string; label: string }>>([])
-  const [levels, setLevels] = useState<Array<{ key: string; label: string }>>([])
+  const [availableRoles, setAvailableRoles] = useState<AvailableRole[]>([])
+  const [projects, setProjects] = useState<Array<{ id: number; key: string; label: string }>>([])
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const [passwordForm, setPasswordForm] = useState({ password: "", confirm_password: "" })
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ username: "", aadhaar: "", upi: "" })
-  const [roleForm, setRoleForm] = useState({ dept_key: "mgmt", level_key: "l1", project_id: "" })
+  const [roleForm, setRoleForm] = useState({ dept_key: "", level_key: "", project_id: "" })
 
   useEffect(() => {
     if (!userId) return
     void Promise.all([
       api.get(`/users/${userId}`),
       api.get("/projects"),
-      api.get("/badges", { params: { type: "department" } }),
-      api.get("/badges", { params: { type: "level" } }),
-    ]).then(([userResponse, projectsResponse, departmentsResponse, levelsResponse]) => {
+    ]).then(([userResponse, projectsResponse]) => {
       const nextUser = userResponse.data as UserDetail
       setUser(nextUser)
       setForm({
@@ -41,14 +48,37 @@ export default function UserDetailPage() {
         upi: nextUser.upi ?? "",
       })
       setProjects(projectsResponse.data)
-      setDepartments(departmentsResponse.data)
-      setLevels(levelsResponse.data)
     })
   }, [userId])
 
+  // Reload available roles whenever user changes (role added/removed)
+  useEffect(() => {
+    if (!userId) return
+    void api.get<AvailableRole[]>(`/roles/available?user_id=${userId}`).then((r) => {
+      setAvailableRoles(r.data)
+      // Reset form to first available dept
+      const depts = [...new Set(r.data.map((x) => x.dept_key))]
+      const firstDept = depts[0] ?? ""
+      const firstLevel = r.data.find((x) => x.dept_key === firstDept)?.level_key ?? ""
+      setRoleForm({ dept_key: firstDept, level_key: firstLevel, project_id: "" })
+    }).catch(() => {})
+  }, [userId, user?.roles.length])
+
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects])
-  const departmentLabelByKey = useMemo(() => Object.fromEntries(departments.map((item) => [item.key, item.label])), [departments])
-  const levelLabelByKey = useMemo(() => Object.fromEntries(levels.map((item) => [item.key, item.label])), [levels])
+
+  // Derived from availableRoles
+  const availableDepts = useMemo(() => [...new Set(availableRoles.map((r) => r.dept_key))], [availableRoles])
+  const levelsForDept = useMemo(
+    () => [...new Set(availableRoles.filter((r) => r.dept_key === roleForm.dept_key).map((r) => r.level_key))],
+    [availableRoles, roleForm.dept_key],
+  )
+  const needsProject = ["ops", "fo"].includes(roleForm.dept_key)
+
+  // When dept changes, reset level to first available
+  function handleDeptChange(dept: string) {
+    const firstLevel = availableRoles.find((r) => r.dept_key === dept)?.level_key ?? ""
+    setRoleForm({ dept_key: dept, level_key: firstLevel, project_id: "" })
+  }
 
   async function reloadUser() {
     if (!userId) return
@@ -64,6 +94,14 @@ export default function UserDetailPage() {
 
   if (!user) {
     return <div className="glass-panel p-6">User not found.</div>
+  }
+
+  // Label lookups from available roles (fallback to key)
+  const deptLabelMap: Record<string, string> = {}
+  const levelLabelMap: Record<string, string> = {}
+  for (const r of availableRoles) {
+    deptLabelMap[r.dept_key] = r.dept_key  // available roles don't carry dept label — use badge lookup below
+    levelLabelMap[r.level_key] = r.level_key
   }
 
   return (
@@ -145,7 +183,7 @@ export default function UserDetailPage() {
             <div key={role.id} className="flex items-center justify-between rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
               <div>
                 <div className="font-medium text-jscolors-text">
-                  {departmentLabelByKey[role.dept_key] ?? role.dept_key} · {levelLabelByKey[role.level_key] ?? role.level_key} · {projectById.get(role.project_id ?? -1)?.label ?? "Global"}
+                  {role.dept_key} · {role.level_key} · {projectById.get(role.project_id ?? -1)?.label ?? "Global"}
                 </div>
                 <div className="text-xs uppercase tracking-[0.22em] text-jscolors-text/45">
                   {projectById.get(role.project_id ?? -1)?.label ?? "Global"}
@@ -163,64 +201,71 @@ export default function UserDetailPage() {
             </div>
           )) : <div className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4 text-sm text-jscolors-text/60">No roles assigned</div>}
         </div>
-        <div className="mt-6 rounded-[24px] border border-dashed border-jscolors-crimson/20 bg-jscolors-crimson/[0.03] p-5 text-sm text-jscolors-text/65">
-          <div className="grid gap-4 md:grid-cols-3">
-            <label className="block">
-              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Department</span>
-              <select
-                value={roleForm.dept_key}
-                onChange={(event) => setRoleForm((current) => ({ ...current, dept_key: event.target.value, project_id: "" }))}
-                className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-              >
-                {departments.map((department) => (
-                  <option key={department.key} value={department.key}>{department.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Project</span>
-              {["ops", "fo"].includes(roleForm.dept_key) ? (
+
+        {availableDepts.length > 0 ? (
+          <div className="mt-6 rounded-[24px] border border-dashed border-jscolors-crimson/20 bg-jscolors-crimson/[0.03] p-5 text-sm text-jscolors-text/65">
+            <div className="grid gap-4 md:grid-cols-3">
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Department</span>
                 <select
-                  value={roleForm.project_id}
-                  onChange={(event) => setRoleForm((current) => ({ ...current, project_id: event.target.value }))}
+                  value={roleForm.dept_key}
+                  onChange={(event) => handleDeptChange(event.target.value)}
                   className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
                 >
-                  <option value="">Select Project</option>
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>{project.label}</option>
+                  {availableDepts.map((dept) => (
+                    <option key={dept} value={dept}>{dept}</option>
                   ))}
                 </select>
-              ) : (
-                <div className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3">Global</div>
-              )}
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Level</span>
-              <select
-                value={roleForm.level_key}
-                onChange={(event) => setRoleForm((current) => ({ ...current, level_key: event.target.value }))}
-                className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-              >
-                {levels.map((level) => (
-                  <option key={level.key} value={level.key}>{level.label}</option>
-                ))}
-              </select>
-            </label>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Project</span>
+                {needsProject ? (
+                  <select
+                    value={roleForm.project_id}
+                    onChange={(event) => setRoleForm((current) => ({ ...current, project_id: event.target.value }))}
+                    className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
+                  >
+                    <option value="">Select Project</option>
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.id}>{project.label}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3">Global</div>
+                )}
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Level</span>
+                <select
+                  value={roleForm.level_key}
+                  onChange={(event) => setRoleForm((current) => ({ ...current, level_key: event.target.value }))}
+                  className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
+                >
+                  {levelsForDept.map((level) => (
+                    <option key={level} value={level}>{level}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <button
+              type="button"
+              className="premium-button mt-4"
+              onClick={() => {
+                void api.post(`/users/${user.id}/roles`, {
+                  dept_key: roleForm.dept_key,
+                  level_key: roleForm.level_key,
+                  project_id: needsProject && roleForm.project_id ? Number(roleForm.project_id) : null,
+                }).then(() => reloadUser())
+              }}
+            >
+              Assign
+            </button>
           </div>
-          <button
-            type="button"
-            className="premium-button mt-4"
-            onClick={() => {
-              void api.post(`/users/${user.id}/roles`, {
-                dept_key: roleForm.dept_key,
-                level_key: roleForm.level_key,
-                project_id: ["ops", "fo"].includes(roleForm.dept_key) && roleForm.project_id ? Number(roleForm.project_id) : null,
-              }).then(() => reloadUser())
-            }}
-          >
-            Assign
-          </button>
-        </div>
+        ) : (
+          <div className="mt-6 rounded-[24px] border border-dashed border-jscolors-crimson/20 bg-jscolors-crimson/[0.03] p-5 text-sm text-jscolors-text/60">
+            No additional roles can be assigned.
+          </div>
+        )}
       </section>
     </div>
   )

@@ -147,7 +147,7 @@ def list_projects(db: Session, user: UserContext) -> list[dict]:
 def sidebar_counts(db: Session, user: UserContext) -> dict[str, int]:
     project_ids = user_project_ids(user)
 
-    tx_query = select(func.count()).select_from(Transaction).where(Transaction.status_id == 38)
+    tx_query = select(func.count()).select_from(Transaction).where(Transaction.status_id == 38, Transaction.deleted_at.is_(None))
     ticket_query = select(func.count()).select_from(Ticket).where(Ticket.closing_date.is_(None))
 
     if user.is_fo:

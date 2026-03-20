@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
+from app.models.core import Project
 from app.models.hr import Role, User, UserRole
 from app.schemas.auth import RoleEntry
 from app.schemas.user import UserCreate, UserOut, UserRoleAssignment, UserUpdate
@@ -147,6 +148,89 @@ def remove_role(db: Session, user_id: int, user_role_id: int) -> UserOut:
     db.delete(assignment)
     db.commit()
     return get_user(db, user_id)
+
+
+def get_available_roles(db: Session, user_id: int) -> list[dict]:
+    """Return role combinations currently assignable for the given user.
+
+    Rules:
+    - Never: acc l3, hr l2, hr l3, fo l2, fo l3 (invalid combos per schema_core.roles)
+    - Never: mgmt l3 (reserved, not UI-assignable)
+    - acc l2 / acc l1: only if no other user currently holds that role (global uniqueness)
+    - hr l1: only if no other user currently holds hr l1
+    - ops l3: per project — only if no other user holds ops l3 for that specific project
+    - All other combos freely assignable
+    Returns list of {dept_key, level_key, project_id (None or int), role_id, label}
+    """
+    # Load all roles that actually exist in the DB
+    all_roles = db.execute(select(Role)).scalars().all()
+
+    # Hard exclusions
+    EXCLUDED = {
+        ("acc", "l3"), ("hr", "l2"), ("hr", "l3"),
+        ("fo", "l2"), ("fo", "l3"), ("mgmt", "l3"),
+    }
+
+    # Singleton roles: only one holder allowed system-wide (excluding the current user)
+    singleton_keys = {("acc", "l2"), ("acc", "l1"), ("hr", "l1")}
+    # Check which singletons are already taken by someone else
+    taken_singletons: set[tuple[str, str]] = set()
+    for dept_key, level_key in singleton_keys:
+        role = next((r for r in all_roles if r.dept_key == dept_key and r.level_key == level_key), None)
+        if role is None:
+            continue
+        holder = db.execute(
+            select(UserRole).where(UserRole.role_id == role.id, UserRole.user_id != user_id)
+        ).first()
+        if holder is not None:
+            taken_singletons.add((dept_key, level_key))
+
+    # ops l3: per-project uniqueness — find which project_ids already have ops l3 assigned (excluding current user)
+    ops_l3_role = next((r for r in all_roles if r.dept_key == "ops" and r.level_key == "l3"), None)
+    taken_ops_l3_projects: set[int] = set()
+    if ops_l3_role is not None:
+        assignments = db.execute(
+            select(UserRole).where(UserRole.role_id == ops_l3_role.id, UserRole.user_id != user_id)
+        ).scalars().all()
+        taken_ops_l3_projects = {a.project_id for a in assignments if a.project_id is not None}
+
+    # Load all projects (for ops/fo scoping)
+    projects = db.execute(select(Project)).scalars().all()
+
+    result: list[dict] = []
+    for role in all_roles:
+        dk, lk = role.dept_key, role.level_key
+        if (dk, lk) in EXCLUDED:
+            continue
+        if (dk, lk) in taken_singletons:
+            continue
+
+        if dk in {"ops", "fo"}:
+            # Scoped per project
+            for project in projects:
+                if dk == "ops" and lk == "l3" and project.id in taken_ops_l3_projects:
+                    continue
+                result.append({
+                    "role_id": role.id,
+                    "dept_key": dk,
+                    "level_key": lk,
+                    "label": role.label,
+                    "project_id": project.id,
+                    "project_label": project.label,
+                    "project_key": project.key,
+                })
+        else:
+            result.append({
+                "role_id": role.id,
+                "dept_key": dk,
+                "level_key": lk,
+                "label": role.label,
+                "project_id": None,
+                "project_label": None,
+                "project_key": None,
+            })
+
+    return result
 
 
 def reset_password(db: Session, user_id: int, password: str) -> None:

@@ -19,6 +19,7 @@ from app.api.routes.states import router as states_router
 from app.api.routes.tickets import router as tickets_router
 from app.api.routes.transactions import router as transactions_router
 from app.api.routes.updates import router as updates_router
+from app.api.routes.roles import router as roles_router
 from app.api.routes.users import router as users_router
 from app.core.config import get_settings
 from app.core.database import engine
@@ -57,6 +58,7 @@ app.include_router(auth_router, prefix=settings.api_prefix)
 app.include_router(badges_router, prefix=settings.api_prefix)
 app.include_router(setup_router, prefix=settings.api_prefix)
 app.include_router(users_router, prefix=settings.api_prefix)
+app.include_router(roles_router, prefix=settings.api_prefix)
 app.include_router(projects_router, prefix=settings.api_prefix)
 app.include_router(sites_router, prefix=settings.api_prefix)
 app.include_router(states_router, prefix=settings.api_prefix)

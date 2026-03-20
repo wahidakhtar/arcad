@@ -17,6 +17,8 @@ type TxRaw = {
   request_date: string
   execution_date: string | null
   remarks: string | null
+  version: number
+  cancelled: boolean
 }
 
 type ProjectEntry = {
@@ -29,6 +31,7 @@ type BadgeEntry = {
   id: number
   key: string
   label: string
+  color: string | null
 }
 
 type SiteEntry = {
@@ -51,6 +54,9 @@ type TxRow = {
   amount: number | string
   status_id: number
   status_label: string
+  cancelled: boolean
+  version: number
+  cancelled_badge_color: string | null
 }
 
 type ExecModal = {
@@ -63,15 +69,21 @@ type ExecModal = {
 const TODAY = new Date().toISOString().slice(0, 10)
 
 export default function TransactionsPage() {
-  const { tags } = useAuth()
+  const { tags, roles } = useAuth()
   const canWriteTransaction = tags.transaction?.write === true
+  const canCancel = roles.some(
+    (r) =>
+      (r.dept_key === "mgmt" && r.level_key === "l3") ||
+      (r.dept_key === "ops" && (r.level_key === "l2" || r.level_key === "l3")),
+  )
   const [rows, setRows] = useState<TxRow[]>([])
-  const [, setBadges] = useState<BadgeEntry[]>([])
   const [transitions, setTransitions] = useState<TransitionEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [execModal, setExecModal] = useState<ExecModal>({ open: false, transaction_id: 0, to_id: 0, execution_date: TODAY })
   const [transitioning, setTransitioning] = useState<number | null>(null)
+  const [confirmCancel, setConfirmCancel] = useState<{ open: boolean; txId: number; version: number }>({ open: false, txId: 0, version: 0 })
+  const [cancelError, setCancelError] = useState("")
 
   async function loadData() {
     try {
@@ -85,15 +97,14 @@ export default function TransactionsPage() {
       const projects: ProjectEntry[] = Array.isArray(projectsResponse.data) ? projectsResponse.data : []
       const allBadges: BadgeEntry[] = Array.isArray(badgesResponse.data) ? badgesResponse.data : []
 
-      setBadges(allBadges)
-
-      // Fetch transitions independently — failure must not block the transaction list
+      // Fetch transitions independently
       api.get<TransitionEntry[]>("/transactions/transitions").then((res) => {
         setTransitions(Array.isArray(res.data) ? res.data : [])
-      }).catch(() => {/* transitions unavailable — dropdowns simply won't show */})
+      }).catch(() => {})
 
       const projectById = new Map(projects.map((p) => [p.id, p]))
       const badgeById = new Map(allBadges.map((b) => [b.id, b]))
+      const cancelBadge = allBadges.find((b) => b.key === "cancel")
 
       const projectKeysNeeded = new Set<string>()
       for (const tx of transactions) {
@@ -127,6 +138,9 @@ export default function TransactionsPage() {
           amount: tx.amount,
           status_id: tx.status_id,
           status_label: badge?.label ?? String(tx.status_id),
+          cancelled: tx.cancelled,
+          version: tx.version,
+          cancelled_badge_color: cancelBadge?.color ?? null,
         }
       })
 
@@ -153,6 +167,23 @@ export default function TransactionsPage() {
       await loadData()
     } finally {
       setTransitioning(null)
+    }
+  }
+
+  async function doCancel(txId: number, version: number) {
+    setCancelError("")
+    try {
+      await api.delete(`/transactions/${txId}`, { data: { version } })
+      setConfirmCancel({ open: false, txId: 0, version: 0 })
+      await loadData()
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      if ((err as { response?: { status?: number } })?.response?.status === 409) {
+        setCancelError(detail ?? "Transaction was modified by another user — please refresh and try again")
+        await loadData()
+      } else {
+        setCancelError(detail ?? "Failed to cancel transaction.")
+      }
     }
   }
 
@@ -209,6 +240,24 @@ export default function TransactionsPage() {
         </div>
       </Modal>
 
+      <Modal
+        open={confirmCancel.open}
+        title="Cancel Transaction"
+        onClose={() => { setConfirmCancel({ open: false, txId: 0, version: 0 }); setCancelError("") }}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-jscolors-text/70">Are you sure you want to cancel this transaction? This cannot be undone.</p>
+          {cancelError ? <p className="text-sm text-red-600">{cancelError}</p> : null}
+          <button
+            type="button"
+            className="premium-button w-full"
+            onClick={() => void doCancel(confirmCancel.txId, confirmCancel.version)}
+          >
+            Confirm Cancel
+          </button>
+        </div>
+      </Modal>
+
       <DataTable
         columns={[
           { key: "id", label: "ID" },
@@ -220,10 +269,23 @@ export default function TransactionsPage() {
             label: "Status",
             render: (_value, row) => {
               const txRow = row as unknown as TxRow
+              if (txRow.cancelled) {
+                return (
+                  <span
+                    className="rounded-full px-2 py-0.5 text-xs font-semibold"
+                    style={txRow.cancelled_badge_color ? { backgroundColor: txRow.cancelled_badge_color + "22", color: txRow.cancelled_badge_color } : {}}
+                  >
+                    Cancelled
+                  </span>
+                )
+              }
               if (!canWriteTransaction) {
                 return <span className="text-sm">{txRow.status_label}</span>
               }
-              const availableTransitions = transitions.filter((t) => t.from_id === txRow.status_id)
+              // Filter out "cancel" transition — cancellation is only via the Cancel button
+              const availableTransitions = transitions.filter(
+                (t) => t.from_id === txRow.status_id && t.to_key !== "cancel",
+              )
               if (!availableTransitions.length || transitioning === txRow.id) {
                 return <span className="text-sm">{txRow.status_label}</span>
               }
@@ -247,8 +309,33 @@ export default function TransactionsPage() {
               )
             },
           },
+          {
+            key: "id",
+            label: "",
+            render: (_value, row) => {
+              const txRow = row as unknown as TxRow
+              if (txRow.cancelled) return null
+              if (!canCancel) return null
+              // Only show Cancel for "req" status rows (transitions exist from req)
+              const hasReqTransition = transitions.some((t) => t.from_id === txRow.status_id)
+              if (!hasReqTransition) return null
+              return (
+                <button
+                  type="button"
+                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-1 text-xs text-red-600 transition hover:bg-red-100"
+                  onClick={() => setConfirmCancel({ open: true, txId: txRow.id, version: txRow.version })}
+                >
+                  Cancel
+                </button>
+              )
+            },
+          },
         ]}
         rows={rows as unknown as Record<string, unknown>[]}
+        getRowClassName={(row) => {
+          const txRow = row as unknown as TxRow
+          return txRow.cancelled ? "opacity-50 bg-gray-50" : ""
+        }}
       />
     </div>
   )
