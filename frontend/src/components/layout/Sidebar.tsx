@@ -14,7 +14,7 @@ type SidebarProject = {
 }
 
 export default function Sidebar() {
-  const { user, tags, projectKeys, logout } = useAuth()
+  const { user, roles, tags, projectKeys, logout } = useAuth()
   const [projects, setProjects] = useState<SidebarProject[]>([])
   const [counts, setCounts] = useState({ transactions: 0, tickets: 0 })
   const countsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -47,7 +47,7 @@ export default function Sidebar() {
         {canTag("people") && <SectionLink to="/people" label="People" />}
         {canTag("project") && <SectionLink to="/projects-admin" label="Projects" />}
 
-        {canTag("site") && (
+        {canTag("site") && roles.some((r) => r.project_id !== null || r.key === "mgmtl3") && (
         <div className="space-y-3">
           <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-jscolors-text/40">Project Modules</p>
           {projects
