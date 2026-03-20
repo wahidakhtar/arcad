@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
 
 import { api } from "../../lib/api"
 
@@ -8,6 +9,7 @@ type ProjectRow = {
   label: string
   active: boolean
   recurring: boolean
+  supports_subprojects: boolean
 }
 
 export default function ProjectsPage() {
@@ -28,20 +30,32 @@ export default function ProjectsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {projects.map((project) => (
-          <div key={project.id} className="glass-panel p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.26em] text-jscolors-text/42">{project.key}</p>
-                <h2 className="mt-2 font-syne text-2xl font-semibold text-jscolors-crimson">{project.label}</h2>
+        {projects.map((project) => {
+          const href = project.recurring
+            ? project.supports_subprojects
+              ? `/projects/${project.key}/subprojects`
+              : `/projects/${project.key}`
+            : null
+          const card = (
+            <div className="glass-panel p-6 transition hover:shadow-glow">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.26em] text-jscolors-text/42">{project.key}</p>
+                  <h2 className="mt-2 font-syne text-2xl font-semibold text-jscolors-crimson">{project.label}</h2>
+                </div>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${project.active ? "bg-emerald-100 text-emerald-700" : "bg-zinc-200 text-zinc-600"}`}>
+                  {project.active ? "Active" : "Inactive"}
+                </span>
               </div>
-              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${project.active ? "bg-emerald-100 text-emerald-700" : "bg-zinc-200 text-zinc-600"}`}>
-                {project.active ? "Active" : "Inactive"}
-              </span>
+              <div className="mt-6 text-sm text-jscolors-text/60">{project.recurring ? "Recurring operational schema enabled" : "Metadata-only one-off project"}</div>
             </div>
-            <div className="mt-6 text-sm text-jscolors-text/60">{project.recurring ? "Recurring operational schema enabled" : "Metadata-only one-off project"}</div>
-          </div>
-        ))}
+          )
+          return href ? (
+            <Link key={project.id} to={href}>{card}</Link>
+          ) : (
+            <div key={project.id}>{card}</div>
+          )
+        })}
       </div>
     </div>
   )

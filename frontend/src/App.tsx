@@ -8,6 +8,7 @@ import SetupPage from "./features/auth/SetupPage"
 import PeoplePage from "./features/people/PeoplePage"
 import UserDetailPage from "./features/people/UserDetailPage"
 import ProjectsPage from "./features/projects/ProjectsPage"
+import SubprojectsPage from "./features/projects/SubprojectsPage"
 import SiteListPage from "./features/sites/SiteListPage"
 import SiteDetailPage from "./features/sites/SiteDetailPage"
 import TransactionsPage from "./features/transactions/TransactionsPage"
@@ -70,6 +71,7 @@ export default function App() {
         <Route path="/people" element={<PeoplePage />} />
         <Route path="/people/:userId" element={<UserDetailPage />} />
         <Route path="/projects-admin" element={<ProjectsPage />} />
+        <Route path="/projects/:projectKey/subprojects" element={<SubprojectsPage />} />
         <Route path="/projects/:projectKey" element={<SiteListPage />} />
         <Route path="/projects/:projectKey/sub/:subprojectId" element={<SiteListPage />} />
         <Route path="/projects/:projectKey/site/:siteId" element={<SiteDetailPage />} />
