@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.auth import permission_required
+from app.api.auth import UserContext, permission_required
 from app.core.database import get_db
 from app.schemas.transaction import StatusUpdate, TransactionCreate
 from app.services import transactions as transaction_service
@@ -16,9 +16,9 @@ def list_transitions(db: Session = Depends(get_db)):
     return transaction_service.list_transitions(db)
 
 
-@router.get("", dependencies=[Depends(permission_required("transaction", "read"))])
-def list_transactions(db: Session = Depends(get_db)):
-    return transaction_service.list_transactions(db)
+@router.get("")
+def list_transactions(user: UserContext = Depends(permission_required("transaction", "read")), db: Session = Depends(get_db)):
+    return transaction_service.list_transactions(db, user)
 
 
 @router.post("", dependencies=[Depends(permission_required("transaction", "write"))])

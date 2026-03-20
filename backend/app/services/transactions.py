@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from sqlalchemy import text
+from app.api.auth import UserContext, user_project_ids
 from app.models.core import Badge
 from app.models.acc import Transaction
 from app.schemas.transaction import TransactionCreate
@@ -30,8 +31,20 @@ def list_transitions(db: Session) -> list[dict]:
     return [dict(row) for row in rows]
 
 
-def list_transactions(db: Session) -> list[Transaction]:
-    return db.execute(select(Transaction).order_by(Transaction.request_date.desc())).scalars().all()
+def list_transactions(db: Session, user: UserContext) -> list[Transaction]:
+    query = select(Transaction).order_by(Transaction.request_date.desc())
+
+    if user.is_fo:
+        # Amendment 3: FO sees only own transactions (recipient_id = user_id)
+        query = query.where(Transaction.recipient_id == user.user_id)
+    else:
+        project_ids = user_project_ids(user)
+        if project_ids is not None:
+            # Ops and other project-scoped roles: filter by assigned projects
+            query = query.where(Transaction.project_id.in_(project_ids))
+        # Global-scope users (mgmt, acc): no filter — see all
+
+    return db.execute(query).scalars().all()
 
 
 def create_transaction(db: Session, payload: TransactionCreate) -> Transaction:

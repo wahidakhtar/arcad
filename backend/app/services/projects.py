@@ -8,7 +8,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import Session
 
-from app.api.auth import UserContext, ensure_permission
+from app.api.auth import UserContext, ensure_permission, user_project_ids
 from app.models.acc import Transaction
 from app.models.core import Badge, IndianState, JobBucket, Project
 from app.models.ops import Ticket
@@ -132,10 +132,25 @@ def list_projects(db: Session, user: UserContext) -> list[dict]:
     return rows
 
 
-def sidebar_counts(db: Session) -> dict[str, int]:
-    requested = db.scalar(select(func.count()).select_from(Transaction).where(Transaction.status_id == 38)) or 0
-    open_tickets = db.scalar(select(func.count()).select_from(Ticket).where(Ticket.closing_date.is_(None))) or 0
-    return {"transactions": requested, "tickets": open_tickets}
+def sidebar_counts(db: Session, user: UserContext) -> dict[str, int]:
+    project_ids = user_project_ids(user)
+
+    tx_query = select(func.count()).select_from(Transaction).where(Transaction.status_id == 38)
+    ticket_query = select(func.count()).select_from(Ticket).where(Ticket.closing_date.is_(None))
+
+    if user.is_fo:
+        tx_query = tx_query.where(Transaction.recipient_id == user.user_id)
+        # FO has no ticket access — return 0
+        return {"transactions": db.scalar(tx_query) or 0, "tickets": 0}
+
+    if project_ids is not None:
+        tx_query = tx_query.where(Transaction.project_id.in_(project_ids))
+        ticket_query = ticket_query.where(Ticket.project_id.in_(project_ids))
+
+    return {
+        "transactions": db.scalar(tx_query) or 0,
+        "tickets": db.scalar(ticket_query) or 0,
+    }
 
 
 def list_ui_fields(db: Session, user: UserContext, project_key: str) -> list[dict]:
@@ -218,8 +233,10 @@ def list_project_buckets(db: Session, user: UserContext, project_key: str) -> li
 def list_bb_providers(db: Session, user: UserContext) -> list[dict]:
     from app.models.bb import Provider
     ensure_permission(user, db, project_key="bb", tag="site", action="read")
-    providers = db.execute(select(Provider).order_by(Provider.name)).scalars().all()
-    return [{"id": p.id, "name": p.name} for p in providers]
+    providers = db.execute(
+        select(Provider).where(Provider.active.is_(True)).order_by(Provider.label)
+    ).scalars().all()
+    return [{"id": p.id, "label": p.label} for p in providers]
 
 
 def create_subproject(db: Session, user: UserContext, project_key: str, batch_date: str, rows: list[dict]) -> dict:

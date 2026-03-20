@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Header
 from sqlalchemy.orm import Session
 
-from app.api.auth import UserContext, get_current_user
+from app.api.auth import UserContext, build_project_keys, build_tag_map, get_current_user
 from app.core.database import get_db
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
 from app.services import auth as auth_service
@@ -22,7 +22,7 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/me")
-def me(user: UserContext = Depends(get_current_user)):
+def me(user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
     return {
         "id": user.user_id,
         "username": user.username,
@@ -38,6 +38,8 @@ def me(user: UserContext = Depends(get_current_user)):
             }
             for role in user.roles
         ],
+        "tags": build_tag_map(user),
+        "project_keys": build_project_keys(user, db),
     }
 
 

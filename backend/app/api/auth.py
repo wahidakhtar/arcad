@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Optional
-from dataclasses import dataclass
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -16,13 +16,7 @@ from app.models.hr import Role, User, UserRole
 
 security = HTTPBearer(auto_error=False)
 
-ROLE_ACTION_RULES: dict[str, dict[str, set[str]]] = {
-    "mgmt": {"read": {"project", "user", "subproject", "role", "site", "field", "transaction", "billing", "rate", "update"}, "write": {"project", "user", "subproject", "role", "site", "field", "transaction", "billing", "rate", "update"}},
-    "acc": {"read": {"project", "subproject", "site", "field", "transaction", "billing", "rate", "update"}, "write": {"transaction", "billing", "rate", "update"}},
-    "ops": {"read": {"project", "subproject", "site", "field", "transaction", "update"}, "write": {"subproject", "site", "field", "transaction", "update"}},
-    "hr": {"read": {"user"}, "write": {"user"}},
-    "fo": {"read": {"field", "transaction", "site", "update"}, "write": {"transaction"}},
-}
+LEVEL_ORDER: dict[str, int] = {"l1": 1, "l2": 2, "l3": 3}
 
 
 @dataclass
@@ -43,6 +37,10 @@ class UserContext:
     label: str
     active: bool
     roles: list[RoleContext]
+    # (role_id, tag) → (read, write) — loaded once per request
+    permission_map: dict[tuple[int, str], tuple[bool, bool]] = field(default_factory=dict)
+    # (field_key, dept_key) → level_key (None = all levels) — loaded once per request
+    field_write_map: dict[tuple[str, str], Optional[str]] = field(default_factory=dict)
 
     @property
     def is_fo(self) -> bool:
@@ -69,7 +67,34 @@ def _load_user_context(db: Session, user_id: int) -> UserContext:
         )
         for user_role, role in rows
     ]
-    return UserContext(user_id=user.id, username=user.username, label=user.label, active=user.active, roles=roles)
+
+    # Load all permission tags for this user's roles in one query
+    role_ids = [r.role_id for r in roles]
+    perm_rows = db.execute(
+        select(PermissionTag).where(PermissionTag.role_id.in_(role_ids))
+    ).scalars().all()
+    permission_map: dict[tuple[int, str], tuple[bool, bool]] = {
+        (p.role_id, p.tag): (p.read, p.write) for p in perm_rows
+    }
+
+    # Load all field permissions for this user's dept_keys in one query
+    dept_keys = list({r.dept_key for r in roles})
+    fp_rows = db.execute(
+        select(FieldPermission).where(FieldPermission.dept_key.in_(dept_keys))
+    ).scalars().all()
+    field_write_map: dict[tuple[str, str], Optional[str]] = {
+        (fp.field_key, fp.dept_key): fp.level_key for fp in fp_rows
+    }
+
+    return UserContext(
+        user_id=user.id,
+        username=user.username,
+        label=user.label,
+        active=user.active,
+        roles=roles,
+        permission_map=permission_map,
+        field_write_map=field_write_map,
+    )
 
 
 def get_current_user(
@@ -93,41 +118,40 @@ def _project_key_for_id(db: Session, project_id: Optional[int]) -> Optional[str]
     return None if project is None else project.key
 
 
-def check_permission(roles: list[RoleContext], project_key: Optional[str], tag: str, action: str, db: Session) -> bool:
-    for role in roles:
+def check_permission(user: UserContext, project_key: Optional[str], tag: str, action: str, db: Session) -> bool:
+    for role in user.roles:
         if project_key is not None and not role.global_scope:
             current_project_key = _project_key_for_id(db, role.project_id)
             if current_project_key != project_key:
                 continue
 
-        rule = ROLE_ACTION_RULES.get(role.dept_key, {})
-        if tag not in rule.get(action, set()):
+        perm = user.permission_map.get((role.role_id, tag))
+        if perm is None:
             continue
-
-        permission = db.execute(
-            select(PermissionTag).where(PermissionTag.role_id == role.role_id, PermissionTag.tag == tag)
-        ).scalar_one_or_none()
-        if permission is None:
-            continue
-        if action == "read" and permission.read:
+        read_ok, write_ok = perm
+        if action == "read" and read_ok:
             return True
-        if action == "write" and permission.write:
+        if action == "write" and write_ok:
             return True
     return False
 
 
-def check_field_write_scope(user: UserContext, field_name: str, db: Session) -> bool:
+def check_field_write_scope(user: UserContext, field_name: str) -> bool:
     for role in user.roles:
-        if role.dept_key == "mgmt":
+        # Amendment 1: superuser bypass scoped to mgmtl3 only
+        if role.role_key == "mgmtl3":
             return True
-        match = db.execute(
-            select(FieldPermission).where(
-                FieldPermission.field_key == field_name,
-                FieldPermission.dept_key == role.dept_key,
-            )
-        ).scalar_one_or_none()
-        if match is not None:
-            return True
+
+        map_key = (field_name, role.dept_key)
+        if map_key not in user.field_write_map:
+            continue
+
+        required_level = user.field_write_map[map_key]  # None or 'l1'/'l2'/'l3'
+        if required_level is None:
+            return True  # All levels of this dept can write
+        if LEVEL_ORDER.get(role.level_key, 0) >= LEVEL_ORDER.get(required_level, 0):
+            return True  # User level meets or exceeds minimum requirement
+
     return False
 
 
@@ -140,9 +164,9 @@ def ensure_permission(
     action: str,
     field_name: Optional[str] = None,
 ) -> None:
-    if not check_permission(user.roles, project_key, tag, action, db):
+    if not check_permission(user, project_key, tag, action, db):
         raise PermissionDenied(f"{action} access denied for {tag}")
-    if action == "write" and field_name is not None and not check_field_write_scope(user, field_name, db):
+    if action == "write" and field_name is not None and not check_field_write_scope(user, field_name):
         raise PermissionDenied(f"Write denied for field {field_name}")
 
 
@@ -159,3 +183,35 @@ def permission_required(tag: str, action: str, project_key_getter=None, field_na
         return user
 
     return dependency
+
+
+def build_tag_map(user: UserContext) -> dict[str, dict[str, bool]]:
+    """Compute union of permission tags across all user roles."""
+    tag_map: dict[str, dict[str, bool]] = {}
+    for (_, tag), (read_ok, write_ok) in user.permission_map.items():
+        if tag not in tag_map:
+            tag_map[tag] = {"read": False, "write": False}
+        if read_ok:
+            tag_map[tag]["read"] = True
+        if write_ok:
+            tag_map[tag]["write"] = True
+    return tag_map
+
+
+def build_project_keys(user: UserContext, db: Session) -> list[str]:
+    """Return project keys accessible to the user."""
+    if any(role.global_scope for role in user.roles):
+        rows = db.execute(select(Project).where(Project.active.is_(True))).scalars().all()
+        return [p.key for p in rows]
+    project_ids = {role.project_id for role in user.roles if role.project_id is not None}
+    if not project_ids:
+        return []
+    rows = db.execute(select(Project).where(Project.id.in_(project_ids), Project.active.is_(True))).scalars().all()
+    return [p.key for p in rows]
+
+
+def user_project_ids(user: UserContext) -> Optional[list[int]]:
+    """Return project ID list for project-scoped users, or None for global-scope."""
+    if any(role.global_scope for role in user.roles):
+        return None
+    return list({role.project_id for role in user.roles if role.project_id is not None})

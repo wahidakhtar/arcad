@@ -32,10 +32,16 @@ def update_site(project_key: str, site_id: int, payload: SiteUpdate, user: UserC
 
 
 @router.post("/{project_key}/{site_id}/assignments", response_model=SiteOut)
-def assign_fe(project_key: str, site_id: int, payload: FEAssignmentRequest, user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
+def assign(project_key: str, site_id: int, payload: FEAssignmentRequest, user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
     return site_service.assign_fe(db, user, project_key, site_id, payload)
 
 
+@router.delete("/{project_key}/{site_id}/assignments/{assignment_id}", response_model=SiteOut)
+def remove_assignment(project_key: str, site_id: int, assignment_id: int, payload: FERemovalRequest, user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    return site_service.remove_assignment(db, user, project_key, site_id, assignment_id, payload.final_cost)
+
+
+# Legacy remove route — kept for backwards compatibility with existing frontend
 @router.patch("/{project_key}/{site_id}/assignments/{fe_id}/{bucket_id}/remove", response_model=SiteOut)
 def remove_fe(project_key: str, site_id: int, fe_id: int, bucket_id: int, payload: FERemovalRequest, user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
     return site_service.remove_fe_assignment(db, user, project_key, site_id, fe_id, bucket_id, payload.final_cost)

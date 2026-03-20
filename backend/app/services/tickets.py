@@ -6,11 +6,21 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.auth import UserContext, user_project_ids
 from app.models.ops import Ticket
 
 
-def list_all_tickets(db: Session) -> list[Ticket]:
-    return db.execute(select(Ticket).order_by(Ticket.ticket_date.desc())).scalars().all()
+def list_all_tickets(db: Session, user: UserContext) -> list[Ticket]:
+    query = select(Ticket).order_by(Ticket.ticket_date.desc())
+
+    project_ids = user_project_ids(user)
+    if project_ids is not None:
+        # Ops and other project-scoped roles: filter by assigned projects
+        query = query.where(Ticket.project_id.in_(project_ids))
+    # Global-scope users (mgmt, acc): no filter — see all
+    # FO cannot reach this function (blocked by ticket permission check in route)
+
+    return db.execute(query).scalars().all()
 
 
 def get_ticket(db: Session, ticket_id: int) -> Ticket:

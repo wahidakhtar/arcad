@@ -69,6 +69,7 @@ class FieldPermission(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     field_key: Mapped[str] = mapped_column(String(64), nullable=False)
     dept_key: Mapped[str] = mapped_column(String(32), nullable=False)
+    level_key: Optional[Mapped[str]] = mapped_column(String(32))
 
 
 class IndianState(Base):

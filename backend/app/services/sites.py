@@ -223,9 +223,11 @@ def _site_accessible_to_fo(db: Session, project_id: int, site_id: int, fe_id: in
 
 def _build_financials(db: Session, project_id: int, project_key: str, site_id: int, site_data: dict) -> dict:
     badges = badge_map(db)
+    # Only include assignments that have a bucket (skip BB provider-only assignments)
     assignments = [
         FEAssignmentRow(fe_id=row.fe_id, bucket_key=db.get(JobBucket, row.bucket_id).key, active=row.active, final_cost=row.final_cost)
         for row in db.execute(select(FEAssignment).where(FEAssignment.project_id == project_id, FEAssignment.site_id == site_id)).scalars()
+        if row.bucket_id is not None
     ]
     transactions = [
         TransactionRow(
@@ -301,6 +303,31 @@ def create_site(db: Session, user: UserContext, project_key: str, subproject_id:
         raise HTTPException(status_code=400, detail="Unable to create site") from exc
 
 
+def _get_bb_provider_rows(db: Session, project_id: int, site_id: int) -> list[dict]:
+    from app.models.bb import Provider
+    rows = db.execute(
+        select(FEAssignment).where(
+            FEAssignment.project_id == project_id,
+            FEAssignment.site_id == site_id,
+            FEAssignment.provider_id.isnot(None),
+        ).order_by(FEAssignment.created_at.desc())
+    ).scalars().all()
+    if not rows:
+        return []
+    provider_ids = [r.provider_id for r in rows]
+    providers = {p.id: p.label for p in db.execute(select(Provider).where(Provider.id.in_(provider_ids))).scalars().all()}
+    return [
+        {
+            "assignment_id": r.id,
+            "provider_id": r.provider_id,
+            "provider_label": providers.get(r.provider_id, f"Provider {r.provider_id}"),
+            "active": r.active,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
 def get_site(db: Session, user: UserContext, project_key: str, site_id: int) -> SiteOut:
     project = get_project(db, project_key)
     ensure_permission(user, db, project_key=project_key, tag="site", action="read")
@@ -313,6 +340,7 @@ def get_site(db: Session, user: UserContext, project_key: str, site_id: int) -> 
     site_data = model_to_dict(site)
     financials = _build_financials(db, project.id, project_key, site_id, site_data)
     badges = badge_map(db)
+    provider_rows = _get_bb_provider_rows(db, project.id, site_id) if project_key == "bb" else []
     return SiteOut(
         id=site.id,
         project_key=project_key,
@@ -323,6 +351,7 @@ def get_site(db: Session, user: UserContext, project_key: str, site_id: int) -> 
         fields=site_data,
         financials={k: financials[k] for k in ["budget", "cost", "paid", "balance"]},
         fe_rows=_serialize_fe_rows(db, financials.get("fe_rows", [])),
+        provider_rows=provider_rows,
     )
 
 
@@ -378,31 +407,80 @@ def assign_fe(db: Session, user: UserContext, project_key: str, site_id: int, pa
     site = db.get(model, site_id)
     if site is None:
         raise HTTPException(status_code=404, detail="Site not found")
-    bucket = db.get(JobBucket, payload.bucket_id)
-    if bucket is None:
-        raise HTTPException(status_code=404, detail="Bucket not found")
-    fe_user = db.get(User, payload.fe_id)
-    if fe_user is None:
-        raise HTTPException(status_code=404, detail="FE user not found")
-    existing = db.execute(
+
+    # BB project: use provider_id, no bucket/FE
+    if project_key == "bb":
+        if not payload.provider_id:
+            raise HTTPException(status_code=400, detail="provider_id required for BB assignments")
+        existing = db.execute(
+            select(FEAssignment).where(
+                FEAssignment.project_id == project.id,
+                FEAssignment.site_id == site_id,
+                FEAssignment.provider_id == payload.provider_id,
+                FEAssignment.active.is_(True),
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            raise HTTPException(status_code=400, detail="An active assignment already exists for this provider")
+        db.add(
+            FEAssignment(
+                project_id=project.id,
+                site_id=site_id,
+                bucket_id=None,
+                fe_id=None,
+                provider_id=payload.provider_id,
+                active=True,
+                created_at=datetime.now(timezone.utc),
+            )
+        )
+    else:
+        if not payload.bucket_id or not payload.fe_id:
+            raise HTTPException(status_code=400, detail="bucket_id and fe_id required for FE assignments")
+        bucket = db.get(JobBucket, payload.bucket_id)
+        if bucket is None:
+            raise HTTPException(status_code=404, detail="Bucket not found")
+        fe_user = db.get(User, payload.fe_id)
+        if fe_user is None:
+            raise HTTPException(status_code=404, detail="FE user not found")
+        existing = db.execute(
+            select(FEAssignment).where(
+                FEAssignment.project_id == project.id,
+                FEAssignment.site_id == site_id,
+                FEAssignment.bucket_id == payload.bucket_id,
+                FEAssignment.active.is_(True),
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            raise HTTPException(status_code=400, detail="An active FE assignment already exists for this bucket")
+        db.add(
+            FEAssignment(
+                project_id=project.id,
+                site_id=site_id,
+                bucket_id=payload.bucket_id,
+                fe_id=payload.fe_id,
+                provider_id=None,
+                active=True,
+                created_at=datetime.now(timezone.utc),
+            )
+        )
+
+    db.commit()
+    return get_site(db, user, project_key, site_id)
+
+
+def remove_assignment(db: Session, user: UserContext, project_key: str, site_id: int, assignment_id: int, final_cost: Optional[Decimal]) -> SiteOut:
+    ensure_permission(user, db, project_key=project_key, tag="site", action="write")
+    assignment = db.execute(
         select(FEAssignment).where(
-            FEAssignment.project_id == project.id,
+            FEAssignment.id == assignment_id,
             FEAssignment.site_id == site_id,
-            FEAssignment.bucket_id == payload.bucket_id,
             FEAssignment.active.is_(True),
         )
     ).scalar_one_or_none()
-    if existing is not None:
-        raise HTTPException(status_code=400, detail="An active FE assignment already exists for this bucket")
-    db.add(
-        FEAssignment(
-            project_id=project.id,
-            site_id=site_id,
-            bucket_id=payload.bucket_id,
-            fe_id=payload.fe_id,
-            active=True,
-            created_at=datetime.now(timezone.utc),
-        )
-    )
+    if assignment is None:
+        raise HTTPException(status_code=404, detail="Active assignment not found")
+    assignment.active = False
+    if final_cost is not None:
+        assignment.final_cost = final_cost
     db.commit()
     return get_site(db, user, project_key, site_id)

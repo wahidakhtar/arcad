@@ -25,7 +25,8 @@ class Provider(Base):
     __table_args__ = {"schema": "schema_bb"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    label: Mapped[str] = mapped_column(String(256), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
 class BBSite(Base):

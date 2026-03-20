@@ -17,8 +17,8 @@ def list_projects(user: UserContext = Depends(get_current_user), db: Session = D
 
 
 @router.get("/counts")
-def counts(db: Session = Depends(get_db)):
-    return project_service.sidebar_counts(db)
+def counts(user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    return project_service.sidebar_counts(db, user)
 
 
 @router.get("/{project_key}/ui-fields")

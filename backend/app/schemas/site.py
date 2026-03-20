@@ -24,8 +24,11 @@ class SubprojectCreate(BaseModel):
 
 
 class FEAssignmentRequest(BaseModel):
-    bucket_id: int
-    fe_id: int
+    # Non-BB: provide bucket_id + fe_id
+    bucket_id: Optional[int] = None
+    fe_id: Optional[int] = None
+    # BB: provide provider_id
+    provider_id: Optional[int] = None
 
 
 class FERemovalRequest(BaseModel):
@@ -59,3 +62,4 @@ class SiteOut(BaseModel):
     fields: dict[str, Any] = Field(default_factory=dict)
     financials: SiteFinancials
     fe_rows: list[FESummary] = Field(default_factory=list)
+    provider_rows: list[dict] = Field(default_factory=list)
