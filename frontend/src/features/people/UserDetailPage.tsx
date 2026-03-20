@@ -74,6 +74,7 @@ export default function UserDetailPage() {
 
   // Derived from availableRoles
   const availableDepts = useMemo(() => [...new Set(availableRoles.map((r) => r.dept_key))], [availableRoles])
+  const needsProject = ["ops", "fo"].includes(roleForm.dept_key)
   const levelsForDept = useMemo(() => {
     let filtered = availableRoles.filter((r) => r.dept_key === roleForm.dept_key)
     // For project-scoped depts, restrict levels to those available for the selected project
@@ -82,7 +83,6 @@ export default function UserDetailPage() {
     }
     return [...new Set(filtered.map((r) => r.level_key))]
   }, [availableRoles, roleForm.dept_key, roleForm.project_id, needsProject])
-  const needsProject = ["ops", "fo"].includes(roleForm.dept_key)
 
   // When dept changes, reset level to first available
   function handleDeptChange(dept: string) {
