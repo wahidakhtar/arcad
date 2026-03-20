@@ -46,9 +46,8 @@ type ProjectMeta = {
 }
 
 export default function SiteListPage() {
-  const { can, roles } = useAuth()
+  const { can } = useAuth()
   const { projectKey = "mi", subprojectId } = useParams()
-  const isHighRole = roles.some((r) => (r.dept_key === "ops" && r.level_key === "l3") || r.dept_key === "mgmt")
   const [projectMeta, setProjectMeta] = useState<ProjectMeta | null>(null)
   const [columns, setColumns] = useState<Array<{ key: string; label: string; type?: string }>>([])
   const [formFields, setFormFields] = useState<Array<{ key: string; label: string; type?: string }>>([])
@@ -59,14 +58,9 @@ export default function SiteListPage() {
   const [openSubprojectAdd, setOpenSubprojectAdd] = useState(false)
   const [badges, setBadges] = useState<Badge[]>([])
   const [states, setStates] = useState<Array<{ id: number; label: string }>>([])
-  const siteEndpoint = `/sites/${projectKey}${
-    subprojectId || !isHighRole
-      ? "?" + new URLSearchParams({
-          ...(subprojectId ? { subproject_id: subprojectId } : {}),
-          ...(!isHighRole ? { exclude_staged: "true" } : {}),
-        }).toString()
-      : ""
-  }`
+  const siteEndpoint = subprojectId
+    ? `/sites/${projectKey}?subproject_id=${subprojectId}`
+    : `/sites/${projectKey}?exclude_staged=true`
   const { data: siteData, loading, error, refetch } = useListPage<SiteRow[]>({
     endpoint: siteEndpoint,
   })

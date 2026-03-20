@@ -54,11 +54,7 @@ export default function Sidebar() {
           {projects
             .filter((project) => project.recurring && projectKeys.includes(project.key))
             .map((project) => {
-              const projectDest = isHighRole
-                ? project.subprojects.length > 0
-                  ? `/projects/${project.key}/subprojects`
-                  : `/projects/${project.key}`
-                : `/projects/${project.key}?exclude_staged=true`
+              const projectDest = `/projects/${project.key}?exclude_staged=true`
               return (
               <div key={project.id} className="space-y-2">
                 <NavLink
