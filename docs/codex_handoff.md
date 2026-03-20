@@ -7,8 +7,73 @@
   - `/Users/wahidakhtar/software/backend/venv/bin/python3.9 -m compileall /Users/wahidakhtar/software/backend/app /Users/wahidakhtar/software/backend/migrations`
   - `npm run build` in `/Users/wahidakhtar/software/frontend`
   - `/Users/wahidakhtar/software/backend/venv/bin/alembic upgrade head`
-- Latest git push: `fc3fc86` (main). Both backend and frontend auto-deploy on push to main.
-- Railway DB: `autorack.proxy.rlwy.net:33504`, alembic version `20260320_0009`.
+- Latest git push: `76f6d19` (main). Both backend and frontend auto-deploy on push to main.
+- Railway DB: `autorack.proxy.rlwy.net:33504`, alembic version `20260320_0010`.
+- Local DB is a full mirror of Railway DB (restored via Docker postgres:18 pg_dump).
+
+---
+
+## What was done today (2026-03-20, session 3)
+
+### Task 1 — Project module sidebar link
+- Clicking a project module (MI, MD, MA, MC, BB) in the sidebar now always opens the flat site list (`/projects/{key}?exclude_staged=true`), not the subprojects page.
+- Removed subproject navigation from the project click target entirely. Subproject pills (dated batches) in the sidebar still link to `/projects/{key}/sub/{id}` as before.
+
+### Task 2 — Remove test users from Railway DB
+- Deleted "Admin Device" and "Test User" from `schema_hr.users` with correct FK deletion order: refresh_tokens → sessions → user_roles → users.
+
+### Task 3 — Available roles endpoint (`GET /roles/available`)
+- New file: `backend/app/api/routes/roles.py`
+- New service function: `get_available_roles(db, user_id)` in `users.py`
+- Enforces: excluded combos (acc l3, hr l2/l3, fo l2/l3, mgmt l3), singletons (acc l1, acc l2, hr l1 — one holder system-wide), ops l3 per-project uniqueness, active projects only.
+- Registered in `main.py`.
+
+### Task 4 — Transaction soft-delete (cancel) with version control
+- Migration `20260320_0010`: adds `deleted_at`, `deleted_by` to `schema_acc.transactions`; removes `req→cancel` badge transition row.
+- `Transaction` model updated with `deleted_at`, `deleted_by`.
+- `cancel_transaction()` in `transactions.py`: role-gated (mgmt l3, ops l2/l3), optimistic lock (WHERE version=?), precondition status=req.
+- `DELETE /transactions/{id}` endpoint added.
+- Returns 409 on version conflict.
+- `list_transactions` returns all rows including soft-deleted.
+- `sidebar_counts` filters `deleted_at IS NULL`.
+
+### Task 5 — Transactions page: visual cancel + UI
+- Cancelled rows shown greyed out (`opacity-50 bg-gray-50`) with badge-coloured "Cancelled" label.
+- Cancel button visible for mgmt l3 / ops l2/l3 only, on req-status rows only, with confirmation modal.
+- "cancel" excluded from status transition dropdown.
+- 409 surfaces inline error message.
+
+### Task 6 — People page fixes
+- **Dept/level labels**: restored badge fetches for `type=department` and `type=level`; `deptLabels`/`levelLabels` maps displayed in assigned roles and dropdown.
+- **Role assignment uniqueness**: `levelsForDept` memo filters by project for ops/fo; project dropdown onChange resets level_key to first available.
+- **Hover highlight**: `hoveredUserId` state drives conditional `bg-jscolors-gold/10` across all rows sharing the same user_id (rowspan groups).
+- **TypeScript fix**: `needsProject` const moved before its first use in `levelsForDept` useMemo (TS2448).
+
+### Task 7 — Squircle corners
+- New file: `frontend/src/lib/squircle.ts` — `squirclePath(w, h, r, k=0.1)` generates iOS-style bezier path.
+- `App.tsx`: global ResizeObserver + MutationObserver applies `clip-path: path(...)` to all `.glass-panel` elements.
+- `index.css`: removed `rounded-[28px]`, replaced `shadow-panel` with `filter: drop-shadow(...)` (box-shadow is clipped; filter is not).
+
+### Task 8 — Sidebar aesthetics
+- Removed redundant username line from bottom user panel.
+- All nav items (`SectionLink`) brought up to pill style matching logout button: `rounded-full border px-5 py-2.5 font-semibold hover:-translate-y-0.5`.
+- Billing sub-items (PO, Invoice) now full-size (removed compact variant).
+- All nav button text left-aligned; subproject batch pills right-aligned.
+- Footer padding reduced (`pb-6` → `pb-2`) to close gap from 12px copyright text.
+
+### Task 9 — DB maintenance (Railway)
+- Cleared all tickets, transactions, FE assignments.
+- Added providers: GTPL, Railwire, Airtel, Jio to `schema_bb.providers`.
+- Copied Railway DB to local (Docker postgres:18 pg_dump workaround for version mismatch).
+
+### Task 10 — Subproject list fixes
+- `list_projects` backend: removed `bucket.is_(False)` filter; all active subprojects returned; `bucket` bool included in response; ordered by `batch_date DESC NULLS LAST`.
+- `SubprojectsPage.tsx`: bucket=true → label "Default", batch_date → formatted date, else → `Batch {id}`.
+- Sidebar pills: still filter `!s.bucket` (only dated batches shown in sidebar, not the default bucket).
+
+### Task 11 — Permission model docx
+- Generated `docs/ARCAD_Permission_Model.docx` (6 sections: overview, role registry, tag × role matrix, assignment rules, user roster, tag glossary).
+- Built with `python-docx`. Data sourced live from local DB.
 
 ---
 
@@ -91,9 +156,7 @@
 
 6. **SiteDetailPage.tsx is 700+ lines** — needs component extraction.
 
-7. **BB providers table has no data** — `schema_bb.providers` is empty. Someone needs to seed provider names via DB or an admin UI.
-
-8. **Rate card key mismatch** — Old seeded rates use job_key="mi","ma","ec" etc. New API-added rates use job_key="jmi","jma". `_select_rate` looks for old-style keys (JOB_BUCKETS values = jobs.bucket_key). New API rates with "j"-prefix are silently ignored.
+7. **Rate card key mismatch** — Old seeded rates use job_key="mi","ma","ec" etc. New API-added rates use job_key="jmi","jma". `_select_rate` looks for old-style keys (JOB_BUCKETS values = jobs.bucket_key). New API rates with "j"-prefix are silently ignored.
 
 ---
 
@@ -105,7 +168,7 @@
 - **DB password**: `eYEvELxllCZdMQnmgGgubxjlzuzPZGgC`
 - **Migrations**: Run automatically on container startup (`alembic upgrade head && uvicorn ...` in Dockerfile CMD).
 - **Auto-deploy**: Railway deploys frontend + backend on every `git push origin main`.
-- **User passwords**: Riya = `riya`. Saddam = `saddam`. Admin = `admin`/`admin123`.
+- **User passwords**: Riya = `riya`. Saddam = `saddam`. Wahid = `wahid`. (Test users removed from DB.)
 
 ---
 
@@ -113,12 +176,12 @@
 
 - FastAPI app/router structure: `auth`, `badges`, `billing`, `dashboard`, `media`, `projects`, `reports`, `sites`, `states`, `tickets`, `transactions`, `updates`, `users`
 - Backend stays Python 3.9-compatible. Use `Optional[...]`, not `X | None`.
-- Migrations through `20260320_0009`.
+- Migrations through `20260320_0010`.
 
 ### Permission system
 - `ROLE_ACTION_RULES` in `backend/app/api/auth.py` defines tag-level access per dept (hardcoded).
 - `check_field_write_scope` queries `schema_core.field_permissions` (field_key, dept_key rows). `mgmt` users bypass.
-- Known seeded tags: `billing`, `transaction`, `site`, `field`, `user`, `subproject`, `project`, `role`, `update`.
+- Known seeded tags: `billing`, `doc_badge`, `field`, `people`, `project`, `rate`, `role`, `site`, `subproject`, `ticket`, `transaction`, `update`, `user`.
 
 ### Cost calculation (`backend/app/config/calculator.py`)
 - `JOB_BUCKETS`: `bmi→[mi]`, `bmdv→[mdv]`, `bmd→[md]`, `bma→[ma]`, `bmc→[mpaint,mnbr,ep,ec,arr]`
@@ -144,14 +207,18 @@
 
 - `frontend/src/components/ui/DataTable.tsx`, `FieldRenderer.tsx`, `AddForm.tsx`, `BulkTable.tsx`, `FilterBar.tsx`
 - `frontend/src/hooks/useListPage.ts`
+- `frontend/src/lib/squircle.ts` — squircle path generator
 - `frontend/src/config/` — now only `dashboard.ts`, `people.ts`, `index.ts`
 - Site list page: reads ALL metadata from API.
 - Site detail page: all ui_fields, badge transitions, save button, updates, tickets, FE assignment (non-BB), Provider panel (BB), transactions
-- Transactions page: acc-only interactive status dropdown
+- Transactions page: acc-only interactive status dropdown; cancel button (mgmt l3/ops l2+l3); soft-deleted rows greyed out
 - Rate Card page: native table-fixed, Add Rate modal
 - Ticket list page + detail page
-- Sidebar: dept+level-gated visibility, independent counts fetch
+- Sidebar: dept+level-gated visibility, pill-style nav items, subproject batch pills (right-aligned), counts poll every 60s
 - Dashboard: choropleth map, date filter, role-scoped summary
+- People page: rowspan groups, hover highlight by user, available roles endpoint for assignment
+- Squircle: all `.glass-panel` elements get dynamic `clip-path: path(...)` via ResizeObserver + MutationObserver in `App.tsx`
+- `docs/ARCAD_Permission_Model.docx` — permission reference document
 
 ---
 
@@ -164,8 +231,9 @@
 - `schema_core.projects`: id, key, label, active, recurring, **supports_subprojects**
 - `schema_core.field_permissions`: id, field_key, dept_key (31 rows including provider_id/ops)
 - `schema_{key}.ui_fields` (mi/md/ma/mc/bb): id, label, tag, list_view, type, form_view, bulk_view, section
-- `schema_acc.badge_transitions`: req→cancel, req→rej, req→exct
-- `schema_bb.providers`: id, name (empty — needs seeding)
+- `schema_acc.transactions`: added `deleted_at TIMESTAMP WITH TZ`, `deleted_by INT FK`; `req→cancel` transition removed
+- `schema_acc.badge_transitions`: req→rej, req→exct (cancel removed in migration 0010)
+- `schema_bb.providers`: id, label — seeded with GTPL, Railwire, Airtel, Jio
 
 ---
 
