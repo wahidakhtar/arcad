@@ -266,16 +266,22 @@ def _serialize_fe_rows(db: Session, rows: list[dict[str, Any]]) -> list[dict[str
     ]
 
 
-def list_sites(db: Session, user: UserContext, project_key: str) -> list[dict]:
+def list_sites(db: Session, user: UserContext, project_key: str, exclude_staged: bool = False, subproject_id: Optional[int] = None) -> list[dict]:
     project = get_project(db, project_key)
     ensure_permission(user, db, project_key=project_key, tag="site", action="read")
     model = get_site_model(project_key)
-    rows = db.execute(select(model).order_by(model.receiving_date.desc())).scalars().all()
+    query = select(model).order_by(model.receiving_date.desc())
+    if subproject_id is not None:
+        query = query.where(model.subproject_id == subproject_id)
+    rows = db.execute(query).scalars().all()
+    badges = badge_map(db)
+    stage_badge_id = next((bid for bid, b in badges.items() if b.key == "stage"), None)
     items = []
     for row in rows:
         if user.is_fo and not _site_accessible_to_fo(db, project.id, row.id, user.user_id):
             continue
-        badges = badge_map(db)
+        if exclude_staged and stage_badge_id is not None and row.status_id == stage_badge_id:
+            continue
         items.append({"id": row.id, "ckt_id": row.ckt_id, "status_key": badges[row.status_id].key, "receiving_date": row.receiving_date})
     return items
 

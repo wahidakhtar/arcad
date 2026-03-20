@@ -20,6 +20,7 @@ export default function Sidebar() {
   const countsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const canTag = (tag: string) => tags[tag]?.read === true
+  const isHighRole = roles.some((r) => (r.dept_key === "ops" && r.level_key === "l3") || r.dept_key === "mgmt")
 
   useEffect(() => {
     void api.get("/projects").then((r) => setProjects(r.data)).catch(() => {})
@@ -52,10 +53,16 @@ export default function Sidebar() {
           <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-jscolors-text/40">Project Modules</p>
           {projects
             .filter((project) => project.recurring && projectKeys.includes(project.key))
-            .map((project) => (
+            .map((project) => {
+              const projectDest = isHighRole
+                ? project.subprojects.length > 0
+                  ? `/projects/${project.key}/subprojects`
+                  : `/projects/${project.key}`
+                : `/projects/${project.key}?exclude_staged=true`
+              return (
               <div key={project.id} className="space-y-2">
                 <NavLink
-                  to={`/projects/${project.key}`}
+                  to={projectDest}
                   className={({ isActive }) =>
                     `flex items-center justify-between rounded-2xl px-3 py-2.5 transition ${
                       isActive ? "bg-jscolors-crimson text-white shadow-glow" : "bg-white/60 text-jscolors-text hover:bg-white"
@@ -67,7 +74,7 @@ export default function Sidebar() {
                     {project.active ? "Live" : "Off"}
                   </span>
                 </NavLink>
-                {project.subprojects.map((subproject) => (
+                {isHighRole && project.subprojects.map((subproject) => (
                   <NavLink
                     key={subproject.id}
                     to={`/projects/${project.key}/sub/${subproject.id}`}
@@ -81,7 +88,8 @@ export default function Sidebar() {
                   </NavLink>
                 ))}
               </div>
-            ))}
+              )
+            })}
         </div>
         )}
 

@@ -42,11 +42,13 @@ type UIField = {
 type ProjectMeta = {
   label: string
   supports_subprojects: boolean
+  subprojects: Array<{ id: number; batch_date: string | null }>
 }
 
 export default function SiteListPage() {
-  const { can } = useAuth()
+  const { can, roles } = useAuth()
   const { projectKey = "mi", subprojectId } = useParams()
+  const isHighRole = roles.some((r) => (r.dept_key === "ops" && r.level_key === "l3") || r.dept_key === "mgmt")
   const [projectMeta, setProjectMeta] = useState<ProjectMeta | null>(null)
   const [columns, setColumns] = useState<Array<{ key: string; label: string; type?: string }>>([])
   const [formFields, setFormFields] = useState<Array<{ key: string; label: string; type?: string }>>([])
@@ -57,8 +59,16 @@ export default function SiteListPage() {
   const [openSubprojectAdd, setOpenSubprojectAdd] = useState(false)
   const [badges, setBadges] = useState<Badge[]>([])
   const [states, setStates] = useState<Array<{ id: number; label: string }>>([])
+  const siteEndpoint = `/sites/${projectKey}${
+    subprojectId || !isHighRole
+      ? "?" + new URLSearchParams({
+          ...(subprojectId ? { subproject_id: subprojectId } : {}),
+          ...(!isHighRole ? { exclude_staged: "true" } : {}),
+        }).toString()
+      : ""
+  }`
   const { data: siteData, loading, error, refetch } = useListPage<SiteRow[]>({
-    endpoint: `/sites/${projectKey}`,
+    endpoint: siteEndpoint,
   })
 
   useEffect(() => {
@@ -70,12 +80,12 @@ export default function SiteListPage() {
     ]).then(([badgesResponse, uiFieldsResponse, statesResponse, projectsResponse]) => {
       const statusBadges = badgesResponse.data as Badge[]
       const uiFields = uiFieldsResponse.data as UIField[]
-      const projects = projectsResponse.data as Array<{ key: string; label: string; supports_subprojects: boolean }>
+      const projects = projectsResponse.data as Array<{ key: string; label: string; supports_subprojects: boolean; subprojects: Array<{ id: number; batch_date: string | null }> }>
       const project = projects.find((p) => p.key === projectKey)
 
       setBadges(statusBadges)
       setStates(statesResponse.data)
-      setProjectMeta(project ? { label: project.label, supports_subprojects: project.supports_subprojects } : null)
+      setProjectMeta(project ? { label: project.label, supports_subprojects: project.supports_subprojects, subprojects: project.subprojects ?? [] } : null)
 
       const listColumns = uiFields
         .filter((field) => field.list_view)
@@ -122,7 +132,13 @@ export default function SiteListPage() {
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/42">{projectMeta?.label ?? projectKey.toUpperCase()}</p>
-          {subprojectId ? <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">{`Subproject ${subprojectId}`}</h1> : null}
+          {subprojectId ? (() => {
+            const sub = projectMeta?.subprojects.find((s) => String(s.id) === subprojectId)
+            const label = sub?.batch_date
+              ? new Date(sub.batch_date).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+              : `Batch ${subprojectId}`
+            return <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">{label}</h1>
+          })() : null}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <input

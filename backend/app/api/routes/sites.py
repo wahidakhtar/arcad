@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.auth import UserContext, get_current_user
@@ -12,8 +14,14 @@ router = APIRouter(prefix="/sites", tags=["sites"])
 
 
 @router.get("/{project_key}")
-def list_sites(project_key: str, user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
-    return site_service.list_sites(db, user, project_key)
+def list_sites(
+    project_key: str,
+    user: UserContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    exclude_staged: bool = Query(default=False),
+    subproject_id: Optional[int] = Query(default=None),
+):
+    return site_service.list_sites(db, user, project_key, exclude_staged=exclude_staged, subproject_id=subproject_id)
 
 
 @router.post("/{project_key}")
