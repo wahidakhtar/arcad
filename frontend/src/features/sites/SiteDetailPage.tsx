@@ -65,6 +65,11 @@ type JobBucket = {
   label: string
 }
 
+type ProviderRow = {
+  id: number
+  name: string
+}
+
 type UpdateRow = {
   id: number
   date: string
@@ -128,6 +133,9 @@ export default function SiteDetailPage() {
   const [ticketForm, setTicketForm] = useState({ ticket_date: TODAY, rfo: "" })
   const [assignmentForm, setAssignmentForm] = useState({ bucket_id: "", fe_id: "" })
   const [removeModal, setRemoveModal] = useState<{ open: boolean; fe_id: number; bucket_id: number; fe_label: string; final_cost: string }>({ open: false, fe_id: 0, bucket_id: 0, fe_label: "", final_cost: "" })
+  const [providers, setProviders] = useState<ProviderRow[]>([])
+  const [providerDraft, setProviderDraft] = useState("")
+  const [savingProvider, setSavingProvider] = useState(false)
 
   async function loadPage() {
     setLoading(true)
@@ -146,6 +154,7 @@ export default function SiteDetailPage() {
         updatesResponse,
         ticketsResponse,
         transactionsResponse,
+        providersResponse,
       ] = await Promise.all([
         api.get(`/sites/${projectKey}/${siteId}`),
         api.get(`/projects/${projectKey}/ui-fields`),
@@ -158,6 +167,7 @@ export default function SiteDetailPage() {
         api.get("/updates", { params: { site_id: numericSiteId } }),
         api.get("/tickets"),
         api.get("/transactions"),
+        api.get(`/projects/${projectKey}/providers`),
       ])
 
       const nextProjects = projectsResponse.data as ProjectRow[]
@@ -172,6 +182,7 @@ export default function SiteDetailPage() {
         list_view: field.list_view,
       }))
 
+      const nextProviders = (providersResponse.data as ProviderRow[]) ?? []
       setSite(nextSite)
       setUiFields(nextUiFields)
       setBadges(badgesResponse.data)
@@ -183,6 +194,9 @@ export default function SiteDetailPage() {
       setUpdates(updatesResponse.data)
       setTickets(nextTickets)
       setTransactions(nextTransactions)
+      setProviders(nextProviders)
+      const currentProviderId = nextSite.fields?.provider_id
+      setProviderDraft(currentProviderId != null ? String(currentProviderId) : "")
       setDrafts(buildDrafts(nextSite, nextUiFields))
     } catch {
       setError("Unable to load site details.")
@@ -282,6 +296,17 @@ export default function SiteDetailPage() {
       [draftKey]: { open: false, type_id: "", amount: "", remarks: "" },
     }))
     await loadPage()
+  }
+
+  async function saveProvider() {
+    if (!providerDraft) return
+    setSavingProvider(true)
+    try {
+      await api.patch(`/sites/${projectKey}/${currentSite.id}`, { data: { provider_id: Number(providerDraft) } })
+      await loadPage()
+    } finally {
+      setSavingProvider(false)
+    }
   }
 
   return (
@@ -476,6 +501,26 @@ export default function SiteDetailPage() {
             </div>
           </ActionPanel>
 
+          {projectKey === "bb" ? (
+            <ActionPanel title="Provider">
+              <div className="grid gap-3">
+                <select
+                  value={providerDraft}
+                  onChange={(event) => setProviderDraft(event.target.value)}
+                  className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
+                >
+                  <option value="">Select Provider</option>
+                  {providers.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <button type="button" className="premium-button" disabled={savingProvider || !providerDraft} onClick={() => void saveProvider()}>
+                  {savingProvider ? "Saving..." : "Set Provider"}
+                </button>
+              </div>
+              {providers.length === 0 && <EmptyState text="No providers configured" />}
+            </ActionPanel>
+          ) : (
           <ActionPanel title="FE Assignment">
             <Modal
               open={removeModal.open}
@@ -537,12 +582,10 @@ export default function SiteDetailPage() {
             </div>
             {(() => {
               const alreadyAssigned =
-                !!assignmentForm.fe_id &&
                 !!assignmentForm.bucket_id &&
                 currentSite.fe_rows.some(
                   (r) =>
                     r.active &&
-                    r.fe_id === Number(assignmentForm.fe_id) &&
                     r.bucket_key === jobBuckets.find((b) => String(b.id) === assignmentForm.bucket_id)?.key,
                 )
               return (
@@ -550,7 +593,7 @@ export default function SiteDetailPage() {
                   type="button"
                   className="premium-button mt-3"
                   disabled={alreadyAssigned}
-                  title={alreadyAssigned ? "This FE is already assigned to this site and bucket" : undefined}
+                  title={alreadyAssigned ? "An active FE is already assigned to this bucket" : undefined}
                   onClick={() => {
                     if (!assignmentForm.bucket_id || !assignmentForm.fe_id) return
                     void api
@@ -561,7 +604,7 @@ export default function SiteDetailPage() {
                       })
                   }}
                 >
-                  {alreadyAssigned ? "Already Assigned" : "Assign FE"}
+                  {alreadyAssigned ? "Bucket Already Assigned" : "Assign FE"}
                 </button>
               )
             })()}
@@ -681,6 +724,7 @@ export default function SiteDetailPage() {
               </div>
             ) : null}
           </ActionPanel>
+          )}
         </section>
       </div>
     </div>

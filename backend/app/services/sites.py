@@ -37,6 +37,7 @@ FIELD_TYPE_OVERRIDES = {
     "arr": "bool",
     "ep": "bool",
     "ec": "number",
+    "provider_id": "number",
 }
 
 BADGE_TYPE_BY_FIELD = {
@@ -388,12 +389,11 @@ def assign_fe(db: Session, user: UserContext, project_key: str, site_id: int, pa
             FEAssignment.project_id == project.id,
             FEAssignment.site_id == site_id,
             FEAssignment.bucket_id == payload.bucket_id,
-            FEAssignment.fe_id == payload.fe_id,
             FEAssignment.active.is_(True),
         )
     ).scalar_one_or_none()
     if existing is not None:
-        return get_site(db, user, project_key, site_id)
+        raise HTTPException(status_code=400, detail="An active FE assignment already exists for this bucket")
     db.add(
         FEAssignment(
             project_id=project.id,

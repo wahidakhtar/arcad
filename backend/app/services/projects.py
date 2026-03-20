@@ -215,6 +215,13 @@ def list_project_buckets(db: Session, user: UserContext, project_key: str) -> li
     return [{"id": row.id, "key": row.key, "label": row.label} for row in rows]
 
 
+def list_bb_providers(db: Session, user: UserContext) -> list[dict]:
+    from app.models.bb import Provider
+    ensure_permission(user, db, project_key="bb", tag="site", action="read")
+    providers = db.execute(select(Provider).order_by(Provider.name)).scalars().all()
+    return [{"id": p.id, "name": p.name} for p in providers]
+
+
 def create_subproject(db: Session, user: UserContext, project_key: str, batch_date: str, rows: list[dict]) -> dict:
     ensure_permission(user, db, project_key=project_key, tag="subproject", action="write")
     if project_key not in {"md", "ma", "mc"}:

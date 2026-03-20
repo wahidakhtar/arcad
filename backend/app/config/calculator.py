@@ -58,8 +58,12 @@ def _as_decimal(value: Any) -> Decimal:
 def _job_quantity(site: dict[str, Any], job_key: str, scale_by: str) -> Decimal:
     if scale_by == "height":
         return _as_decimal(site.get("height"))
+    if scale_by == "height_if_true":
+        return _as_decimal(site.get("height")) if site.get(job_key) else ZERO
     if scale_by == "numeric":
         return _as_decimal(site.get(job_key))
+    if scale_by == "visit_date":
+        return Decimal("1") if site.get("visit_date") else ZERO
     raw = site.get(job_key)
     return Decimal("1") if raw else ZERO
 

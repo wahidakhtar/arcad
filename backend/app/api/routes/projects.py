@@ -36,6 +36,13 @@ def project_job_buckets(project_key: str, user: UserContext = Depends(get_curren
     return project_service.list_project_buckets(db, user, project_key)
 
 
+@router.get("/{project_key}/providers")
+def project_providers(project_key: str, user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    if project_key != "bb":
+        return []
+    return project_service.list_bb_providers(db, user)
+
+
 @router.post("/subprojects")
 def create_subproject(payload: SubprojectCreate, user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
     return project_service.create_subproject(db, user, payload.project_key, payload.batch_date, payload.rows)
