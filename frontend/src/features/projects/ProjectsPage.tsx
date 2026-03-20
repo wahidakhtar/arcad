@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 
+import Modal from "../../components/ui/Modal"
+import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
 
 type ProjectRow = {
@@ -13,11 +15,37 @@ type ProjectRow = {
 }
 
 export default function ProjectsPage() {
+  const { can } = useAuth()
   const [projects, setProjects] = useState<ProjectRow[]>([])
+  const [addOpen, setAddOpen] = useState(false)
+  const [form, setForm] = useState({ label: "", key: "" })
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState("")
+
+  function loadProjects() {
+    void api.get<ProjectRow[]>("/projects").then((r) => setProjects(r.data))
+  }
 
   useEffect(() => {
-    void api.get("/projects").then((response) => setProjects(response.data))
+    loadProjects()
   }, [])
+
+  async function handleAddProject() {
+    if (!form.label.trim() || !form.key.trim()) return
+    setSaving(true)
+    setSaveError("")
+    try {
+      await api.post("/projects", { key: form.key.trim().toLowerCase(), label: form.label.trim() })
+      setAddOpen(false)
+      setForm({ label: "", key: "" })
+      loadProjects()
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setSaveError(detail ?? "Failed to create project.")
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -26,7 +54,14 @@ export default function ProjectsPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/42">Projects</p>
           <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">All projects including inactive metadata modules</h1>
         </div>
-        <p className="max-w-xl text-sm leading-7 text-jscolors-text/60">Recurring modules feed the sidebar; one-off modules remain metadata-only but still participate in admin and billing/transaction scope.</p>
+        <div className="flex items-center gap-3">
+          <p className="max-w-xl text-sm leading-7 text-jscolors-text/60">Recurring modules feed the sidebar; one-off modules remain metadata-only but still participate in admin and billing/transaction scope.</p>
+          {can("project", "write") && (
+            <button type="button" className="premium-button shrink-0" onClick={() => setAddOpen(true)}>
+              + Add Project
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -57,6 +92,40 @@ export default function ProjectsPage() {
           )
         })}
       </div>
+
+      <Modal open={addOpen} title="Add Project" onClose={() => { setAddOpen(false); setSaveError("") }}>
+        <div className="space-y-4">
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Project Name</span>
+            <input
+              type="text"
+              value={form.label}
+              onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+              className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
+              placeholder="e.g. Maharashtra Circle"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Project Key (short code)</span>
+            <input
+              type="text"
+              value={form.key}
+              onChange={(e) => setForm((f) => ({ ...f, key: e.target.value }))}
+              className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
+              placeholder="e.g. mh"
+            />
+          </label>
+          {saveError && <p className="text-sm text-red-600">{saveError}</p>}
+          <button
+            type="button"
+            className="premium-button w-full"
+            disabled={saving || !form.label.trim() || !form.key.trim()}
+            onClick={() => void handleAddProject()}
+          >
+            {saving ? "Creating..." : "Create Project"}
+          </button>
+        </div>
+      </Modal>
     </div>
   )
 }

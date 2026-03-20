@@ -117,6 +117,18 @@ def _normalize_bulk_row(db: Session, project_key: str, row: dict[str, Any], fiel
     return payload
 
 
+def create_project(db: Session, user: UserContext, key: str, label: str) -> dict:
+    ensure_permission(user, db, project_key=None, tag="project", action="write")
+    existing = db.execute(select(Project).where(Project.key == key)).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(status_code=400, detail="Project key already exists")
+    project = Project(key=key, label=label, active=True, recurring=False, supports_subprojects=False)
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    return {"id": project.id, "key": project.key, "label": project.label, "active": project.active, "recurring": project.recurring, "supports_subprojects": project.supports_subprojects, "subprojects": []}
+
+
 def list_projects(db: Session, user: UserContext) -> list[dict]:
     projects = db.execute(select(Project).order_by(Project.id)).scalars().all()
     rows = []

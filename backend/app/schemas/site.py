@@ -7,6 +7,11 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 
+class ProjectCreate(BaseModel):
+    key: str
+    label: str
+
+
 class SiteCreate(BaseModel):
     project_key: str
     subproject_id: int

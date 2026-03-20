@@ -7,6 +7,7 @@ import AddForm from "../../components/ui/AddForm"
 import BulkTable from "../../components/ui/BulkTable"
 import FilterBar, { type FilterBarConfig } from "../../components/ui/FilterBar"
 import { useListPage } from "../../hooks/useListPage"
+import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
 
 type Badge = {
@@ -44,6 +45,7 @@ type ProjectMeta = {
 }
 
 export default function SiteListPage() {
+  const { can } = useAuth()
   const { projectKey = "mi", subprojectId } = useParams()
   const [projectMeta, setProjectMeta] = useState<ProjectMeta | null>(null)
   const [columns, setColumns] = useState<Array<{ key: string; label: string; type?: string }>>([])
@@ -129,10 +131,12 @@ export default function SiteListPage() {
             placeholder="Search by Circuit ID"
             className="rounded-full border border-jscolors-crimson/15 bg-white px-5 py-3 outline-none"
           />
-          <button type="button" className="premium-button-secondary" onClick={() => setOpenAdd(true)}>
-            Add Site
-          </button>
-          {projectMeta?.supports_subprojects ? (
+          {can("site", "write") && (
+            <button type="button" className="premium-button-secondary" onClick={() => setOpenAdd(true)}>
+              Add Site
+            </button>
+          )}
+          {projectMeta?.supports_subprojects && can("subproject", "write") ? (
             <button type="button" className="premium-button-secondary" onClick={() => setOpenSubprojectAdd(true)}>
               Add Subproject
             </button>

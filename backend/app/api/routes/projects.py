@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.auth import UserContext, get_current_user
 from app.core.database import get_db
-from app.schemas.site import SubprojectCreate
+from app.schemas.site import ProjectCreate, SubprojectCreate
 from app.services import projects as project_service
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -14,6 +14,11 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 @router.get("")
 def list_projects(user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
     return project_service.list_projects(db, user)
+
+
+@router.post("")
+def create_project(payload: ProjectCreate, user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    return project_service.create_project(db, user, payload.key, payload.label)
 
 
 @router.get("/counts")
