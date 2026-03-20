@@ -123,7 +123,7 @@ def list_projects(db: Session, user: UserContext) -> list[dict]:
     for project in projects:
         if user.is_fo and not any(role.project_id == project.id for role in user.roles if role.project_id is not None):
             continue
-        entry = {"id": project.id, "key": project.key, "label": project.label, "active": project.active, "recurring": project.recurring, "subprojects": []}
+        entry = {"id": project.id, "key": project.key, "label": project.label, "active": project.active, "recurring": project.recurring, "supports_subprojects": project.supports_subprojects, "subprojects": []}
         if project.recurring and project.key in {"mi", "md", "ma", "mc", "bb"}:
             model = get_subproject_model(project.key)
             subprojects = db.execute(select(model).where(model.active.is_(True), model.bucket.is_(False)).order_by(model.batch_date.desc())).scalars().all()
@@ -143,7 +143,7 @@ def list_ui_fields(db: Session, user: UserContext, project_key: str) -> list[dic
     if project_key not in {"mi", "md", "ma", "mc", "bb"}:
         return []
     rows = db.execute(
-        text(f"SELECT id, label, tag, list_view, type FROM schema_{project_key}.ui ORDER BY id")
+        text(f"SELECT id, label, tag, list_view, type, form_view, bulk_view, section FROM schema_{project_key}.ui_fields ORDER BY id")
     ).mappings().all()
     return [
         {
@@ -152,6 +152,9 @@ def list_ui_fields(db: Session, user: UserContext, project_key: str) -> list[dic
             "label": row["label"],
             "list_view": row["list_view"],
             "type": row["type"],
+            "form_view": row["form_view"],
+            "bulk_view": row["bulk_view"],
+            "section": row["section"],
         }
         for row in rows
     ]

@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react"
+import { useDeferredValue, useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 
 import DataTable from "../../components/ui/DataTable"
@@ -6,7 +6,6 @@ import Modal from "../../components/ui/Modal"
 import AddForm from "../../components/ui/AddForm"
 import BulkTable from "../../components/ui/BulkTable"
 import FilterBar, { type FilterBarConfig } from "../../components/ui/FilterBar"
-import { getProjectConfig } from "../../config"
 import { useListPage } from "../../hooks/useListPage"
 import { api } from "../../lib/api"
 
@@ -29,9 +28,24 @@ type SiteRow = {
   status_badge?: Badge
 }
 
+type UIField = {
+  key: string
+  label: string
+  type?: string
+  list_view: boolean
+  form_view: boolean
+  bulk_view: boolean
+  section: string
+}
+
+type ProjectMeta = {
+  label: string
+  supports_subprojects: boolean
+}
+
 export default function SiteListPage() {
   const { projectKey = "mi", subprojectId } = useParams()
-  const config = useMemo(() => getProjectConfig(projectKey), [projectKey])
+  const [projectMeta, setProjectMeta] = useState<ProjectMeta | null>(null)
   const [columns, setColumns] = useState<Array<{ key: string; label: string; type?: string }>>([])
   const [formFields, setFormFields] = useState<Array<{ key: string; label: string; type?: string }>>([])
   const [bulkFields, setBulkFields] = useState<Array<{ key: string; label: string; type?: string }>>([])
@@ -46,45 +60,33 @@ export default function SiteListPage() {
   })
 
   useEffect(() => {
-    if (!config) {
-      setColumns([])
-      setFormFields([])
-      setBulkFields([])
-      return
-    }
-
     void Promise.all([
       api.get("/badges", { params: { type: "status" } }),
       api.get(`/projects/${projectKey}/ui-fields`),
       api.get("/indian-states"),
-    ]).then(([badgesResponse, uiFieldsResponse, statesResponse]) => {
-        const statusBadges = badgesResponse.data as Badge[]
-        const uiFields = (uiFieldsResponse.data as Array<{ key?: string; tag?: string; label: string; type?: string; list_view?: boolean; listView?: boolean }>).map((field) => ({
-          key: field.key ?? field.tag ?? "",
+      api.get("/projects"),
+    ]).then(([badgesResponse, uiFieldsResponse, statesResponse, projectsResponse]) => {
+      const statusBadges = badgesResponse.data as Badge[]
+      const uiFields = uiFieldsResponse.data as UIField[]
+      const projects = projectsResponse.data as Array<{ key: string; label: string; supports_subprojects: boolean }>
+      const project = projects.find((p) => p.key === projectKey)
+
+      setBadges(statusBadges)
+      setStates(statesResponse.data)
+      setProjectMeta(project ? { label: project.label, supports_subprojects: project.supports_subprojects } : null)
+
+      const listColumns = uiFields
+        .filter((field) => field.list_view)
+        .map((field) => ({
+          key: field.key === "status" ? "status_badge" : field.key,
           label: field.label,
           type: field.type,
-          list_view: field.list_view ?? field.listView ?? false,
         }))
-        console.log("ui-fields response", projectKey, uiFields)
-        setBadges(statusBadges)
-        setStates(statesResponse.data)
-        const listColumns = uiFields
-          .filter((field) => field.list_view)
-          .map((field) => ({
-            key: field.key === "status_key" ? "status_badge" : field.key,
-            label: field.label,
-            type: field.type,
-          }))
-        setColumns(listColumns.length ? listColumns : config.listColumns)
-        setFormFields(uiFields.filter((field) => config.formFields.includes(field.key)))
-        setBulkFields(uiFields.filter((field) => config.bulkColumns.includes(field.key)))
-      },
-    )
+      setColumns(listColumns)
+      setFormFields(uiFields.filter((f) => f.form_view).map(({ key, label, type }) => ({ key, label, type })))
+      setBulkFields(uiFields.filter((f) => f.bulk_view).map(({ key, label, type }) => ({ key, label, type })))
+    })
   }, [projectKey])
-
-  if (!config) {
-    return <div className="glass-panel p-6">Project config not available.</div>
-  }
 
   if (loading) {
     return <div className="glass-panel p-6">Loading sites...</div>
@@ -117,7 +119,7 @@ export default function SiteListPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/42">{config.label}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/42">{projectMeta?.label ?? projectKey.toUpperCase()}</p>
           {subprojectId ? <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">{`Subproject ${subprojectId}`}</h1> : null}
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -130,7 +132,7 @@ export default function SiteListPage() {
           <button type="button" className="premium-button-secondary" onClick={() => setOpenAdd(true)}>
             Add Site
           </button>
-          {config.supportsSubprojects ? (
+          {projectMeta?.supports_subprojects ? (
             <button type="button" className="premium-button-secondary" onClick={() => setOpenSubprojectAdd(true)}>
               Add Subproject
             </button>
@@ -148,7 +150,7 @@ export default function SiteListPage() {
         />
       </div>
 
-      <Modal open={openAdd} title={`Add ${config.label} Site`} onClose={() => setOpenAdd(false)}>
+      <Modal open={openAdd} title={`Add ${projectMeta?.label ?? projectKey.toUpperCase()} Site`} onClose={() => setOpenAdd(false)}>
         <AddForm
           fields={formFields}
           states={states}
@@ -159,7 +161,7 @@ export default function SiteListPage() {
           }}
         />
       </Modal>
-      <Modal open={openSubprojectAdd} title={`Add ${config.label} Subproject`} onClose={() => setOpenSubprojectAdd(false)}>
+      <Modal open={openSubprojectAdd} title={`Add ${projectMeta?.label ?? projectKey.toUpperCase()} Subproject`} onClose={() => setOpenSubprojectAdd(false)}>
         <BulkTable
           columns={bulkFields}
           states={states}

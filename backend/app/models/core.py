@@ -16,6 +16,7 @@ class Project(Base):
     label: Mapped[str] = mapped_column(String(255), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     recurring: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    supports_subprojects: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
 class Badge(Base):
