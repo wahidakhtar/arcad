@@ -147,6 +147,7 @@ export default function SiteDetailPage() {
     setError("")
     try {
       const numericSiteId = Number(siteId)
+      const empty = { data: [] }
       const [
         siteResponse,
         uiFieldsResponse,
@@ -167,11 +168,11 @@ export default function SiteDetailPage() {
         api.get(`/projects/${projectKey}/badge-transitions`),
         api.get("/indian-states"),
         api.get("/projects"),
-        api.get("/users"),
+        api.get("/users").catch(() => empty),
         api.get(`/projects/${projectKey}/job-buckets`),
-        api.get("/updates", { params: { site_id: numericSiteId } }),
-        api.get("/tickets"),
-        api.get("/transactions"),
+        api.get("/updates", { params: { site_id: numericSiteId } }).catch(() => empty),
+        api.get("/tickets").catch(() => empty),
+        api.get("/transactions").catch(() => empty),
         api.get(`/projects/${projectKey}/providers`),
       ])
 
