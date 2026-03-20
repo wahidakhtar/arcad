@@ -194,8 +194,8 @@ def get_available_roles(db: Session, user_id: int) -> list[dict]:
         ).scalars().all()
         taken_ops_l3_projects = {a.project_id for a in assignments if a.project_id is not None}
 
-    # Load all projects (for ops/fo scoping)
-    projects = db.execute(select(Project)).scalars().all()
+    # Load active projects only (for ops/fo scoping)
+    projects = db.execute(select(Project).where(Project.active.is_(True))).scalars().all()
 
     result: list[dict] = []
     for role in all_roles:

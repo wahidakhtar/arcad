@@ -33,13 +33,17 @@ export default function UserDetailPage() {
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ username: "", aadhaar: "", upi: "" })
   const [roleForm, setRoleForm] = useState({ dept_key: "", level_key: "", project_id: "" })
+  const [deptLabels, setDeptLabels] = useState<Record<string, string>>({})
+  const [levelLabels, setLevelLabels] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!userId) return
     void Promise.all([
       api.get(`/users/${userId}`),
       api.get("/projects"),
-    ]).then(([userResponse, projectsResponse]) => {
+      api.get("/badges", { params: { type: "department" } }),
+      api.get("/badges", { params: { type: "level" } }),
+    ]).then(([userResponse, projectsResponse, deptResponse, levelResponse]) => {
       const nextUser = userResponse.data as UserDetail
       setUser(nextUser)
       setForm({
@@ -48,6 +52,8 @@ export default function UserDetailPage() {
         upi: nextUser.upi ?? "",
       })
       setProjects(projectsResponse.data)
+      setDeptLabels(Object.fromEntries((deptResponse.data as { key: string; label: string }[]).map((b) => [b.key, b.label])))
+      setLevelLabels(Object.fromEntries((levelResponse.data as { key: string; label: string }[]).map((b) => [b.key, b.label])))
     })
   }, [userId])
 
@@ -68,10 +74,14 @@ export default function UserDetailPage() {
 
   // Derived from availableRoles
   const availableDepts = useMemo(() => [...new Set(availableRoles.map((r) => r.dept_key))], [availableRoles])
-  const levelsForDept = useMemo(
-    () => [...new Set(availableRoles.filter((r) => r.dept_key === roleForm.dept_key).map((r) => r.level_key))],
-    [availableRoles, roleForm.dept_key],
-  )
+  const levelsForDept = useMemo(() => {
+    let filtered = availableRoles.filter((r) => r.dept_key === roleForm.dept_key)
+    // For project-scoped depts, restrict levels to those available for the selected project
+    if (needsProject && roleForm.project_id) {
+      filtered = filtered.filter((r) => String(r.project_id) === roleForm.project_id)
+    }
+    return [...new Set(filtered.map((r) => r.level_key))]
+  }, [availableRoles, roleForm.dept_key, roleForm.project_id, needsProject])
   const needsProject = ["ops", "fo"].includes(roleForm.dept_key)
 
   // When dept changes, reset level to first available
@@ -94,14 +104,6 @@ export default function UserDetailPage() {
 
   if (!user) {
     return <div className="glass-panel p-6">User not found.</div>
-  }
-
-  // Label lookups from available roles (fallback to key)
-  const deptLabelMap: Record<string, string> = {}
-  const levelLabelMap: Record<string, string> = {}
-  for (const r of availableRoles) {
-    deptLabelMap[r.dept_key] = r.dept_key  // available roles don't carry dept label — use badge lookup below
-    levelLabelMap[r.level_key] = r.level_key
   }
 
   return (
@@ -183,7 +185,7 @@ export default function UserDetailPage() {
             <div key={role.id} className="flex items-center justify-between rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
               <div>
                 <div className="font-medium text-jscolors-text">
-                  {role.dept_key} · {role.level_key} · {projectById.get(role.project_id ?? -1)?.label ?? "Global"}
+                  {deptLabels[role.dept_key] ?? role.dept_key} · {levelLabels[role.level_key] ?? role.level_key}
                 </div>
                 <div className="text-xs uppercase tracking-[0.22em] text-jscolors-text/45">
                   {projectById.get(role.project_id ?? -1)?.label ?? "Global"}
@@ -213,7 +215,7 @@ export default function UserDetailPage() {
                   className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
                 >
                   {availableDepts.map((dept) => (
-                    <option key={dept} value={dept}>{dept}</option>
+                    <option key={dept} value={dept}>{deptLabels[dept] ?? dept}</option>
                   ))}
                 </select>
               </label>
@@ -222,7 +224,14 @@ export default function UserDetailPage() {
                 {needsProject ? (
                   <select
                     value={roleForm.project_id}
-                    onChange={(event) => setRoleForm((current) => ({ ...current, project_id: event.target.value }))}
+                    onChange={(event) => {
+                      const pid = event.target.value
+                      // Recompute first available level for this project
+                      const firstLevel = availableRoles.find(
+                        (r) => r.dept_key === roleForm.dept_key && String(r.project_id) === pid,
+                      )?.level_key ?? ""
+                      setRoleForm((current) => ({ ...current, project_id: pid, level_key: firstLevel }))
+                    }}
                     className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
                   >
                     <option value="">Select Project</option>
@@ -242,7 +251,7 @@ export default function UserDetailPage() {
                   className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
                 >
                   {levelsForDept.map((level) => (
-                    <option key={level} value={level}>{level}</option>
+                    <option key={level} value={level}>{levelLabels[level] ?? level}</option>
                   ))}
                 </select>
               </label>

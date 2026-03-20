@@ -29,6 +29,7 @@ type ProjectEntry = {
 export default function PeoplePage() {
   const config = getPageConfig("people")
   const navigate = useNavigate()
+  const [hoveredUserId, setHoveredUserId] = useState<number | null>(null)
   const [openAddUser, setOpenAddUser] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
@@ -152,8 +153,10 @@ export default function PeoplePage() {
               group.roles.map((role, roleIndex) => (
                 <tr
                   key={`${group.user_id}-${roleIndex}`}
-                  className={`cursor-pointer border-b border-jscolors-crimson/8 transition hover:bg-jscolors-gold/10 ${!group.active ? "opacity-40" : ""}`}
+                  className={`cursor-pointer border-b border-jscolors-crimson/8 transition ${hoveredUserId === group.user_id ? "bg-jscolors-gold/10" : ""} ${!group.active ? "opacity-40" : ""}`}
                   onClick={() => navigate(`/people/${group.user_id}`)}
+                  onMouseEnter={() => setHoveredUserId(group.user_id)}
+                  onMouseLeave={() => setHoveredUserId(null)}
                 >
                   {roleIndex === 0 && (
                     <td
