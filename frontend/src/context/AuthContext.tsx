@@ -8,17 +8,19 @@ import {
 } from "react"
 
 import { api } from "../lib/api"
-import { decodeJWT, hasPermission, type AuthRole, type AuthUser } from "../lib/auth"
+import { decodeJWT, hasPermission, type AuthRole, type AuthUser, type TagMap } from "../lib/auth"
 
 type AuthContextValue = {
   user: AuthUser | null
   roles: AuthRole[]
+  tags: TagMap
+  projectKeys: string[]
   loading: boolean
   setupRequired: boolean
   login: (username: string, password: string, deviceLabel?: string) => Promise<void>
   logout: () => Promise<void>
   refreshAuth: () => Promise<void>
-  can: (projectId: number | null, tag: string, action: "read" | "write") => boolean
+  can: (tag: string, action: "read" | "write") => boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -37,6 +39,8 @@ type MeResponse = {
   username: string
   label: string
   roles: AuthRole[]
+  tags: TagMap
+  project_keys: string[]
 }
 
 function applySession(data: LoginResponse | null) {
@@ -53,11 +57,15 @@ function clearStoredSession() {
   localStorage.removeItem("refresh_token")
   localStorage.removeItem("auth_user")
   localStorage.removeItem("auth_roles")
+  localStorage.removeItem("auth_tags")
+  localStorage.removeItem("auth_project_keys")
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [roles, setRoles] = useState<AuthRole[]>([])
+  const [tags, setTags] = useState<TagMap>({})
+  const [projectKeys, setProjectKeys] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [setupRequired, setSetupRequired] = useState(false)
 
@@ -77,6 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem("access_token")
     let nextUser: AuthUser | null = null
     let nextRoles: AuthRole[] = []
+    let nextTags: TagMap = {}
+    let nextProjectKeys: string[] = []
     let nextSetupRequired = false
     try {
       if (!token) {
@@ -98,8 +108,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         label: response.data.label,
       }
       nextRoles = response.data.roles
+      nextTags = response.data.tags ?? {}
+      nextProjectKeys = response.data.project_keys ?? []
       localStorage.setItem("auth_user", JSON.stringify(nextUser))
       localStorage.setItem("auth_roles", JSON.stringify(nextRoles))
+      localStorage.setItem("auth_tags", JSON.stringify(nextTags))
+      localStorage.setItem("auth_project_keys", JSON.stringify(nextProjectKeys))
       nextSetupRequired = false
     } catch {
       clearStoredSession()
@@ -108,6 +122,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       startTransition(() => {
         setUser(nextUser)
         setRoles(nextRoles)
+        setTags(nextTags)
+        setProjectKeys(nextProjectKeys)
         setSetupRequired(nextSetupRequired)
         setLoading(false)
       })
@@ -125,17 +141,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       device_label: deviceLabel ?? "office-browser",
     })
     applySession(response.data)
-    localStorage.setItem(
-      "auth_user",
-      JSON.stringify({ id: response.data.user_id, username: response.data.username, label: response.data.label }),
-    )
-    localStorage.setItem("auth_roles", JSON.stringify(response.data.roles))
-    startTransition(() => {
-      setUser({ id: response.data.user_id, username: response.data.username, label: response.data.label })
-      setRoles(response.data.roles)
-      setSetupRequired(false)
-      setLoading(false)
-    })
+    // Fetch full me response (includes tags + project_keys)
+    await refreshAuth()
   }
 
   async function logout() {
@@ -146,6 +153,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       startTransition(() => {
         setUser(null)
         setRoles([])
+        setTags({})
+        setProjectKeys([])
         setLoading(false)
       })
       await fetchSetupRequired()
@@ -158,12 +167,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         roles,
+        tags,
+        projectKeys,
         loading,
         setupRequired,
         login,
         logout,
         refreshAuth,
-        can: (projectId, tag, action) => hasPermission(roles, projectId, tag, action),
+        can: (tag, action) => hasPermission(tags, tag, action),
       }}
     >
       {children}

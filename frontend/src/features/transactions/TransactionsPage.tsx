@@ -63,8 +63,8 @@ type ExecModal = {
 const TODAY = new Date().toISOString().slice(0, 10)
 
 export default function TransactionsPage() {
-  const { roles } = useAuth()
-  const isAccUser = roles.some((r) => r.dept_key === "acc")
+  const { tags } = useAuth()
+  const canWriteTransaction = tags.transaction?.write === true
   const [rows, setRows] = useState<TxRow[]>([])
   const [, setBadges] = useState<BadgeEntry[]>([])
   const [transitions, setTransitions] = useState<TransitionEntry[]>([])
@@ -220,7 +220,7 @@ export default function TransactionsPage() {
             label: "Status",
             render: (_value, row) => {
               const txRow = row as unknown as TxRow
-              if (!isAccUser) {
+              if (!canWriteTransaction) {
                 return <span className="text-sm">{txRow.status_label}</span>
               }
               const availableTransitions = transitions.filter((t) => t.from_id === txRow.status_id)

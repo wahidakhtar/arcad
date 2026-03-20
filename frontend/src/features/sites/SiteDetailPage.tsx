@@ -3,7 +3,10 @@ import { useParams } from "react-router-dom"
 
 import FieldRenderer, { type FieldDefinition } from "../../components/ui/FieldRenderer"
 import Modal from "../../components/ui/Modal"
+import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
+
+const DOC_BADGE_FIELDS = new Set(["wcc_status", "fsr_status", "report_status", "tx_copy_status"])
 
 type SiteDetail = {
   id: number
@@ -15,6 +18,7 @@ type SiteDetail = {
   fields: Record<string, unknown>
   financials: { budget: string; cost: string; paid: string; balance: string }
   fe_rows: Array<{ fe_id: number; fe_label: string; bucket_key: string; active: boolean; cost: string; paid: string; balance: string }>
+  provider_rows: Array<{ assignment_id: number; provider_id: number; provider_label: string; active: boolean; created_at: string | null }>
 }
 
 type UIField = FieldDefinition & {
@@ -67,7 +71,7 @@ type JobBucket = {
 
 type ProviderRow = {
   id: number
-  name: string
+  label: string
 }
 
 type UpdateRow = {
@@ -110,6 +114,7 @@ const READ_ONLY_FIELDS = new Set(["budget", "cost", "paid", "balance"])
 const TODAY = new Date().toISOString().slice(0, 10)
 
 export default function SiteDetailPage() {
+  const { tags } = useAuth()
   const { projectKey = "mi", siteId = "0" } = useParams()
   const [site, setSite] = useState<SiteDetail | null>(null)
   const [uiFields, setUiFields] = useState<UIField[]>([])
@@ -134,8 +139,8 @@ export default function SiteDetailPage() {
   const [assignmentForm, setAssignmentForm] = useState({ bucket_id: "", fe_id: "" })
   const [removeModal, setRemoveModal] = useState<{ open: boolean; fe_id: number; bucket_id: number; fe_label: string; final_cost: string }>({ open: false, fe_id: 0, bucket_id: 0, fe_label: "", final_cost: "" })
   const [providers, setProviders] = useState<ProviderRow[]>([])
-  const [providerDraft, setProviderDraft] = useState("")
-  const [savingProvider, setSavingProvider] = useState(false)
+  const [providerAssignId, setProviderAssignId] = useState("")
+  const [savingProviderAssign, setSavingProviderAssign] = useState(false)
 
   async function loadPage() {
     setLoading(true)
@@ -195,8 +200,6 @@ export default function SiteDetailPage() {
       setTickets(nextTickets)
       setTransactions(nextTransactions)
       setProviders(nextProviders)
-      const currentProviderId = nextSite.fields?.provider_id
-      setProviderDraft(currentProviderId != null ? String(currentProviderId) : "")
       setDrafts(buildDrafts(nextSite, nextUiFields))
     } catch {
       setError("Unable to load site details.")
@@ -242,6 +245,12 @@ export default function SiteDetailPage() {
   }
 
   const currentSite = site
+
+  const docBadgeVisible = tags.doc_badge?.read === true
+  const docBadgeEditable = tags.doc_badge?.write === true
+  const outcomeId = typeof currentSite.fields.outcome === "number" ? currentSite.fields.outcome :
+                    typeof currentSite.fields.outcome_id === "number" ? currentSite.fields.outcome_id : null
+  const isAssetTransfer = outcomeId !== null && badgeById.get(outcomeId as number)?.label?.toLowerCase() === "asset transfer"
 
   async function saveFields() {
     const editableFields = regularFields.filter((field) => !READ_ONLY_FIELDS.has(field.key))
@@ -298,15 +307,21 @@ export default function SiteDetailPage() {
     await loadPage()
   }
 
-  async function saveProvider() {
-    if (!providerDraft) return
-    setSavingProvider(true)
+  async function assignProvider() {
+    if (!providerAssignId) return
+    setSavingProviderAssign(true)
     try {
-      await api.patch(`/sites/${projectKey}/${currentSite.id}`, { data: { provider_id: Number(providerDraft) } })
+      await api.post(`/sites/${projectKey}/${currentSite.id}/assignments`, { provider_id: Number(providerAssignId) })
+      setProviderAssignId("")
       await loadPage()
     } finally {
-      setSavingProvider(false)
+      setSavingProviderAssign(false)
     }
+  }
+
+  async function removeProviderAssignment(assignmentId: number) {
+    await api.delete(`/sites/${projectKey}/${currentSite.id}/assignments/${assignmentId}`)
+    await loadPage()
   }
 
   return (
@@ -320,9 +335,14 @@ export default function SiteDetailPage() {
           </div>
           <div className="flex flex-wrap gap-3">
             {badgeFields.map((field) => {
+              const isDocBadge = DOC_BADGE_FIELDS.has(field.key)
+              if (isDocBadge && !docBadgeVisible) return null
+              if (field.key === "tx_copy_status" && !isAssetTransfer) return null
               const badgeValue = getFieldValue(currentSite, field)
               const currentBadge = typeof badgeValue === "number" ? badgeById.get(badgeValue) : null
-              const nextTransitions = typeof badgeValue === "number" ? transitionOptions(transitions, field.key, badgeValue) : []
+              const nextTransitions = (!isDocBadge || docBadgeEditable) && typeof badgeValue === "number"
+                ? transitionOptions(transitions, field.key, badgeValue)
+                : []
               return (
                 <div key={field.key} className="min-w-[220px] rounded-[22px] border border-jscolors-crimson/10 bg-white/90 px-4 py-4">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">{field.label}</div>
@@ -502,23 +522,43 @@ export default function SiteDetailPage() {
           </ActionPanel>
 
           {projectKey === "bb" ? (
-            <ActionPanel title="Provider">
+            <ActionPanel title="Provider Assignment">
               <div className="grid gap-3">
                 <select
-                  value={providerDraft}
-                  onChange={(event) => setProviderDraft(event.target.value)}
+                  value={providerAssignId}
+                  onChange={(event) => setProviderAssignId(event.target.value)}
                   className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
                 >
                   <option value="">Select Provider</option>
                   {providers.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                    <option key={p.id} value={p.id}>{p.label}</option>
                   ))}
                 </select>
-                <button type="button" className="premium-button" disabled={savingProvider || !providerDraft} onClick={() => void saveProvider()}>
-                  {savingProvider ? "Saving..." : "Set Provider"}
+                <button type="button" className="premium-button" disabled={savingProviderAssign || !providerAssignId} onClick={() => void assignProvider()}>
+                  {savingProviderAssign ? "Assigning..." : "Assign Provider"}
                 </button>
               </div>
-              {providers.length === 0 && <EmptyState text="No providers configured" />}
+              <div className="mt-4 space-y-3">
+                {currentSite.provider_rows.length ? currentSite.provider_rows.map((row) => (
+                  <div key={row.assignment_id} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-jscolors-text">{row.provider_label}</div>
+                        {row.created_at && <div className="mt-1 text-xs text-jscolors-text/60">{row.created_at.slice(0, 10)}</div>}
+                      </div>
+                      {row.active && (
+                        <button
+                          type="button"
+                          className="rounded-2xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition"
+                          onClick={() => void removeProviderAssignment(row.assignment_id)}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )) : <EmptyState text="No provider assignments yet" />}
+              </div>
             </ActionPanel>
           ) : (
           <ActionPanel title="FE Assignment">

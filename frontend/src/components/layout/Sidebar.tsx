@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Link, NavLink } from "react-router-dom"
 
 import { api } from "../../lib/api"
@@ -14,30 +14,25 @@ type SidebarProject = {
 }
 
 export default function Sidebar() {
-  const { user, roles, logout } = useAuth()
+  const { user, tags, projectKeys, logout } = useAuth()
   const [projects, setProjects] = useState<SidebarProject[]>([])
   const [counts, setCounts] = useState({ transactions: 0, tickets: 0 })
+  const countsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const canTag = (tag: string) => tags[tag]?.read === true
 
   useEffect(() => {
     void api.get("/projects").then((r) => setProjects(r.data)).catch(() => {})
-    void api.get("/projects/counts").then((r) => setCounts(r.data)).catch(() => {})
+
+    const fetchCounts = () => {
+      void api.get("/projects/counts").then((r) => setCounts(r.data)).catch(() => {})
+    }
+    fetchCounts()
+    countsTimerRef.current = setInterval(fetchCounts, 60_000)
+    return () => {
+      if (countsTimerRef.current) clearInterval(countsTimerRef.current)
+    }
   }, [])
-
-  const depts = new Set(roles.map((r) => r.dept_key))
-  const isMgmt = depts.has("mgmt")
-  const isAcc = depts.has("acc")
-  const isOps = depts.has("ops")
-  const isHr = depts.has("hr")
-  const isFo = depts.has("fo")
-
-  const isOpsL2orAbove = roles.some((r) => r.dept_key === "ops" && (r.level_key === "l2" || r.level_key === "l3"))
-
-  const canSeePeople = isMgmt || isHr
-  const canSeeProjectAdmin = isMgmt
-  const canSeeTransactions = isMgmt || isAcc || isOps || isFo
-  const canSeeTickets = isMgmt || isOps || isFo
-  const canSeeBilling = isMgmt || isAcc
-  const canSeeRateCard = isMgmt || isAcc || isOpsL2orAbove
 
   return (
     <aside className="glass-panel flex h-full w-[260px] shrink-0 flex-col overflow-hidden">
@@ -49,13 +44,14 @@ export default function Sidebar() {
 
       <nav className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-5 text-sm">
         <SectionLink to="/dashboard" label="Dashboard" />
-        {canSeePeople && <SectionLink to="/people" label="People" />}
-        {canSeeProjectAdmin && <SectionLink to="/projects-admin" label="Projects" />}
+        {canTag("people") && <SectionLink to="/people" label="People" />}
+        {canTag("project") && <SectionLink to="/projects-admin" label="Projects" />}
 
+        {canTag("site") && (
         <div className="space-y-3">
           <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-jscolors-text/40">Project Modules</p>
           {projects
-            .filter((project) => project.recurring)
+            .filter((project) => project.recurring && projectKeys.includes(project.key))
             .map((project) => (
               <div key={project.id} className="space-y-2">
                 <NavLink
@@ -87,11 +83,12 @@ export default function Sidebar() {
               </div>
             ))}
         </div>
+        )}
 
-        {canSeeTransactions && <SectionLink to="/transactions" label={`Transactions (${counts.transactions})`} />}
-        {canSeeTickets && <SectionLink to="/tickets" label={`Tickets (${counts.tickets})`} />}
-        {canSeeRateCard && <SectionLink to="/billing/rate-card" label="Rate Card" />}
-        {canSeeBilling && (
+        {canTag("transaction") && <SectionLink to="/transactions" label={`Transactions (${counts.transactions})`} />}
+        {canTag("ticket") && <SectionLink to="/tickets" label={`Tickets (${counts.tickets})`} />}
+        {canTag("rate") && <SectionLink to="/billing/rate-card" label="Rate Card" />}
+        {canTag("billing") && (
           <div className="space-y-2">
             <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-jscolors-text/40">Billing</p>
             <SectionLink to="/billing/pos" label="PO" compact />

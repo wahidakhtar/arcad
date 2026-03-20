@@ -13,6 +13,9 @@ export type AuthUser = {
   label: string
 }
 
+export type TagPermission = { read: boolean; write: boolean }
+export type TagMap = Record<string, TagPermission>
+
 export type TokenPayload = {
   sub: string
   exp: number
@@ -30,15 +33,10 @@ export function decodeJWT(token: string): TokenPayload | null {
   }
 }
 
-export function hasPermission(roles: AuthRole[], projectId: number | null, tag: string, action: "read" | "write"): boolean {
-  return roles.some((role) => {
-    const scoped = role.project_id === null || projectId === null || role.project_id === projectId
-    if (!scoped) return false
-    if (action === "read") return ["mgmt", "acc", "ops", "hr", "fo"].includes(role.dept_key)
-    if (tag === "billing") return ["mgmt", "acc"].includes(role.dept_key)
-    if (tag === "user") return ["mgmt", "hr"].includes(role.dept_key)
-    return ["mgmt", "ops", "acc"].includes(role.dept_key)
-  })
+export function hasPermission(tags: TagMap, tag: string, action: "read" | "write"): boolean {
+  const entry = tags[tag]
+  if (!entry) return false
+  return action === "read" ? entry.read : entry.write
 }
 
 export function isFieldUser(deptKey: string): boolean {
