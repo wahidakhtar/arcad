@@ -7,66 +7,93 @@
   - `/Users/wahidakhtar/software/backend/venv/bin/python3.9 -m compileall /Users/wahidakhtar/software/backend/app /Users/wahidakhtar/software/backend/migrations`
   - `npm run build` in `/Users/wahidakhtar/software/frontend`
   - `/Users/wahidakhtar/software/backend/venv/bin/alembic upgrade head`
-- Latest git push: `9fc81ed` (main). Both backend and frontend auto-deploy on push to main.
-- Railway DB: `autorack.proxy.rlwy.net:33504`, alembic version `20260320_0008`.
+- Latest git push: `fc3fc86` (main). Both backend and frontend auto-deploy on push to main.
+- Railway DB: `autorack.proxy.rlwy.net:33504`, alembic version `20260320_0009`.
 
 ---
 
-## What was fixed today (2026-03-20)
+## What was fixed today (2026-03-20, session 2)
+
+### Fix 1 — FE Assignment uniqueness check
+- `assign_fe()` in `sites.py` now checks if **any** active assignment exists for the same site+bucket (regardless of FE).
+- Was: checking same FE+bucket → allowed multiple FEs per bucket.
+- Now: raises HTTP 400 "An active FE assignment already exists for this bucket".
+- Frontend `alreadyAssigned` check also updated to bucket-level (not FE+bucket).
+
+### Fix 2 — mpaint cost conditional on site.mpaint
+- `scale_by` for mpaint job changed from `"height"` to `"height_if_true"` (migration 0009).
+- `_job_quantity` in `calculator.py` handles `"height_if_true"`: checks `site[job_key]` truthy first, then returns `site["height"]`, else 0.
+- Before: mpaint cost = rate × height for ALL MC sites, even when mpaint=False.
+- After: mpaint cost = rate × height only when `site.mpaint` is truthy.
+
+### Fix 3 — EC cost confirmed working
+- No code change needed. EC is included in `site_cost_for_bucket` via `JOB_BUCKETS["bmc"]=["mpaint","mnbr","ep","ec","arr"]`.
+- EC scale_by="numeric" → qty = site.ec (cable meters). Rate = ₹32/m.
+- Verified: MC site with ec=20 → 640 in both site cost and FE cost.
+
+### Fix 4 — MA cost (was always zero)
+- `scale_by` for ma job changed from `"unit"` to `"height"` (migration 0009).
+- Before: `site.get("ma")` → None → cost=0.
+- After: cost = MA rate (₹1000) × height. Verified: height=10 → ₹10,000.
+
+### Fix 5 — MDV cost (was always zero)
+- `scale_by` for mdv job changed from `"unit"` to `"visit_date"` (migration 0009).
+- MD sites have `visit_date` column, not `mdv`. Old scale_by="unit" checked `site.get("mdv")` → None.
+- New `"visit_date"` case in `_job_quantity`: returns 1 if `site.get("visit_date")` truthy, else 0.
+- Rate = ₹500 flat per visit. When visit_date is set, bmdv cost = 500.
+
+### Fix 6 — Bucket labels stripped of project prefix
+- Migration 0009 updates `schema_core.job_buckets`:
+  - `bmdv` label: "MD Visit" → "Visit"
+  - `bmd` label: "MD" → "Dismantle"
+- Frontend reads labels from API, so display updates automatically.
+
+### Fix 7 — BB site detail: Provider panel replaces FE Assignment
+- Added `GET /projects/{project_key}/providers` route (returns [] for non-BB).
+- Added `list_bb_providers` service in `projects.py` — queries `schema_bb.providers`.
+- `SiteDetailPage.tsx`: when `projectKey === "bb"`, shows Provider panel with provider dropdown + Set Provider button instead of FE Assignment panel.
+- Provider is saved via existing `PATCH /sites/bb/{site_id}` with `{ data: { provider_id: X } }`.
+- Added `"provider_id": "number"` to `FIELD_TYPE_OVERRIDES` in `sites.py`.
+- Added `provider_id` to `schema_core.field_permissions` for `ops` dept in migration 0009.
+
+---
+
+## What was fixed today (2026-03-20, session 1)
 
 ### Fix 1 — Add Rate: confirmed working (no code change needed)
 - `POST /billing/rate-card` already returns HTTP 200 for both Riya (accl2) and Saddam (mgmtl3).
-- The permission fix (`billing` tag replacing the broken `rate` tag) was deployed in a prior session (`4c5d001`).
-- DB confirmed: `accl2` has `billing` write=TRUE; `mgmtl3` has all permissions.
-- The "Unable to add rate" error was the old pre-fix behaviour and is no longer reproducible.
 
 ### Fix 2 — calculator.py: HEIGHT_SCALED_JOBS made data-driven
 - Migration `20260320_0006` adds `scale_by VARCHAR(16)` column to `schema_core.jobs`.
-- Values seeded: `height` (mi, mpaint, md), `numeric` (ec / Earthing Cable), `unit` (all others: ma, nbr, ep, mdv, arr).
 - `HEIGHT_SCALED_JOBS` set removed from `calculator.py`.
-- `_job_quantity(site, job_key, scale_by)` now takes `scale_by` string parameter.
-- All public calculator functions (`site_cost_for_bucket`, `fe_budget`, `fe_cost`, `fe_balance`, `calculate_site_financials`, `calculate_fo_view`) now accept `job_scales: dict[str, str]` (bucket_key → scale_by).
-- `sites.py` fetches `job_scales` from `schema_core.jobs` and passes to `calculate_site_financials`.
-- Files: `backend/migrations/versions/20260320_0006_jobs_scale_by.py`, `backend/app/config/calculator.py`, `backend/app/models/core.py`, `backend/app/services/sites.py`
 
 ### Fix 3 — frontend config files deleted, UI metadata fully API-driven
-- Migration `20260320_0007` adds to each project `ui_fields` table (mi/md/ma/mc/bb): `form_view BOOL`, `bulk_view BOOL`, `section VARCHAR(32)`.
-- Also adds `supports_subprojects BOOL` to `schema_core.projects`.
-- `supports_subprojects` seeded: md/ma/mc = true, mi/bb = false.
-- `form_view`/`bulk_view` seeded from the now-deleted config files.
-- `section` seeded: `finance` for billing/financial fields, `site` for all others.
-- `list_ui_fields` now returns all 8 columns from DB (id, key, label, list_view, type, form_view, bulk_view, section).
-- `list_projects` now returns `supports_subprojects` per project.
+- Migration `20260320_0007` adds `form_view`, `bulk_view`, `section` to each project's `ui_fields` table.
 - **Deleted**: `frontend/src/config/mi.ts`, `md.ts`, `ma.ts`, `mc.ts`, `bb.ts`
-- `SiteListPage.tsx` now reads label + supports_subprojects from `/projects` API and form/bulk fields from `form_view`/`bulk_view` flags. No config import.
-- Files: `backend/migrations/versions/20260320_0007_ui_fields_meta.py`, `backend/app/models/core.py`, `backend/app/services/projects.py`, `frontend/src/config/index.ts`, `frontend/src/features/sites/SiteListPage.tsx`
 
 ### Fix 4 — FIELD_WRITE_SCOPE moved from auth.py to DB
-- Migration `20260320_0008` creates `schema_core.field_permissions` table (field_key, dept_key).
-- Seeded 30 rows: 22 ops fields (receiving_date, height, address, city, etc.) and 8 acc fields (po_status_id, invoice_status_id, etc.).
-- `FIELD_WRITE_SCOPE` dict removed from `auth.py`.
-- `check_field_write_scope(user, field_name, db)` now queries `schema_core.field_permissions`.
-- `mgmt` bypass unchanged (mgmt always passes field scope check).
-- Save Fields confirmed working on Railway: HTTP 200 for mgmt user writing `height`.
-- Files: `backend/migrations/versions/20260320_0008_field_permissions.py`, `backend/app/models/core.py`, `backend/app/api/auth.py`
+- Migration `20260320_0008` creates `schema_core.field_permissions` table.
+- 30 rows seeded: 22 ops fields, 8 acc fields.
 
 ---
 
 ## Still open / not yet confirmed working
 
-1. **Save Fields for ops users** — field write confirmed for mgmt. Ops user field write needs live verification (no confirmed ops user password available in session).
+1. **Save Fields for ops users** — field write confirmed for mgmt. Ops user field write needs live verification.
 
-2. **Cost calculator live verification** — Fix 2 changed mpaint from bool-gated to height-scaled, and removed mdv/ma from height-scaling. An MI site with height=30 should show financials budget ≈ rate × 30. Needs confirmation with a real site that has an active FE assignment.
+2. **Transaction dropdown for Riya (acc)** — Migration 0005 applied. Needs live UI verification.
 
-3. **Transaction dropdown for Riya (acc)** — Migration 0005 (schema_acc.badge_transitions) is applied. Riya is accl2. The dropdown should show for acc users on Requested transactions. Needs live UI verification.
+3. **Level-aware field permissions not implemented** — ops L1 and L2 have identical write access. Spec requires L1 to only edit doc badge fields.
 
-4. **Level-aware field permissions not implemented** — ops L1 and L2 have identical write access in FIELD_WRITE_SCOPE (now in DB). Spec requires L1 to only edit doc badge fields. Both the `field_permissions` table and `ROLE_ACTION_RULES` would need level-aware checks.
+4. **ROLE_ACTION_RULES still hardcoded** — `auth.py` line 19–25. Deliberately left for later refactor.
 
-5. **ROLE_ACTION_RULES still hardcoded** — `auth.py` line 19–25 defines the dept-level permission matrix as a Python dict. This was deliberately left for a later refactor (larger scope than FIELD_WRITE_SCOPE).
+5. **No pagination on list endpoints** — tickets, transactions, sites all return all rows.
 
-6. **No pagination on list endpoints** — tickets, transactions, sites all return all rows.
+6. **SiteDetailPage.tsx is 700+ lines** — needs component extraction.
 
-7. **SiteDetailPage.tsx is 700+ lines** — needs component extraction.
+7. **BB providers table has no data** — `schema_bb.providers` is empty. Someone needs to seed provider names via DB or an admin UI.
+
+8. **Rate card key mismatch** — Old seeded rates use job_key="mi","ma","ec" etc. New API-added rates use job_key="jmi","jma". `_select_rate` looks for old-style keys (JOB_BUCKETS values = jobs.bucket_key). New API rates with "j"-prefix are silently ignored.
 
 ---
 
@@ -75,49 +102,41 @@
 - **Backend URL**: `https://arcad-production.up.railway.app`
 - **Frontend URL**: `https://arcad-production-8cc4.up.railway.app`
 - **DB host**: `autorack.proxy.rlwy.net:33504`
+- **DB password**: `eYEvELxllCZdMQnmgGgubxjlzuzPZGgC`
 - **Migrations**: Run automatically on container startup (`alembic upgrade head && uvicorn ...` in Dockerfile CMD).
 - **Auto-deploy**: Railway deploys frontend + backend on every `git push origin main`.
-- **User passwords**: Riya = `riya`. Saddam/Wahid = unknown (check Railway DB or reset). Admin: admin/admin123.
+- **User passwords**: Riya = `riya`. Saddam = `saddam`. Admin = `admin`/`admin123`.
 
 ---
 
 ## Backend implemented
 
-- FastAPI app/router structure:
-  - `backend/app/api/routes/auth.py`
-  - `backend/app/api/routes/badges.py`
-  - `backend/app/api/routes/billing.py` — rate card (GET/POST), jobs (GET), POs, invoices
-  - `backend/app/api/routes/dashboard.py`
-  - `backend/app/api/routes/media.py`
-  - `backend/app/api/routes/projects.py`
-  - `backend/app/api/routes/reports.py`
-  - `backend/app/api/routes/sites.py` — includes `/assignments/{fe_id}/{bucket_id}/remove`
-  - `backend/app/api/routes/states.py`
-  - `backend/app/api/routes/tickets.py` — includes `GET /{ticket_id}` and `PATCH /{ticket_id}/close`
-  - `backend/app/api/routes/transactions.py` — includes `/transitions` endpoint
-  - `backend/app/api/routes/updates.py`
-  - `backend/app/api/routes/users.py`
+- FastAPI app/router structure: `auth`, `badges`, `billing`, `dashboard`, `media`, `projects`, `reports`, `sites`, `states`, `tickets`, `transactions`, `updates`, `users`
 - Backend stays Python 3.9-compatible. Use `Optional[...]`, not `X | None`.
-- Migrations through `20260320_0008`.
+- Migrations through `20260320_0009`.
 
 ### Permission system
-- `ROLE_ACTION_RULES` in `backend/app/api/auth.py` defines tag-level access per dept (still hardcoded — Fix 4 only moved FIELD_WRITE_SCOPE).
-- `check_field_write_scope` queries `schema_core.field_permissions` (field_key, dept_key rows). `mgmt` users bypass this check entirely.
-- `PermissionDenied` raises as a plain exception; global handler in `main.py` converts to HTTP 403.
-- Known seeded tags: `billing`, `transaction`, `site`, `field`, `user`, `subproject`, `project`, `role`, `update`. The `rate` tag is seeded in DB but NOT used in routes — use `billing` for all billing operations.
+- `ROLE_ACTION_RULES` in `backend/app/api/auth.py` defines tag-level access per dept (hardcoded).
+- `check_field_write_scope` queries `schema_core.field_permissions` (field_key, dept_key rows). `mgmt` users bypass.
+- Known seeded tags: `billing`, `transaction`, `site`, `field`, `user`, `subproject`, `project`, `role`, `update`.
 
-### Cost calculation
-- `backend/app/config/calculator.py`
-- `HEIGHT_SCALED_JOBS` removed. Jobs now carry `scale_by` from `schema_core.jobs`: `height` (mi, mpaint, md), `numeric` (ec), `unit` (all others).
-- `_job_quantity(site, job_key, scale_by)`: height → site["height"], numeric → site[job_key], unit → 1 if truthy else 0.
-- `calculate_site_financials` takes `job_scales: dict[str, str]` (bucket_key → scale_by) as fifth argument.
-- `sites.py` fetches job_scales from DB and passes to calculator.
-- `_select_rate` picks most recent rate ≤ receiving_date.
+### Cost calculation (`backend/app/config/calculator.py`)
+- `JOB_BUCKETS`: `bmi→[mi]`, `bmdv→[mdv]`, `bmd→[md]`, `bma→[ma]`, `bmc→[mpaint,mnbr,ep,ec,arr]`
+- `scale_by` values in `schema_core.jobs`:
+  - `"height"` → qty = site.height (mi, md, ma)
+  - `"height_if_true"` → qty = site.height if site[job_key] truthy else 0 (mpaint)
+  - `"numeric"` → qty = site[job_key] as decimal (ec)
+  - `"visit_date"` → qty = 1 if site.visit_date else 0 (mdv)
+  - `"unit"` → qty = 1 if site[job_key] else 0 (nbr, ep, arr)
+- `_select_rate(job_key, receiving_date, rate_rows)` picks most recent rate ≤ receiving_date.
+- Rate card seeded with job_key = jobs.bucket_key (e.g., "mi", "ma") — NOT jobs.job_key ("jmi", "jma").
 
-### UI fields API
-- `GET /projects/{key}/ui-fields` returns: id, key, label, list_view, type, form_view, bulk_view, section.
-- `GET /projects` returns: id, key, label, active, recurring, supports_subprojects, subprojects.
-- `schema_core.field_permissions` table: field_key + dept_key pairs defining which depts can write each field.
+### BB-specific
+- `schema_bb.providers` table: id, name.
+- `GET /projects/bb/providers` → list of providers.
+- BB sites have `provider_id FK` on `schema_bb.sites`. Writable via PATCH with `data: {provider_id: N}`.
+- BB site detail shows Provider panel instead of FE Assignment.
+- BB has no job buckets / FE assignments.
 
 ---
 
@@ -125,13 +144,13 @@
 
 - `frontend/src/components/ui/DataTable.tsx`, `FieldRenderer.tsx`, `AddForm.tsx`, `BulkTable.tsx`, `FilterBar.tsx`
 - `frontend/src/hooks/useListPage.ts`
-- `frontend/src/config/` — now only `dashboard.ts`, `people.ts`, `index.ts` (project configs deleted)
-- Site list page: reads ALL metadata from API (form_view, bulk_view, list_view). No config dependency.
-- Site detail page: all ui_fields, badge transitions, save button, updates, tickets, FE assignment, transactions
-- Transactions page: acc-only interactive status dropdown with execution date modal
+- `frontend/src/config/` — now only `dashboard.ts`, `people.ts`, `index.ts`
+- Site list page: reads ALL metadata from API.
+- Site detail page: all ui_fields, badge transitions, save button, updates, tickets, FE assignment (non-BB), Provider panel (BB), transactions
+- Transactions page: acc-only interactive status dropdown
 - Rate Card page: native table-fixed, Add Rate modal
 - Ticket list page + detail page
-- Sidebar: dept+level-gated visibility, Rate Card at top level, independent counts fetch
+- Sidebar: dept+level-gated visibility, independent counts fetch
 - Dashboard: choropleth map, date filter, role-scoped summary
 
 ---
@@ -139,10 +158,14 @@
 ## DB schema summary
 
 - `schema_core.jobs`: id, job_bucket_id, bucket_key, job_key, label, **scale_by**
+  - bucket_key is the calculator key (matches JOB_BUCKETS values and rate_card job_key)
+  - job_key is the display/API key (j-prefixed)
+- `schema_core.job_buckets`: id, key, label (bmi→MI, bma→MA, bmc→MC, bmdv→Visit, bmd→Dismantle)
 - `schema_core.projects`: id, key, label, active, recurring, **supports_subprojects**
-- `schema_core.field_permissions`: id, field_key, dept_key (30 rows)
-- `schema_{key}.ui_fields` (mi/md/ma/mc/bb): id, label, tag, list_view, type, **form_view**, **bulk_view**, **section**
-- `schema_acc.badge_transitions`: req→cancel, req→rej, req→exct (transaction transitions)
+- `schema_core.field_permissions`: id, field_key, dept_key (31 rows including provider_id/ops)
+- `schema_{key}.ui_fields` (mi/md/ma/mc/bb): id, label, tag, list_view, type, form_view, bulk_view, section
+- `schema_acc.badge_transitions`: req→cancel, req→rej, req→exct
+- `schema_bb.providers`: id, name (empty — needs seeding)
 
 ---
 
