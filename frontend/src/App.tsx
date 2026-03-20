@@ -1,6 +1,8 @@
+import { useEffect } from "react"
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom"
 
 import { useAuth } from "./context/AuthContext"
+import { squirclePath } from "./lib/squircle"
 import PageLayout from "./components/layout/PageLayout"
 import DashboardPage from "./features/dashboard/DashboardPage"
 import LoginPage from "./features/auth/LoginPage"
@@ -46,6 +48,42 @@ function ProtectedApp() {
 
 export default function App() {
   const { setupRequired } = useAuth()
+
+  useEffect(() => {
+    const RADIUS = 28
+
+    function apply(el: Element) {
+      const { width, height } = el.getBoundingClientRect()
+      if (width > 0 && height > 0) {
+        ;(el as HTMLElement).style.clipPath = `path('${squirclePath(width, height, RADIUS)}')`
+      }
+    }
+
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) apply(entry.target)
+    })
+
+    const observed = new WeakSet<Element>()
+
+    function scan() {
+      document.querySelectorAll(".glass-panel").forEach((el) => {
+        if (!observed.has(el)) {
+          observed.add(el)
+          ro.observe(el)
+        }
+        apply(el)
+      })
+    }
+
+    const mo = new MutationObserver(scan)
+    mo.observe(document.body, { childList: true, subtree: true })
+    scan()
+
+    return () => {
+      ro.disconnect()
+      mo.disconnect()
+    }
+  }, [])
 
   return (
     <Routes>
