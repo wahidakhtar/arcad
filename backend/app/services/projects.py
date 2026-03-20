@@ -138,8 +138,8 @@ def list_projects(db: Session, user: UserContext) -> list[dict]:
         entry = {"id": project.id, "key": project.key, "label": project.label, "active": project.active, "recurring": project.recurring, "supports_subprojects": project.supports_subprojects, "subprojects": []}
         if project.recurring and project.key in {"mi", "md", "ma", "mc", "bb"}:
             model = get_subproject_model(project.key)
-            subprojects = db.execute(select(model).where(model.active.is_(True), model.bucket.is_(False)).order_by(model.batch_date.desc())).scalars().all()
-            entry["subprojects"] = [{"id": subproject.id, "batch_date": subproject.batch_date} for subproject in subprojects]
+            subprojects = db.execute(select(model).where(model.active.is_(True)).order_by(model.batch_date.desc().nullslast())).scalars().all()
+            entry["subprojects"] = [{"id": subproject.id, "batch_date": subproject.batch_date, "bucket": subproject.bucket} for subproject in subprojects]
         rows.append(entry)
     return rows
 

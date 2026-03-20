@@ -6,7 +6,7 @@ import { api } from "../../lib/api"
 type ProjectData = {
   key: string
   label: string
-  subprojects: Array<{ id: number; batch_date: string | null }>
+  subprojects: Array<{ id: number; batch_date: string | null; bucket: boolean }>
 }
 
 export default function SubprojectsPage() {
@@ -37,9 +37,11 @@ export default function SubprojectsPage() {
             className="glass-panel block p-6 transition hover:shadow-glow"
           >
             <p className="font-syne text-xl font-semibold text-jscolors-crimson">
-              {sub.batch_date
-                ? new Date(sub.batch_date).toLocaleDateString("en-US", { month: "long", year: "numeric" })
-                : `Batch ${sub.id}`}
+              {sub.bucket
+                ? "Default"
+                : sub.batch_date
+                  ? new Date(sub.batch_date).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+                  : `Batch ${sub.id}`}
             </p>
           </Link>
         ))}

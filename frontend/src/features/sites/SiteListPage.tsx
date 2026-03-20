@@ -42,7 +42,7 @@ type UIField = {
 type ProjectMeta = {
   label: string
   supports_subprojects: boolean
-  subprojects: Array<{ id: number; batch_date: string | null }>
+  subprojects: Array<{ id: number; batch_date: string | null; bucket?: boolean }>
 }
 
 export default function SiteListPage() {

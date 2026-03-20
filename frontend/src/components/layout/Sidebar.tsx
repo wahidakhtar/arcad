@@ -10,7 +10,7 @@ type SidebarProject = {
   label: string
   active: boolean
   recurring: boolean
-  subprojects: Array<{ id: number; batch_date: string | null }>
+  subprojects: Array<{ id: number; batch_date: string | null; bucket: boolean }>
 }
 
 export default function Sidebar() {
@@ -72,12 +72,12 @@ export default function Sidebar() {
                     {project.active ? "Live" : "Off"}
                   </span>
                 </NavLink>
-                {isHighRole && project.subprojects.map((subproject) => (
+                {isHighRole && project.subprojects.filter((s) => !s.bucket).map((subproject) => (
                   <NavLink
                     key={subproject.id}
                     to={`/projects/${project.key}/sub/${subproject.id}`}
                     className={({ isActive }) =>
-                      `ml-4 flex justify-start rounded-full border px-3 py-1.5 text-xs font-semibold transition hover:-translate-y-0.5 ${
+                      `ml-4 flex justify-end rounded-full border px-3 py-1.5 text-xs font-semibold transition hover:-translate-y-0.5 ${
                         isActive
                           ? "border-jscolors-gold/60 bg-jscolors-gold/20 text-jscolors-text"
                           : "border-jscolors-crimson/15 bg-white text-jscolors-crimson/70 hover:border-jscolors-crimson/30"
