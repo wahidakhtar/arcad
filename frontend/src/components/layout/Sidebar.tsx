@@ -77,7 +77,7 @@ export default function Sidebar() {
                     key={subproject.id}
                     to={`/projects/${project.key}/sub/${subproject.id}`}
                     className={({ isActive }) =>
-                      `ml-4 flex justify-center rounded-full border px-3 py-1.5 text-xs font-semibold transition hover:-translate-y-0.5 ${
+                      `ml-4 flex justify-start rounded-full border px-3 py-1.5 text-xs font-semibold transition hover:-translate-y-0.5 ${
                         isActive
                           ? "border-jscolors-gold/60 bg-jscolors-gold/20 text-jscolors-text"
                           : "border-jscolors-crimson/15 bg-white text-jscolors-crimson/70 hover:border-jscolors-crimson/30"
@@ -99,8 +99,8 @@ export default function Sidebar() {
         {canTag("billing") && (
           <div className="space-y-2">
             <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-jscolors-text/40">Billing</p>
-            <SectionLink to="/billing/pos" label="PO" compact />
-            <SectionLink to="/billing/invoices" label="Invoice" compact />
+            <SectionLink to="/billing/pos" label="PO" />
+            <SectionLink to="/billing/invoices" label="Invoice" />
           </div>
         )}
       </nav>
@@ -118,12 +118,12 @@ export default function Sidebar() {
   )
 }
 
-function SectionLink({ to, label, compact = false }: { to: string; label: string; compact?: boolean }) {
+function SectionLink({ to, label }: { to: string; label: string }) {
   return (
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `flex items-center justify-center rounded-full border ${compact ? "ml-4 px-3 py-2 text-xs" : "px-5 py-2.5 text-sm"} font-semibold transition hover:-translate-y-0.5 ${
+        `flex items-center justify-start rounded-full border px-5 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5 ${
           isActive
             ? "border-jscolors-crimson bg-jscolors-crimson text-white shadow-glow"
             : "border-jscolors-crimson/20 bg-white text-jscolors-crimson hover:border-jscolors-crimson/40 hover:bg-white/90"
