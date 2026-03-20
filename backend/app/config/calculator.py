@@ -22,9 +22,6 @@ REFUND_TYPE = "ref"
 EXECUTED_STATUS = "exct"
 COMPLETED_STATUS = "comp"
 
-# These jobs scale with site height (not bool-gated)
-HEIGHT_SCALED_JOBS = {"mi", "mdv", "md", "ma"}
-
 
 @dataclass
 class RateCardRow:
@@ -58,11 +55,11 @@ def _as_decimal(value: Any) -> Decimal:
     return Decimal(str(value))
 
 
-def _job_quantity(site: dict[str, Any], job_key: str) -> Decimal:
-    if job_key == "ec":
-        return _as_decimal(site.get("ec"))
-    if job_key in HEIGHT_SCALED_JOBS:
+def _job_quantity(site: dict[str, Any], job_key: str, scale_by: str) -> Decimal:
+    if scale_by == "height":
         return _as_decimal(site.get("height"))
+    if scale_by == "numeric":
+        return _as_decimal(site.get(job_key))
     raw = site.get(job_key)
     return Decimal("1") if raw else ZERO
 
@@ -98,11 +95,13 @@ def site_cost_for_bucket(
     bucket_key: str,
     transactions: list[TransactionRow],
     rate_rows: list[RateCardRow],
+    job_scales: dict[str, str],
 ) -> Decimal:
     receiving_date = site["receiving_date"]
     amount = ZERO
     for job_key in JOB_BUCKETS[bucket_key]:
-        qty = _job_quantity(site, job_key)
+        scale_by = job_scales.get(job_key, "unit")
+        qty = _job_quantity(site, job_key, scale_by)
         if qty == ZERO:
             continue
         amount += _select_rate(job_key, receiving_date, rate_rows) * qty
@@ -116,11 +115,13 @@ def fe_budget(
     bucket_key: str,
     transactions: list[TransactionRow],
     rate_rows: list[RateCardRow],
+    job_scales: dict[str, str],
 ) -> Decimal:
     receiving_date = site["receiving_date"]
     amount = ZERO
     for job_key in JOB_BUCKETS[bucket_key]:
-        qty = _job_quantity(site, job_key)
+        scale_by = job_scales.get(job_key, "unit")
+        qty = _job_quantity(site, job_key, scale_by)
         if qty == ZERO:
             continue
         amount += _select_rate(job_key, receiving_date, rate_rows) * qty
@@ -134,12 +135,13 @@ def fe_cost(
     assignments: list[FEAssignmentRow],
     transactions: list[TransactionRow],
     rate_rows: list[RateCardRow],
+    job_scales: dict[str, str],
 ) -> Decimal:
     if not assignment.active and assignment.final_cost is not None:
         return assignment.final_cost
 
     if assignment.active:
-        bucket_total = site_cost_for_bucket(site, assignment.bucket_key, transactions, rate_rows)
+        bucket_total = site_cost_for_bucket(site, assignment.bucket_key, transactions, rate_rows, job_scales)
         inactive_total = sum(
             assignment_row.final_cost or ZERO
             for assignment_row in assignments
@@ -168,10 +170,11 @@ def fe_balance(
     assignments: list[FEAssignmentRow],
     transactions: list[TransactionRow],
     rate_rows: list[RateCardRow],
+    job_scales: dict[str, str],
 ) -> Decimal:
     if assignment.active and site.get("status_key") != COMPLETED_STATUS:
         return ZERO
-    return fe_cost(site, assignment, assignments, transactions, rate_rows) - fe_paid(transactions, assignment.fe_id) - scrap_value(site, assignment.bucket_key)
+    return fe_cost(site, assignment, assignments, transactions, rate_rows, job_scales) - fe_paid(transactions, assignment.fe_id) - scrap_value(site, assignment.bucket_key)
 
 
 def calculate_site_financials(
@@ -179,16 +182,17 @@ def calculate_site_financials(
     assignments: list[FEAssignmentRow],
     transactions: list[TransactionRow],
     rate_rows: list[RateCardRow],
+    job_scales: dict[str, str],
 ) -> dict[str, Any]:
     by_fe: list[dict[str, Any]] = []
     budget = ZERO
     cost = ZERO
     paid = ZERO
     for assignment in assignments:
-        row_budget = fe_budget(site, assignment.fe_id, assignment.bucket_key, transactions, rate_rows)
-        row_cost = fe_cost(site, assignment, assignments, transactions, rate_rows)
+        row_budget = fe_budget(site, assignment.fe_id, assignment.bucket_key, transactions, rate_rows, job_scales)
+        row_cost = fe_cost(site, assignment, assignments, transactions, rate_rows, job_scales)
         row_paid = fe_paid(transactions, assignment.fe_id)
-        row_balance = fe_balance(site, assignment, assignments, transactions, rate_rows)
+        row_balance = fe_balance(site, assignment, assignments, transactions, rate_rows, job_scales)
         budget += row_budget
         cost += row_cost
         paid += row_paid
@@ -215,12 +219,13 @@ def calculate_fo_view(
     assignments: list[FEAssignmentRow],
     transactions: list[TransactionRow],
     rate_rows: list[RateCardRow],
+    job_scales: dict[str, str],
 ) -> dict[str, Decimal]:
     target = next((row for row in assignments if row.fe_id == fe_id and row.bucket_key == bucket_key), None)
     if target is None:
         return {"cost": ZERO, "paid": ZERO, "balance": ZERO}
     return {
-        "cost": fe_cost(site, target, assignments, transactions, rate_rows),
+        "cost": fe_cost(site, target, assignments, transactions, rate_rows, job_scales),
         "paid": fe_paid(transactions, fe_id),
-        "balance": fe_balance(site, target, assignments, transactions, rate_rows),
+        "balance": fe_balance(site, target, assignments, transactions, rate_rows, job_scales),
     }

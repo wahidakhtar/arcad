@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.api.auth import UserContext, ensure_permission
 from app.config.calculator import FEAssignmentRow, RateCardRow, TransactionRow, calculate_site_financials
 from app.models.acc import RateCard, Transaction
-from app.models.core import Badge, IndianState, JobBucket
+from app.models.core import Badge, IndianState, Job, JobBucket
 from app.models.hr import User
 from app.models.ops import FEAssignment
 from app.schemas.site import FEAssignmentRequest, SiteOut
@@ -237,8 +237,9 @@ def _build_financials(db: Session, project_id: int, project_key: str, site_id: i
         for row in db.execute(select(Transaction).where(Transaction.project_id == project_id, Transaction.site_id == site_id)).scalars()
     ]
     rates = [RateCardRow(job_key=row.job_key, effective_date=row.date, cost=row.cost) for row in db.execute(select(RateCard)).scalars()]
+    job_scales = {job.bucket_key: job.scale_by for job in db.execute(select(Job)).scalars()}
     site_data["status_key"] = badges[site_data["status_id"]].key
-    return calculate_site_financials(site_data, assignments, transactions, rates)
+    return calculate_site_financials(site_data, assignments, transactions, rates, job_scales)
 
 
 def _serialize_fe_rows(db: Session, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:

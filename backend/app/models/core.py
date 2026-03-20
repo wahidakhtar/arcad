@@ -58,6 +58,7 @@ class Job(Base):
     bucket_key: Mapped[str] = mapped_column(String(32), nullable=False)
     job_key: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
     label: Mapped[str] = mapped_column(String(255), nullable=False)
+    scale_by: Mapped[str] = mapped_column(String(16), nullable=False, default="unit")
 
 
 class IndianState(Base):
