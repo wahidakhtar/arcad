@@ -26,6 +26,7 @@ type BadgeFilter = {
   label: string
   type: "badge"
   value?: string
+  values?: string[]
   options: Array<FilterOption & { color?: string | null }>
 }
 
@@ -87,12 +88,14 @@ export default function FilterBar({
           )
         }
 
+        // Badge filter — multi-select (values[]) or single-select (value) for backward compat
+        const selected = filter.values ?? (filter.value ? [filter.value] : [])
         return (
           <div key={filter.key} className="flex flex-wrap items-center gap-2">
             <div className="text-sm font-medium text-jscolors-text/60">{filter.label}</div>
             <div className="flex flex-wrap gap-2">
               {filter.options.map((option) => {
-                const active = filter.value === option.value
+                const active = selected.includes(option.value)
                 return (
                   <button
                     key={option.value}

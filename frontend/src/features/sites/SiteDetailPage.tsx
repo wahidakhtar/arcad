@@ -102,6 +102,7 @@ type TransactionRow = {
   amount: string
   status_id: number
   remarks?: string | null
+  version: number
 }
 
 type TransactionDraft = {
@@ -115,7 +116,7 @@ const READ_ONLY_FIELDS = new Set(["budget", "cost", "paid", "balance"])
 const TODAY = new Date().toISOString().slice(0, 10)
 
 export default function SiteDetailPage() {
-  const { tags } = useAuth()
+  const { tags, roles } = useAuth()
   const { projectKey = "mi", siteId = "0" } = useParams()
   const [site, setSite] = useState<SiteDetail | null>(null)
   const [uiFields, setUiFields] = useState<UIField[]>([])
@@ -247,6 +248,14 @@ export default function SiteDetailPage() {
   }
 
   const currentSite = site
+
+  const isOpsL1Only = roles.length > 0 && roles.every((r) => r.dept_key === "ops" && r.level_key === "l1")
+  const canRequestWrite = tags.request?.write === true
+  const canTransactionWrite = tags.transaction?.write === true
+  const cancelBadge = badges.find((b) => b.key === "cancel")
+  const cancelBadgeId = cancelBadge?.id
+  const reqBadge = badges.find((b) => b.key === "req")
+  const reqBadgeId = reqBadge?.id
 
   const docBadgeVisible = tags.doc_badge?.read === true
   const docBadgeEditable = tags.doc_badge?.write === true
@@ -575,7 +584,7 @@ export default function SiteDetailPage() {
                 )) : <EmptyState text="No provider assignments yet" />}
               </div>
             </ActionPanel>
-          ) : (
+          ) : isOpsL1Only ? null : (
           <ActionPanel title="FE Assignment">
             <Modal
               open={removeModal.open}
@@ -676,18 +685,20 @@ export default function SiteDetailPage() {
                         <div className="mt-1 text-sm text-jscolors-text/60">Cost {row.cost} • Paid {row.paid} • Balance {row.balance}</div>
                       </div>
                       <div className="flex gap-2">
-                        <button
-                          type="button"
-                          className="premium-button-secondary"
-                          onClick={() =>
-                            setTransactionDrafts((current) => ({
-                              ...current,
-                              [draftKey]: { ...draft, open: !draft.open },
-                            }))
-                          }
-                        >
-                          Request Transaction
-                        </button>
+                        {canRequestWrite && (
+                          <button
+                            type="button"
+                            className="premium-button-secondary"
+                            onClick={() =>
+                              setTransactionDrafts((current) => ({
+                                ...current,
+                                [draftKey]: { ...draft, open: !draft.open },
+                              }))
+                            }
+                          >
+                            Request Transaction
+                          </button>
+                        )}
                         {row.active && (
                           <button
                             type="button"
@@ -756,8 +767,11 @@ export default function SiteDetailPage() {
                           key={transaction.id}
                           row={transaction}
                           badges={badgeById}
-                          transitions={transitionOptions(transitions, "transaction_status", transaction.status_id)}
-                          onTransition={(toId) => api.patch(`/transactions/${transaction.id}/status`, { status_id: toId }).then(() => loadPage())}
+                          reqTransitions={transitionOptions(transitions, "transaction_status", reqBadgeId ?? 0)}
+                          canRequestWrite={canRequestWrite}
+                          canTransactionWrite={canTransactionWrite}
+                          cancelBadgeId={cancelBadgeId}
+                          onUpdate={loadPage}
                         />
                       )) : <EmptyState text="No transactions for this FE yet" />}
                     </div>
@@ -772,8 +786,11 @@ export default function SiteDetailPage() {
                     key={transaction.id}
                     row={transaction}
                     badges={badgeById}
-                    transitions={transitionOptions(transitions, "transaction_status", transaction.status_id)}
-                    onTransition={(toId) => api.patch(`/transactions/${transaction.id}/status`, { status_id: toId }).then(() => loadPage())}
+                    reqTransitions={transitionOptions(transitions, "transaction_status", reqBadgeId ?? 0)}
+                    canRequestWrite={canRequestWrite}
+                    canTransactionWrite={canTransactionWrite}
+                    cancelBadgeId={cancelBadgeId}
+                    onUpdate={loadPage}
                   />
                 ))}
               </div>
@@ -866,51 +883,177 @@ function ActionPanel({ title, children }: { title: string; children: ReactNode }
   )
 }
 
+function TxStatusBadge({ statusKey, label }: { statusKey: string; label: string }) {
+  let bg: string
+  let color: string
+  if (statusKey === "cancel") { bg = "#F3F4F6"; color = "#6B7280" }
+  else if (statusKey === "exct") { bg = "#D1FAE5"; color = "#065F46" }
+  else if (statusKey === "rej") { bg = "#FEE2E2"; color = "#DC2626" }
+  else { bg = "#F9FAFB"; color = "#374151" }
+  return (
+    <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: bg, color }}>
+      {label}
+    </span>
+  )
+}
+
 function TransactionCard({
   row,
   badges,
-  transitions,
-  onTransition,
+  reqTransitions,
+  canRequestWrite,
+  canTransactionWrite,
+  cancelBadgeId,
+  onUpdate,
 }: {
   row: TransactionRow
   badges: Map<number, Badge>
-  transitions: TransitionRow[]
-  onTransition: (toId: number) => Promise<unknown>
+  reqTransitions: TransitionRow[]
+  canRequestWrite: boolean
+  canTransactionWrite: boolean
+  cancelBadgeId: number | undefined
+  onUpdate: () => Promise<void>
 }) {
   const [updating, setUpdating] = useState(false)
+  const [showExecInput, setShowExecInput] = useState(false)
+  const [execDate, setExecDate] = useState(TODAY)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [err, setErr] = useState("")
+
+  const currentBadge = badges.get(row.status_id)
+  const statusKey = currentBadge?.key ?? ""
+  const isReq = statusKey === "req"
+
+  async function handleTransition(toId: number, executionDate?: string) {
+    setUpdating(true)
+    setErr("")
+    try {
+      await api.patch(`/transactions/${row.id}/status`, {
+        status_id: toId,
+        version: row.version,
+        execution_date: executionDate ?? null,
+      })
+      await onUpdate()
+    } catch (e: unknown) {
+      const status = (e as { response?: { status?: number } })?.response?.status
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      if (status === 409) {
+        setErr(detail ?? "Transaction was modified by another user — please refresh")
+        await onUpdate()
+      } else {
+        setErr(detail ?? "Failed to update transaction.")
+      }
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  async function handleCancel() {
+    if (!cancelBadgeId) return
+    setUpdating(true)
+    setErr("")
+    try {
+      await api.patch(`/transactions/${row.id}/status`, { status_id: cancelBadgeId, version: row.version })
+      setShowCancelConfirm(false)
+      await onUpdate()
+    } catch (e: unknown) {
+      const status = (e as { response?: { status?: number } })?.response?.status
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      if (status === 409) {
+        setErr(detail ?? "Transaction was modified by another user — please refresh")
+        await onUpdate()
+      } else {
+        setErr(detail ?? "Failed to cancel transaction.")
+      }
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   return (
     <div className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div>
-          <div className="text-sm font-semibold text-jscolors-text">{badges.get(row.type_id)?.label ?? "Transaction"} • {row.amount}</div>
-          <div className="mt-1 text-sm text-jscolors-text/60">
-            {row.request_date}
-            {row.bucket_key ? ` • ${row.bucket_key.toUpperCase()}` : ""}
-            {row.remarks ? ` • ${row.remarks}` : ""}
+      {err ? <p className="mb-2 text-xs text-red-600">{err}</p> : null}
+      {showCancelConfirm ? (
+        <div className="space-y-3">
+          <p className="text-sm text-jscolors-text/70">Cancel this transaction?</p>
+          <div className="flex gap-2">
+            <button type="button" className="premium-button" disabled={updating} onClick={() => void handleCancel()}>Confirm</button>
+            <button type="button" className="premium-button-secondary" onClick={() => setShowCancelConfirm(false)}>Back</button>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <FieldRenderer type="badge" value={badges.get(row.status_id) ?? "-"} />
-          {transitions.length ? (
-            <select
-              value=""
-              disabled={updating}
-              onChange={(event) => {
-                const nextValue = event.target.value
-                if (!nextValue) return
-                setUpdating(true)
-                void onTransition(Number(nextValue)).finally(() => setUpdating(false))
-              }}
-              className="rounded-2xl border border-jscolors-crimson/15 bg-white px-3 py-2 text-sm outline-none"
-            >
-              <option value="">Change to</option>
-              {transitions.map((transition) => (
-                <option key={`${row.id}-${transition.to_id}`} value={transition.to_id}>{transition.to_label}</option>
-              ))}
-            </select>
+      ) : (
+        <>
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <div className="text-sm font-semibold text-jscolors-text">{badges.get(row.type_id)?.label ?? "Transaction"} • {row.amount}</div>
+              <div className="mt-1 text-sm text-jscolors-text/60">
+                {row.request_date}
+                {row.bucket_key ? ` • ${row.bucket_key.toUpperCase()}` : ""}
+                {row.remarks ? ` • ${row.remarks}` : ""}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <TxStatusBadge statusKey={statusKey} label={currentBadge?.label ?? statusKey} />
+              {isReq && canTransactionWrite && reqTransitions.length > 0 && !updating ? (
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const toId = Number(e.target.value)
+                    const t = reqTransitions.find((rt) => rt.to_id === toId)
+                    if (!t) return
+                    if (t.to_key === "exct") {
+                      setShowExecInput(true)
+                    } else {
+                      void handleTransition(toId)
+                    }
+                    e.currentTarget.value = ""
+                  }}
+                  className="rounded-2xl border border-jscolors-crimson/15 bg-white px-3 py-2 text-sm outline-none"
+                >
+                  <option value="">Change to</option>
+                  {reqTransitions.map((t) => (
+                    <option key={`${row.id}-${t.to_id}`} value={t.to_id}>{t.to_label}</option>
+                  ))}
+                </select>
+              ) : null}
+              {isReq && canRequestWrite ? (
+                <button
+                  type="button"
+                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-1 text-xs text-red-600 transition hover:bg-red-100"
+                  disabled={updating}
+                  onClick={() => setShowCancelConfirm(true)}
+                >
+                  Cancel
+                </button>
+              ) : null}
+            </div>
+          </div>
+          {showExecInput ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <input
+                type="date"
+                value={execDate}
+                onChange={(e) => setExecDate(e.target.value)}
+                className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-2 text-sm outline-none"
+              />
+              <button
+                type="button"
+                className="premium-button"
+                disabled={updating}
+                onClick={() => {
+                  const exctTransition = reqTransitions.find((t) => t.to_key === "exct")
+                  if (!exctTransition) return
+                  setShowExecInput(false)
+                  void handleTransition(exctTransition.to_id, execDate)
+                }}
+              >
+                Confirm Execution
+              </button>
+              <button type="button" className="premium-button-secondary" onClick={() => setShowExecInput(false)}>Back</button>
+            </div>
           ) : null}
-        </div>
-      </div>
+        </>
+      )}
     </div>
   )
 }

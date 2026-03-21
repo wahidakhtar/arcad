@@ -63,6 +63,7 @@ export default function SiteListPage() {
   const [search, setSearch] = useState("")
   const deferredSearch = useDeferredValue(search)
   const [activeTab, setActiveTab] = useState<"deployed" | number>("deployed")
+  const [selectedBadges, setSelectedBadges] = useState<string[]>([])
   const [openAddModal, setOpenAddModal] = useState(false)
   const [addModalTab, setAddModalTab] = useState<"site" | "subproject">("site")
   const [badges, setBadges] = useState<Badge[]>([])
@@ -79,6 +80,7 @@ export default function SiteListPage() {
 
   useEffect(() => {
     setActiveTab("deployed")
+    setSelectedBadges([])
     void Promise.all([
       api.get("/badges", { params: { type: "status" } }),
       api.get(`/projects/${projectKey}/ui-fields`),
@@ -116,6 +118,11 @@ export default function SiteListPage() {
     })
   }, [projectKey])
 
+  // Reset badge filter on tab change
+  useEffect(() => {
+    setSelectedBadges([])
+  }, [activeTab])
+
   if (error) {
     return <div className="glass-panel p-6 text-red-700">{error}</div>
   }
@@ -125,7 +132,16 @@ export default function SiteListPage() {
     ...row,
     status_badge: badgeByKey.get(row.status_key),
   }))
-  const filtered = rows.filter((row) => row.ckt_id.toLowerCase().includes(deferredSearch.toLowerCase()))
+
+  // Fix 3: search filter — null-safe ckt_id
+  const searchFiltered = deferredSearch
+    ? rows.filter((row) => (row.ckt_id ?? "").toLowerCase().includes(deferredSearch.toLowerCase()))
+    : rows
+
+  // Fix 4: badge filter — OR logic across selected status keys
+  const filtered = selectedBadges.length > 0
+    ? searchFiltered.filter((row) => selectedBadges.includes(row.status_key ?? ""))
+    : searchFiltered
 
   const includeStage = activeTab !== "deployed"
   const badgeFilters: FilterBarConfig[] = badges.length
@@ -134,6 +150,7 @@ export default function SiteListPage() {
           key: "status_badges",
           label: "Filter by Status",
           type: "badge",
+          values: selectedBadges,
           options: badges
             .filter((badge) =>
               ["p_wait", "wip", "rect", "down", "comp", ...(includeStage ? ["stage"] : [])].includes(badge.key),
@@ -142,6 +159,14 @@ export default function SiteListPage() {
         },
       ]
     : []
+
+  function handleFilterChange(key: string, value: string) {
+    if (key === "status_badges") {
+      setSelectedBadges((prev) =>
+        prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
+      )
+    }
+  }
 
   const canSubprojectRead = can("subproject", "read")
   const showSiteAdd = can("site", "write")
@@ -189,7 +214,7 @@ export default function SiteListPage() {
         </div>
       </div>
 
-      <FilterBar filters={badgeFilters} onFilterChange={() => {}} />
+      <FilterBar filters={badgeFilters} onFilterChange={handleFilterChange} />
 
       <div className="overflow-x-auto">
         {loading && !siteData ? (
