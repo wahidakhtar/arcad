@@ -7,9 +7,40 @@
   - `/Users/wahidakhtar/software/backend/venv/bin/python3.9 -m compileall /Users/wahidakhtar/software/backend/app /Users/wahidakhtar/software/backend/migrations`
   - `npm run build` in `/Users/wahidakhtar/software/frontend`
   - `/Users/wahidakhtar/software/backend/venv/bin/alembic upgrade head`
-- Latest git push: pending (2026-03-21 session). Both backend and frontend auto-deploy on push to main.
-- Railway DB: `autorack.proxy.rlwy.net:33504`, alembic version `20260321_0017`.
+- Latest git push: `a79810f` (2026-03-21 session 4). Both backend and frontend auto-deploy on push to main.
+- Railway DB: `autorack.proxy.rlwy.net:33504`, alembic version `20260321_0018`.
 - Local DB may be behind Railway — re-sync before next session if needed.
+
+---
+
+## What was done today (2026-03-21, session 4)
+
+### Fix 1 — Seed badge colors (migration 0018)
+- `req` badge color set to `#0AACE8`, `exct` badge color set to `#92D050`.
+- Applied against Railway DB — confirmed live.
+
+### Fix 2 — Unified BadgeDropdown component
+- New `frontend/src/components/ui/BadgeDropdown.tsx`: `BadgeChip` + `BadgeDropdown`.
+  - Badge chip IS the dropdown trigger. Options render as styled `BadgeChip` badges.
+  - Uses `createPortal(document.body)` with `position: fixed` to escape overflow containers.
+  - `disabled` or empty `options` → renders static chip only.
+- **SiteDetailPage.tsx**: header badge fields use `BadgeDropdown`; `TransactionCard` uses `BadgeDropdown` replacing separate selects/buttons.
+  - cancel → confirm dialog; exct → exec date picker modal; rej → direct PATCH.
+  - `canRequestWrite` gates cancel option; `canTransactionWrite` gates exct/rej options.
+- **TransactionsPage.tsx**: status column replaced TxStatusBadge + exec/rej select + Cancel column with a single `BadgeDropdown` per row.
+  - `allBadges` + `exctBadgeId` stored in state for color lookups and routing.
+  - cancel → confirm modal; exct → execution-date modal; rej → direct PATCH.
+
+### Fix 3 — FE Assignment "Assign FE" button
+- Button always reads "Assign FE" regardless of assignment state.
+- When bucket already assigned: `opacity-50 cursor-not-allowed disabled` — no label change.
+
+### Fix 4 — Ops L1 visibility
+- FE Assignment panel hidden for users where all roles are ops l1 (`isOpsL1Only`).
+
+### Fix 5 — Site list filter fixes
+- Circuit ID search: real-time client-side filter with null-safe `.toLowerCase()`.
+- Status badge filter: multi-select OR logic via `selectedBadges: string[]` state in `SiteListPage`.
 
 ---
 
@@ -230,13 +261,14 @@
 
 ## Frontend implemented
 
+- `frontend/src/components/ui/BadgeDropdown.tsx` — `BadgeChip` + `BadgeDropdown` (portal-based, chip-as-trigger)
 - `frontend/src/components/ui/DataTable.tsx`, `FieldRenderer.tsx`, `AddForm.tsx`, `BulkTable.tsx`, `FilterBar.tsx`
 - `frontend/src/hooks/useListPage.ts`
 - `frontend/src/lib/squircle.ts` — squircle path generator
 - `frontend/src/config/` — now only `dashboard.ts`, `people.ts`, `index.ts`
 - Site list page: reads ALL metadata from API.
 - Site detail page: all ui_fields, badge transitions, save button, updates, tickets, FE assignment (non-BB), Provider panel (BB), transactions
-- Transactions page: acc-only interactive status dropdown; cancel button (mgmt l3/ops l2+l3); soft-deleted rows greyed out
+- Transactions page: unified BadgeDropdown per row; cancel=requestWrite, exct/rej=transactionWrite; cancelled rows greyed out
 - Rate Card page: native table-fixed, Add Rate modal
 - Ticket list page + detail page
 - Sidebar: dept+level-gated visibility, pill-style nav items, subproject batch pills (right-aligned), counts poll every 60s
