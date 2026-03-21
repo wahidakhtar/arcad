@@ -68,13 +68,13 @@ def upgrade() -> None:
                 FROM schema_hr.users u
                 JOIN schema_ops.fe_assignment fa ON fa.fe_id = u.id
                 WHERE fa.site_id = s.id
-                  AND fa.project_id = (SELECT id FROM schema_core.projects WHERE key = :key)
+                  AND fa.project_id = (SELECT id FROM schema_core.projects WHERE key = '{key}')
                   AND fa.active = TRUE
                 ORDER BY fa.created_at DESC
                 LIMIT 1
             )
             """
-        ), {"key": key})
+        ))
 
     # ------------------------------------------------------------------
     # Step 4 — Seed active_fe into ui_fields for all schemas
@@ -82,8 +82,10 @@ def upgrade() -> None:
     for schema in _SCHEMAS:
         op.execute(sa.text(
             f"""
-            INSERT INTO {schema}.ui_fields (label, tag, list_view, type, form_view, bulk_view, section, perm_tag)
-            VALUES ('Active FE', 'active_fe', TRUE, 'text', FALSE, FALSE, 'site', NULL)
+            INSERT INTO {schema}.ui_fields (id, label, tag, list_view, type, form_view, bulk_view, section, perm_tag)
+            SELECT COALESCE(MAX(id), 0) + 1, 'Active FE', 'active_fe', TRUE, 'text', FALSE, FALSE, 'site', NULL
+            FROM {schema}.ui_fields
+            WHERE tag != 'active_fe'
             """
         ))
 
