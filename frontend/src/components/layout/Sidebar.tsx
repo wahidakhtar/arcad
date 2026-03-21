@@ -10,7 +10,6 @@ type SidebarProject = {
   label: string
   active: boolean
   recurring: boolean
-  subprojects: Array<{ id: number; batch_date: string | null; bucket: boolean }>
 }
 
 export default function Sidebar() {
@@ -20,7 +19,6 @@ export default function Sidebar() {
   const countsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const canTag = (tag: string) => tags[tag]?.read === true
-  const isHighRole = roles.some((r) => (r.dept_key === "ops" && r.level_key === "l3") || r.dept_key === "mgmt")
 
   useEffect(() => {
     void api.get("/projects").then((r) => setProjects(r.data)).catch(() => {})
@@ -56,38 +54,19 @@ export default function Sidebar() {
             .map((project) => {
               const projectDest = `/projects/${project.key}?exclude_staged=true`
               return (
-              <div key={project.id} className="space-y-2">
-                <NavLink
-                  to={projectDest}
-                  className={({ isActive }) =>
-                    `flex items-center justify-between rounded-full border px-5 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5 ${
-                      isActive
-                        ? "border-jscolors-crimson bg-jscolors-crimson text-white shadow-glow"
-                        : "border-jscolors-crimson/20 bg-white text-jscolors-crimson hover:border-jscolors-crimson/40 hover:bg-white/90"
-                    }`
-                  }
-                >
-                  <span className="font-medium">{project.label}</span>
-                  <span className="rounded-full border border-current/15 px-2 py-0.5 text-[10px] uppercase">
-                    {project.active ? "Live" : "Off"}
-                  </span>
-                </NavLink>
-                {isHighRole && project.subprojects.filter((s) => !s.bucket).map((subproject) => (
-                  <NavLink
-                    key={subproject.id}
-                    to={`/projects/${project.key}/sub/${subproject.id}`}
-                    className={({ isActive }) =>
-                      `ml-4 flex justify-end rounded-full border px-3 py-1.5 text-xs font-semibold transition hover:-translate-y-0.5 ${
-                        isActive
-                          ? "border-jscolors-gold/60 bg-jscolors-gold/20 text-jscolors-text"
-                          : "border-jscolors-crimson/15 bg-white text-jscolors-crimson/70 hover:border-jscolors-crimson/30"
-                      }`
-                    }
-                  >
-                    {subproject.batch_date ? new Date(subproject.batch_date).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "Bucket"}
-                  </NavLink>
-                ))}
-              </div>
+              <NavLink
+                key={project.id}
+                to={projectDest}
+                className={({ isActive }) =>
+                  `flex items-center justify-start rounded-full border px-5 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5 ${
+                    isActive
+                      ? "border-jscolors-crimson bg-jscolors-crimson text-white shadow-glow"
+                      : "border-jscolors-crimson/20 bg-white text-jscolors-crimson hover:border-jscolors-crimson/40 hover:bg-white/90"
+                  }`
+                }
+              >
+                {project.label}
+              </NavLink>
               )
             })}
         </div>

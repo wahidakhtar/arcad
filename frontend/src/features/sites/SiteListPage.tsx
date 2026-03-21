@@ -39,33 +39,46 @@ type UIField = {
   section: string
 }
 
+type Subproject = { id: number; batch_date: string | null; bucket?: boolean }
+
 type ProjectMeta = {
   label: string
   supports_subprojects: boolean
-  subprojects: Array<{ id: number; batch_date: string | null; bucket?: boolean }>
+  subprojects: Subproject[]
+}
+
+function subprojectLabel(sub: Subproject) {
+  return sub.batch_date
+    ? new Date(sub.batch_date).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : `Batch ${sub.id}`
 }
 
 export default function SiteListPage() {
   const { can } = useAuth()
-  const { projectKey = "mi", subprojectId } = useParams()
+  const { projectKey = "mi" } = useParams()
   const [projectMeta, setProjectMeta] = useState<ProjectMeta | null>(null)
   const [columns, setColumns] = useState<Array<{ key: string; label: string; type?: string }>>([])
   const [formFields, setFormFields] = useState<Array<{ key: string; label: string; type?: string }>>([])
   const [bulkFields, setBulkFields] = useState<Array<{ key: string; label: string; type?: string }>>([])
   const [search, setSearch] = useState("")
   const deferredSearch = useDeferredValue(search)
-  const [openAdd, setOpenAdd] = useState(false)
-  const [openSubprojectAdd, setOpenSubprojectAdd] = useState(false)
+  const [activeTab, setActiveTab] = useState<"deployed" | number>("deployed")
+  const [openAddModal, setOpenAddModal] = useState(false)
+  const [addModalTab, setAddModalTab] = useState<"site" | "subproject">("site")
   const [badges, setBadges] = useState<Badge[]>([])
   const [states, setStates] = useState<Array<{ id: number; label: string }>>([])
-  const siteEndpoint = subprojectId
-    ? `/sites/${projectKey}?subproject_id=${subprojectId}`
-    : `/sites/${projectKey}?exclude_staged=true`
+
+  const siteEndpoint =
+    activeTab === "deployed"
+      ? `/sites/${projectKey}?exclude_staged=true`
+      : `/sites/${projectKey}?subproject_id=${activeTab}`
+
   const { data: siteData, loading, error, refetch } = useListPage<SiteRow[]>({
     endpoint: siteEndpoint,
   })
 
   useEffect(() => {
+    setActiveTab("deployed")
     void Promise.all([
       api.get("/badges", { params: { type: "status" } }),
       api.get(`/projects/${projectKey}/ui-fields`),
@@ -74,12 +87,21 @@ export default function SiteListPage() {
     ]).then(([badgesResponse, uiFieldsResponse, statesResponse, projectsResponse]) => {
       const statusBadges = badgesResponse.data as Badge[]
       const uiFields = uiFieldsResponse.data as UIField[]
-      const projects = projectsResponse.data as Array<{ key: string; label: string; supports_subprojects: boolean; subprojects: Array<{ id: number; batch_date: string | null }> }>
+      const projects = projectsResponse.data as Array<{
+        key: string
+        label: string
+        supports_subprojects: boolean
+        subprojects: Subproject[]
+      }>
       const project = projects.find((p) => p.key === projectKey)
 
       setBadges(statusBadges)
       setStates(statesResponse.data)
-      setProjectMeta(project ? { label: project.label, supports_subprojects: project.supports_subprojects, subprojects: project.subprojects ?? [] } : null)
+      setProjectMeta(
+        project
+          ? { label: project.label, supports_subprojects: project.supports_subprojects, subprojects: project.subprojects ?? [] }
+          : null,
+      )
 
       const listColumns = uiFields
         .filter((field) => field.list_view)
@@ -94,10 +116,6 @@ export default function SiteListPage() {
     })
   }, [projectKey])
 
-  if (loading) {
-    return <div className="glass-panel p-6">Loading sites...</div>
-  }
-
   if (error) {
     return <div className="glass-panel p-6 text-red-700">{error}</div>
   }
@@ -108,6 +126,8 @@ export default function SiteListPage() {
     status_badge: badgeByKey.get(row.status_key),
   }))
   const filtered = rows.filter((row) => row.ckt_id.toLowerCase().includes(deferredSearch.toLowerCase()))
+
+  const includeStage = activeTab !== "deployed"
   const badgeFilters: FilterBarConfig[] = badges.length
     ? [
         {
@@ -115,77 +135,133 @@ export default function SiteListPage() {
           label: "Filter by Status",
           type: "badge",
           options: badges
-            .filter((badge) => ["p_wait", "wip", "rect", "down", "comp", subprojectId ? "stage" : ""].includes(badge.key))
+            .filter((badge) =>
+              ["p_wait", "wip", "rect", "down", "comp", ...(includeStage ? ["stage"] : [])].includes(badge.key),
+            )
             .map((badge) => ({ label: badge.label, value: badge.key, color: badge.color })),
         },
       ]
     : []
 
+  const canSubprojectRead = can("subproject", "read")
+  const showSiteAdd = can("site", "write")
+  const showSubprojectAdd = can("subproject", "write") && Boolean(projectMeta?.supports_subprojects)
+  const showAddButton = showSiteAdd || showSubprojectAdd
+  const showModalTabs = showSiteAdd && showSubprojectAdd
+
+  const subprojectTabs = (projectMeta?.subprojects ?? []).filter((s) => !s.bucket)
+
+  function openAddHandler() {
+    setAddModalTab(showSiteAdd ? "site" : "subproject")
+    setOpenAddModal(true)
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/42">{projectMeta?.label ?? projectKey.toUpperCase()}</p>
-          {subprojectId ? (() => {
-            const sub = projectMeta?.subprojects.find((s) => String(s.id) === subprojectId)
-            const label = sub?.batch_date
-              ? new Date(sub.batch_date).toLocaleDateString("en-US", { month: "long", year: "numeric" })
-              : `Batch ${subprojectId}`
-            return <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">{label}</h1>
-          })() : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {canSubprojectRead && subprojectTabs.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            <TabPill active={activeTab === "deployed"} onClick={() => setActiveTab("deployed")}>
+              Deployed
+            </TabPill>
+            {subprojectTabs.map((sub) => (
+              <TabPill key={sub.id} active={activeTab === sub.id} onClick={() => setActiveTab(sub.id)}>
+                {subprojectLabel(sub)}
+              </TabPill>
+            ))}
+          </div>
+        ) : (
+          <div />
+        )}
+
+        <div className="flex items-center gap-3">
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search by Circuit ID"
             className="rounded-full border border-jscolors-crimson/15 bg-white px-5 py-3 outline-none"
           />
-          {can("site", "write") && (
-            <button type="button" className="premium-button-secondary" onClick={() => setOpenAdd(true)}>
-              Add Site
+          {showAddButton && (
+            <button type="button" className="premium-button-secondary" onClick={openAddHandler}>
+              + Add
             </button>
           )}
-          {projectMeta?.supports_subprojects && can("subproject", "write") ? (
-            <button type="button" className="premium-button-secondary" onClick={() => setOpenSubprojectAdd(true)}>
-              Add Subproject
-            </button>
-          ) : null}
         </div>
       </div>
 
       <FilterBar filters={badgeFilters} onFilterChange={() => {}} />
 
       <div className="overflow-x-auto">
-        <DataTable
-          columns={columns}
-          rows={filtered}
-          rowHref={(row) => `/projects/${projectKey}/site/${row.id}`}
-        />
+        {loading && !siteData ? (
+          <div className="py-8 text-center text-sm text-jscolors-text/50">Loading sites...</div>
+        ) : (
+          <DataTable
+            columns={columns}
+            rows={filtered}
+            rowHref={(row) => `/projects/${projectKey}/site/${row.id}`}
+          />
+        )}
       </div>
 
-      <Modal open={openAdd} title={`Add ${projectMeta?.label ?? projectKey.toUpperCase()} Site`} onClose={() => setOpenAdd(false)}>
-        <AddForm
-          fields={formFields}
-          states={states}
-          onSubmit={async (data) => {
-            await api.post(`/sites/${projectKey}`, { project_key: projectKey, subproject_id: Number(subprojectId ?? 1), data })
-            setOpenAdd(false)
-            refetch()
-          }}
-        />
-      </Modal>
-      <Modal open={openSubprojectAdd} title={`Add ${projectMeta?.label ?? projectKey.toUpperCase()} Subproject`} onClose={() => setOpenSubprojectAdd(false)}>
-        <BulkTable
-          columns={bulkFields}
-          states={states}
-          onSubmit={async ({ batchDate, rows }) => {
-            await api.post("/projects/subprojects", { project_key: projectKey, batch_date: batchDate, rows })
-            setOpenSubprojectAdd(false)
-            refetch()
-          }}
-        />
+      <Modal open={openAddModal} title="Add" onClose={() => setOpenAddModal(false)}>
+        {showModalTabs && (
+          <div className="mb-5 flex gap-2">
+            <TabPill active={addModalTab === "site"} onClick={() => setAddModalTab("site")}>
+              Add Site
+            </TabPill>
+            <TabPill active={addModalTab === "subproject"} onClick={() => setAddModalTab("subproject")}>
+              Add Subproject
+            </TabPill>
+          </div>
+        )}
+        {(!showModalTabs || addModalTab === "site") && (
+          <AddForm
+            fields={formFields}
+            states={states}
+            onSubmit={async (data) => {
+              const subId = typeof activeTab === "number" ? activeTab : 1
+              await api.post(`/sites/${projectKey}`, { project_key: projectKey, subproject_id: subId, data })
+              setOpenAddModal(false)
+              refetch()
+            }}
+          />
+        )}
+        {showModalTabs && addModalTab === "subproject" && (
+          <BulkTable
+            columns={bulkFields}
+            states={states}
+            onSubmit={async ({ batchDate, rows: bulkRows }) => {
+              await api.post("/projects/subprojects", { project_key: projectKey, batch_date: batchDate, rows: bulkRows })
+              setOpenAddModal(false)
+              refetch()
+            }}
+          />
+        )}
       </Modal>
     </div>
+  )
+}
+
+function TabPill({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-5 py-2 text-sm font-semibold transition hover:-translate-y-0.5 ${
+        active
+          ? "border-jscolors-crimson bg-jscolors-crimson text-white shadow-glow"
+          : "border-jscolors-crimson/20 bg-white text-jscolors-crimson hover:border-jscolors-crimson/40 hover:bg-white/90"
+      }`}
+    >
+      {children}
+    </button>
   )
 }
