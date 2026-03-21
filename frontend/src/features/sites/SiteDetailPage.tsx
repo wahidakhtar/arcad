@@ -929,17 +929,11 @@ function TransactionCard({
     }
   }
 
-  // Build dropdown options from the badge chip
+  // Dropdown options sourced exclusively from badge_transitions (req→exct, req→rej only)
   const dropdownOptions: BadgeOption[] = []
-  if (isReq) {
-    if (canRequestWrite && cancelBadgeId !== undefined) {
-      const cb = badges.get(cancelBadgeId)
-      dropdownOptions.push({ id: cancelBadgeId, label: cb?.label ?? "Cancelled", color: cb?.color ?? null })
-    }
-    if (canTransactionWrite) {
-      for (const t of reqTransitions) {
-        dropdownOptions.push({ id: t.to_id, label: t.to_label, color: badges.get(t.to_id)?.color ?? null })
-      }
+  if (isReq && canTransactionWrite) {
+    for (const t of reqTransitions) {
+      dropdownOptions.push({ id: t.to_id, label: t.to_label, color: badges.get(t.to_id)?.color ?? null })
     }
   }
 
@@ -948,9 +942,6 @@ function TransactionCard({
     if (badge?.key === "exct") {
       setPendingExctId(toId)
       setShowExecInput(true)
-    } else if (badge?.key === "cancel") {
-      setPendingCancelId(toId)
-      setShowCancelConfirm(true)
     } else {
       void handleTransition(toId)
     }
@@ -989,13 +980,27 @@ function TransactionCard({
                 {row.remarks ? ` • ${row.remarks}` : ""}
               </div>
             </div>
-            <BadgeDropdown
-              badge={currentBadge ?? null}
-              fallback={statusKey || "-"}
-              options={dropdownOptions}
-              onSelect={handleDropdownSelect}
-              disabled={updating}
-            />
+            <div className="flex items-center gap-2">
+              <BadgeDropdown
+                badge={currentBadge ?? null}
+                fallback={statusKey || "-"}
+                options={dropdownOptions}
+                onSelect={handleDropdownSelect}
+                disabled={updating}
+              />
+              {isReq && canRequestWrite && (
+                <button
+                  type="button"
+                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-1 text-xs text-red-600 transition hover:bg-red-100"
+                  onClick={() => {
+                    setPendingCancelId(cancelBadgeId ?? null)
+                    setShowCancelConfirm(true)
+                  }}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </div>
 
           {showExecInput ? (

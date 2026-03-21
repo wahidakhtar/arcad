@@ -78,7 +78,6 @@ export default function TransactionsPage() {
   const [allBadges, setAllBadges] = useState<BadgeEntry[]>([])
   const [transitions, setTransitions] = useState<TransitionEntry[]>([])
   const [cancelBadgeId, setCancelBadgeId] = useState<number | null>(null)
-  const [exctBadgeId, setExctBadgeId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [transitionError, setTransitionError] = useState("")
@@ -106,8 +105,6 @@ export default function TransactionsPage() {
       setAllBadges(fetchedBadges)
       const cancelBadge = fetchedBadges.find((b) => b.key === "cancel")
       setCancelBadgeId(cancelBadge?.id ?? null)
-      const exctBadge = fetchedBadges.find((b) => b.key === "exct")
-      setExctBadgeId(exctBadge?.id ?? null)
 
       const projectById = new Map(projects.map((p) => [p.id, p]))
       const badgeById = new Map(fetchedBadges.map((b) => [b.id, b]))
@@ -295,6 +292,7 @@ export default function TransactionsPage() {
               const currentBadgeEntry = badgeById.get(txRow.status_id)
               const currentBadge = { label: txRow.status_label, color: currentBadgeEntry?.color ?? null }
 
+              // Dropdown options sourced exclusively from badge_transitions (req→exct, req→rej only)
               const options: BadgeOption[] = []
               if (isReq && canTransactionWrite) {
                 for (const t of transitions.filter((tr) => tr.from_id === txRow.status_id)) {
@@ -302,17 +300,10 @@ export default function TransactionsPage() {
                   options.push({ id: t.to_id, label: t.to_label, color: badgeEntry?.color ?? null })
                 }
               }
-              if (isReq && canRequestWrite && cancelBadgeId !== null) {
-                const cancelEntry = badgeById.get(cancelBadgeId)
-                if (!options.find((o) => o.id === cancelBadgeId)) {
-                  options.push({ id: cancelBadgeId, label: cancelEntry?.label ?? "Cancel", color: cancelEntry?.color ?? null })
-                }
-              }
 
               function handleSelect(toId: number) {
-                if (toId === cancelBadgeId) {
-                  setConfirmCancel({ open: true, txId: txRow.id, version: txRow.version })
-                } else if (toId === exctBadgeId) {
+                const entry = badgeById.get(toId)
+                if (entry?.key === "exct") {
                   setExecModal({ open: true, transaction_id: txRow.id, to_id: toId, version: txRow.version, execution_date: TODAY })
                 } else {
                   void applyTransition(txRow.id, toId, txRow.version)
@@ -320,21 +311,28 @@ export default function TransactionsPage() {
               }
 
               return (
-                <BadgeDropdown
-                  badge={currentBadge}
-                  options={options}
-                  onSelect={handleSelect}
-                  disabled={transitioning === txRow.id}
-                />
+                <div className="flex items-center gap-2">
+                  <BadgeDropdown
+                    badge={currentBadge}
+                    options={options}
+                    onSelect={handleSelect}
+                    disabled={transitioning === txRow.id}
+                  />
+                  {isReq && canRequestWrite && (
+                    <button
+                      type="button"
+                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-1 text-xs text-red-600 transition hover:bg-red-100"
+                      onClick={() => setConfirmCancel({ open: true, txId: txRow.id, version: txRow.version })}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               )
             },
           },
         ]}
         rows={rows as unknown as Record<string, unknown>[]}
-        getRowClassName={(row) => {
-          const txRow = row as unknown as TxRow
-          return txRow.status_key === "cancel" ? "opacity-50 bg-gray-50" : ""
-        }}
       />
     </div>
   )

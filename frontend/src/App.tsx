@@ -50,7 +50,7 @@ export default function App() {
   const { setupRequired } = useAuth()
 
   useEffect(() => {
-    const RADIUS = 28
+    const RADIUS = 44
 
     function apply(el: Element) {
       const { width, height } = el.getBoundingClientRect()
