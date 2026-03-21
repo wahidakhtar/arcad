@@ -193,6 +193,7 @@ def list_badge_transitions(db: Session, user: UserContext, project_key: str) -> 
         rows = db.execute(
             text(
                 f"""
+                -- Site/report/wcc/fsr transitions from the project schema
                 SELECT
                     tt.key AS transition_type,
                     bt.from_id,
@@ -205,7 +206,26 @@ def list_badge_transitions(db: Session, user: UserContext, project_key: str) -> 
                 JOIN schema_core.transition_types tt ON tt.id = bt.type_id
                 JOIN schema_core.badges bfrom ON bfrom.id = bt.from_id
                 JOIN schema_core.badges bto ON bto.id = bt.to_id
-                ORDER BY tt.key, bfrom.label, bto.label
+                WHERE tt.key != 'transaction'
+
+                UNION ALL
+
+                -- Transaction transitions exclusively from schema_acc
+                SELECT
+                    tt.key AS transition_type,
+                    bt.from_id,
+                    bfrom.key AS from_key,
+                    bfrom.label AS from_label,
+                    bt.to_id,
+                    bto.key AS to_key,
+                    bto.label AS to_label
+                FROM schema_acc.badge_transitions bt
+                JOIN schema_core.transition_types tt ON tt.id = bt.type_id
+                JOIN schema_core.badges bfrom ON bfrom.id = bt.from_id
+                JOIN schema_core.badges bto ON bto.id = bt.to_id
+                WHERE tt.key = 'transaction'
+
+                ORDER BY transition_type, from_label, to_label
                 """
             )
         ).mappings().all()
