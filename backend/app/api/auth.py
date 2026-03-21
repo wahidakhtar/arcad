@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.errors import PermissionDenied
 from app.core.security import decode_token
-from app.models.core import FieldPermission, PermissionTag, Project
+from app.models.core import FieldPermission, Project, RoleTag, Tag
 from app.models.hr import Role, User, UserRole
 
 security = HTTPBearer(auto_error=False)
@@ -68,13 +68,13 @@ def _load_user_context(db: Session, user_id: int) -> UserContext:
         for user_role, role in rows
     ]
 
-    # Load all permission tags for this user's roles in one query
+    # Load all permission tags for this user's roles — join role_tags → tags for tag string
     role_ids = [r.role_id for r in roles]
     perm_rows = db.execute(
-        select(PermissionTag).where(PermissionTag.role_id.in_(role_ids))
-    ).scalars().all()
+        select(RoleTag, Tag).join(Tag, Tag.id == RoleTag.tag_id).where(RoleTag.role_id.in_(role_ids))
+    ).all()
     permission_map: dict[tuple[int, str], tuple[bool, bool]] = {
-        (p.role_id, p.tag): (p.read, p.write) for p in perm_rows
+        (rt.role_id, tg.tag): (rt.read, rt.write) for rt, tg in perm_rows
     }
 
     # Load all field permissions for this user's dept_keys in one query

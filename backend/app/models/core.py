@@ -30,13 +30,22 @@ class Badge(Base):
     color: Optional[Mapped[str]] = mapped_column(String(16))
 
 
-class PermissionTag(Base):
-    __tablename__ = "permission_tags"
+class Tag(Base):
+    __tablename__ = "tags"
     __table_args__ = {"schema": "schema_core"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    role_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    tag: Mapped[str] = mapped_column(String(64), nullable=False)
+    tag: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    description: Optional[Mapped[str]] = mapped_column(Text, nullable=True)
+
+
+class RoleTag(Base):
+    __tablename__ = "role_tags"
+    __table_args__ = {"schema": "schema_core"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    role_id: Mapped[int] = mapped_column(Integer, ForeignKey("schema_hr.roles.id"), nullable=False)
+    tag_id: Mapped[int] = mapped_column(Integer, ForeignKey("schema_core.tags.id"), nullable=False)
     read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     write: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 

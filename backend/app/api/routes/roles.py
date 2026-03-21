@@ -10,6 +10,6 @@ from app.services import users as user_service
 router = APIRouter(prefix="/roles", tags=["roles"])
 
 
-@router.get("/available", dependencies=[Depends(permission_required("assign_role", "read"))])
+@router.get("/available", dependencies=[Depends(permission_required("role", "read"))])
 def available_roles(user_id: int = Query(), db: Session = Depends(get_db)):
     return user_service.get_available_roles(db, user_id)
