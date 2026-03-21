@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react"
 
+import BadgeDropdown from "../../components/ui/BadgeDropdown"
+import type { BadgeOption } from "../../components/ui/BadgeDropdown"
 import DataTable from "../../components/ui/DataTable"
 import Modal from "../../components/ui/Modal"
 import { useAuth } from "../../context/AuthContext"
@@ -67,28 +69,16 @@ type ExecModal = {
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
-function TxStatusBadge({ statusKey, label }: { statusKey: string; label: string }) {
-  let bg: string
-  let color: string
-  if (statusKey === "cancel") { bg = "#F3F4F6"; color = "#6B7280" }
-  else if (statusKey === "exct") { bg = "#D1FAE5"; color = "#065F46" }
-  else if (statusKey === "rej") { bg = "#FEE2E2"; color = "#DC2626" }
-  else { bg = "#F9FAFB"; color = "#374151" }
-  return (
-    <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: bg, color }}>
-      {label}
-    </span>
-  )
-}
-
 export default function TransactionsPage() {
   const { tags } = useAuth()
   const canRequestWrite = tags.request?.write === true
   const canTransactionWrite = tags.transaction?.write === true
 
   const [rows, setRows] = useState<TxRow[]>([])
+  const [allBadges, setAllBadges] = useState<BadgeEntry[]>([])
   const [transitions, setTransitions] = useState<TransitionEntry[]>([])
   const [cancelBadgeId, setCancelBadgeId] = useState<number | null>(null)
+  const [exctBadgeId, setExctBadgeId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [transitionError, setTransitionError] = useState("")
@@ -107,17 +97,20 @@ export default function TransactionsPage() {
 
       const transactions: TxRaw[] = txResponse.data ?? []
       const projects: ProjectEntry[] = Array.isArray(projectsResponse.data) ? projectsResponse.data : []
-      const allBadges: BadgeEntry[] = Array.isArray(badgesResponse.data) ? badgesResponse.data : []
+      const fetchedBadges: BadgeEntry[] = Array.isArray(badgesResponse.data) ? badgesResponse.data : []
 
       api.get<TransitionEntry[]>("/transactions/transitions").then((res) => {
         setTransitions(Array.isArray(res.data) ? res.data : [])
       }).catch(() => {})
 
-      const cancelBadge = allBadges.find((b) => b.key === "cancel")
+      setAllBadges(fetchedBadges)
+      const cancelBadge = fetchedBadges.find((b) => b.key === "cancel")
       setCancelBadgeId(cancelBadge?.id ?? null)
+      const exctBadge = fetchedBadges.find((b) => b.key === "exct")
+      setExctBadgeId(exctBadge?.id ?? null)
 
       const projectById = new Map(projects.map((p) => [p.id, p]))
-      const badgeById = new Map(allBadges.map((b) => [b.id, b]))
+      const badgeById = new Map(fetchedBadges.map((b) => [b.id, b]))
 
       const projectKeysNeeded = new Set<string>()
       for (const tx of transactions) {
@@ -210,14 +203,6 @@ export default function TransactionsPage() {
     }
   }
 
-  function handleTransitionSelect(txId: number, version: number, toId: number, toKey: string) {
-    if (toKey === "exct") {
-      setExecModal({ open: true, transaction_id: txId, to_id: toId, version, execution_date: TODAY })
-    } else {
-      void applyTransition(txId, toId, version)
-    }
-  }
-
   if (loading) {
     return <div className="glass-panel p-6">Loading transactions...</div>
   }
@@ -306,50 +291,41 @@ export default function TransactionsPage() {
             render: (_value, row) => {
               const txRow = row as unknown as TxRow
               const isReq = txRow.status_key === "req"
+              const badgeById = new Map(allBadges.map((b) => [b.id, b]))
+              const currentBadgeEntry = badgeById.get(txRow.status_id)
+              const currentBadge = { label: txRow.status_label, color: currentBadgeEntry?.color ?? null }
 
-              // Execute/Reject dropdown — only for req + transaction write
+              const options: BadgeOption[] = []
               if (isReq && canTransactionWrite) {
-                const availableTransitions = transitions.filter((t) => t.from_id === txRow.status_id)
-                if (availableTransitions.length && transitioning !== txRow.id) {
-                  return (
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        const toId = Number(e.target.value)
-                        const transition = availableTransitions.find((t) => t.to_id === toId)
-                        if (!transition) return
-                        handleTransitionSelect(txRow.id, txRow.version, toId, transition.to_key)
-                        e.target.value = ""
-                      }}
-                      className="rounded-xl border border-jscolors-crimson/15 bg-white px-2 py-1 text-sm outline-none"
-                    >
-                      <option value="">{txRow.status_label}</option>
-                      {availableTransitions.map((t) => (
-                        <option key={t.to_id} value={t.to_id}>{t.to_label}</option>
-                      ))}
-                    </select>
-                  )
+                for (const t of transitions.filter((tr) => tr.from_id === txRow.status_id)) {
+                  const badgeEntry = badgeById.get(t.to_id)
+                  options.push({ id: t.to_id, label: t.to_label, color: badgeEntry?.color ?? null })
+                }
+              }
+              if (isReq && canRequestWrite && cancelBadgeId !== null) {
+                const cancelEntry = badgeById.get(cancelBadgeId)
+                if (!options.find((o) => o.id === cancelBadgeId)) {
+                  options.push({ id: cancelBadgeId, label: cancelEntry?.label ?? "Cancel", color: cancelEntry?.color ?? null })
                 }
               }
 
-              return <TxStatusBadge statusKey={txRow.status_key} label={txRow.status_label} />
-            },
-          },
-          {
-            key: "id",
-            label: "",
-            render: (_value, row) => {
-              const txRow = row as unknown as TxRow
-              // Cancel button — only for req status + request write
-              if (txRow.status_key !== "req" || !canRequestWrite) return null
+              function handleSelect(toId: number) {
+                if (toId === cancelBadgeId) {
+                  setConfirmCancel({ open: true, txId: txRow.id, version: txRow.version })
+                } else if (toId === exctBadgeId) {
+                  setExecModal({ open: true, transaction_id: txRow.id, to_id: toId, version: txRow.version, execution_date: TODAY })
+                } else {
+                  void applyTransition(txRow.id, toId, txRow.version)
+                }
+              }
+
               return (
-                <button
-                  type="button"
-                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-1 text-xs text-red-600 transition hover:bg-red-100"
-                  onClick={() => setConfirmCancel({ open: true, txId: txRow.id, version: txRow.version })}
-                >
-                  Cancel
-                </button>
+                <BadgeDropdown
+                  badge={currentBadge}
+                  options={options}
+                  onSelect={handleSelect}
+                  disabled={transitioning === txRow.id}
+                />
               )
             },
           },

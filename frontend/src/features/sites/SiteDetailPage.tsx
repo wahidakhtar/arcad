@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { useParams } from "react-router-dom"
 
 import FieldRenderer, { type FieldDefinition } from "../../components/ui/FieldRenderer"
+import BadgeDropdown, { type BadgeOption } from "../../components/ui/BadgeDropdown"
 import Modal from "../../components/ui/Modal"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
@@ -361,25 +362,18 @@ export default function SiteDetailPage() {
                 <div key={field.key} className="min-w-[220px] rounded-[22px] border border-jscolors-crimson/10 bg-white/90 px-4 py-4">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">{field.label}</div>
                   <div className="mt-3">
-                    <FieldRenderer type="badge" value={currentBadge ?? selectedBadgeFallback(badgeValue)} />
-                  </div>
-                  {nextTransitions.length ? (
-                    <select
-                      value=""
+                    <BadgeDropdown
+                      badge={currentBadge ?? null}
+                      fallback={String(selectedBadgeFallback(badgeValue))}
+                      options={nextTransitions.map((t) => ({
+                        id: t.to_id,
+                        label: t.to_label,
+                        color: badgeById.get(t.to_id)?.color ?? null,
+                      }))}
+                      onSelect={(toId) => void transitionBadge(field.key, toId)}
                       disabled={updatingBadgeKey === field.key}
-                      onChange={(event) => {
-                        const nextValue = event.target.value
-                        if (!nextValue) return
-                        void transitionBadge(field.key, Number(nextValue))
-                      }}
-                      className="mt-3 w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-3 py-2 text-sm outline-none"
-                    >
-                      <option value="">Transition to</option>
-                      {nextTransitions.map((transition) => (
-                        <option key={`${field.key}-${transition.to_id}`} value={transition.to_id}>{transition.to_label}</option>
-                      ))}
-                    </select>
-                  ) : null}
+                    />
+                  </div>
                 </div>
               )
             })}
@@ -655,9 +649,8 @@ export default function SiteDetailPage() {
               return (
                 <button
                   type="button"
-                  className="premium-button mt-3"
+                  className={`premium-button mt-3${alreadyAssigned ? " cursor-not-allowed opacity-50" : ""}`}
                   disabled={alreadyAssigned}
-                  title={alreadyAssigned ? "An active FE is already assigned to this bucket" : undefined}
                   onClick={() => {
                     if (!assignmentForm.bucket_id || !assignmentForm.fe_id) return
                     void api
@@ -668,7 +661,7 @@ export default function SiteDetailPage() {
                       })
                   }}
                 >
-                  {alreadyAssigned ? "Bucket Already Assigned" : "Assign FE"}
+                  Assign FE
                 </button>
               )
             })()}
@@ -883,20 +876,6 @@ function ActionPanel({ title, children }: { title: string; children: ReactNode }
   )
 }
 
-function TxStatusBadge({ statusKey, label }: { statusKey: string; label: string }) {
-  let bg: string
-  let color: string
-  if (statusKey === "cancel") { bg = "#F3F4F6"; color = "#6B7280" }
-  else if (statusKey === "exct") { bg = "#D1FAE5"; color = "#065F46" }
-  else if (statusKey === "rej") { bg = "#FEE2E2"; color = "#DC2626" }
-  else { bg = "#F9FAFB"; color = "#374151" }
-  return (
-    <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: bg, color }}>
-      {label}
-    </span>
-  )
-}
-
 function TransactionCard({
   row,
   badges,
@@ -917,7 +896,9 @@ function TransactionCard({
   const [updating, setUpdating] = useState(false)
   const [showExecInput, setShowExecInput] = useState(false)
   const [execDate, setExecDate] = useState(TODAY)
+  const [pendingExctId, setPendingExctId] = useState<number | null>(null)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [pendingCancelId, setPendingCancelId] = useState<number | null>(null)
   const [err, setErr] = useState("")
 
   const currentBadge = badges.get(row.status_id)
@@ -948,36 +929,52 @@ function TransactionCard({
     }
   }
 
-  async function handleCancel() {
-    if (!cancelBadgeId) return
-    setUpdating(true)
-    setErr("")
-    try {
-      await api.patch(`/transactions/${row.id}/status`, { status_id: cancelBadgeId, version: row.version })
-      setShowCancelConfirm(false)
-      await onUpdate()
-    } catch (e: unknown) {
-      const status = (e as { response?: { status?: number } })?.response?.status
-      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      if (status === 409) {
-        setErr(detail ?? "Transaction was modified by another user — please refresh")
-        await onUpdate()
-      } else {
-        setErr(detail ?? "Failed to cancel transaction.")
+  // Build dropdown options from the badge chip
+  const dropdownOptions: BadgeOption[] = []
+  if (isReq) {
+    if (canRequestWrite && cancelBadgeId !== undefined) {
+      const cb = badges.get(cancelBadgeId)
+      dropdownOptions.push({ id: cancelBadgeId, label: cb?.label ?? "Cancelled", color: cb?.color ?? null })
+    }
+    if (canTransactionWrite) {
+      for (const t of reqTransitions) {
+        dropdownOptions.push({ id: t.to_id, label: t.to_label, color: badges.get(t.to_id)?.color ?? null })
       }
-    } finally {
-      setUpdating(false)
+    }
+  }
+
+  function handleDropdownSelect(toId: number) {
+    const badge = badges.get(toId)
+    if (badge?.key === "exct") {
+      setPendingExctId(toId)
+      setShowExecInput(true)
+    } else if (badge?.key === "cancel") {
+      setPendingCancelId(toId)
+      setShowCancelConfirm(true)
+    } else {
+      void handleTransition(toId)
     }
   }
 
   return (
     <div className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
       {err ? <p className="mb-2 text-xs text-red-600">{err}</p> : null}
+
       {showCancelConfirm ? (
         <div className="space-y-3">
           <p className="text-sm text-jscolors-text/70">Cancel this transaction?</p>
           <div className="flex gap-2">
-            <button type="button" className="premium-button" disabled={updating} onClick={() => void handleCancel()}>Confirm</button>
+            <button
+              type="button"
+              className="premium-button"
+              disabled={updating}
+              onClick={() => {
+                setShowCancelConfirm(false)
+                if (pendingCancelId !== null) void handleTransition(pendingCancelId)
+              }}
+            >
+              Confirm
+            </button>
             <button type="button" className="premium-button-secondary" onClick={() => setShowCancelConfirm(false)}>Back</button>
           </div>
         </div>
@@ -992,42 +989,15 @@ function TransactionCard({
                 {row.remarks ? ` • ${row.remarks}` : ""}
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <TxStatusBadge statusKey={statusKey} label={currentBadge?.label ?? statusKey} />
-              {isReq && canTransactionWrite && reqTransitions.length > 0 && !updating ? (
-                <select
-                  value=""
-                  onChange={(e) => {
-                    const toId = Number(e.target.value)
-                    const t = reqTransitions.find((rt) => rt.to_id === toId)
-                    if (!t) return
-                    if (t.to_key === "exct") {
-                      setShowExecInput(true)
-                    } else {
-                      void handleTransition(toId)
-                    }
-                    e.currentTarget.value = ""
-                  }}
-                  className="rounded-2xl border border-jscolors-crimson/15 bg-white px-3 py-2 text-sm outline-none"
-                >
-                  <option value="">Change to</option>
-                  {reqTransitions.map((t) => (
-                    <option key={`${row.id}-${t.to_id}`} value={t.to_id}>{t.to_label}</option>
-                  ))}
-                </select>
-              ) : null}
-              {isReq && canRequestWrite ? (
-                <button
-                  type="button"
-                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-1 text-xs text-red-600 transition hover:bg-red-100"
-                  disabled={updating}
-                  onClick={() => setShowCancelConfirm(true)}
-                >
-                  Cancel
-                </button>
-              ) : null}
-            </div>
+            <BadgeDropdown
+              badge={currentBadge ?? null}
+              fallback={statusKey || "-"}
+              options={dropdownOptions}
+              onSelect={handleDropdownSelect}
+              disabled={updating}
+            />
           </div>
+
           {showExecInput ? (
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <input
@@ -1041,10 +1011,9 @@ function TransactionCard({
                 className="premium-button"
                 disabled={updating}
                 onClick={() => {
-                  const exctTransition = reqTransitions.find((t) => t.to_key === "exct")
-                  if (!exctTransition) return
+                  if (pendingExctId === null) return
                   setShowExecInput(false)
-                  void handleTransition(exctTransition.to_id, execDate)
+                  void handleTransition(pendingExctId, execDate)
                 }}
               >
                 Confirm Execution
