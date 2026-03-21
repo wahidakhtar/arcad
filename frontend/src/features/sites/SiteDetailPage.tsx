@@ -1,120 +1,27 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
 
-import FieldRenderer, { type FieldDefinition } from "../../components/ui/FieldRenderer"
-import BadgeDropdown, { type BadgeOption } from "../../components/ui/BadgeDropdown"
-import Modal from "../../components/ui/Modal"
+import FieldRenderer from "../../components/ui/FieldRenderer"
+import BadgeDropdown from "../../components/ui/BadgeDropdown"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
-
-const DOC_BADGE_FIELDS = new Set(["wcc_status", "fsr_status", "report_status", "tx_copy_status"])
-
-type SiteDetail = {
-  id: number
-  ckt_id: string
-  project_key: string
-  subproject_id: number
-  receiving_date: string
-  status_key: string
-  fields: Record<string, unknown>
-  financials: { budget: string; cost: string; paid: string; balance: string }
-  fe_rows: Array<{ fe_id: number; fe_label: string; bucket_key: string; active: boolean; cost: string; paid: string; balance: string }>
-  provider_rows: Array<{ assignment_id: number; provider_id: number; provider_label: string; active: boolean; created_at: string | null }>
-}
-
-type UIField = FieldDefinition & {
-  id?: number
-  list_view?: boolean
-}
-
-type Badge = {
-  id: number
-  key: string
-  label: string
-  color: string | null
-  type: string
-}
-
-type TransitionRow = {
-  transition_type: string
-  field_key: string
-  from_id: number
-  from_key: string
-  from_label: string
-  to_id: number
-  to_key: string
-  to_label: string
-}
-
-type StateRow = {
-  id: number
-  label: string
-}
-
-type ProjectRow = {
-  id: number
-  key: string
-  label: string
-}
-
-type UserRow = {
-  id: number
-  label: string
-  username: string
-  roles: Array<{ dept_key: string; project_id: number | null }>
-}
-
-type JobBucket = {
-  id: number
-  key: string
-  label: string
-}
-
-type ProviderRow = {
-  id: number
-  label: string
-}
-
-type UpdateRow = {
-  id: number
-  date: string
-  update: string
-  followup_date?: string | null
-  update_type?: string
-}
-
-type TicketRow = {
-  id: number
-  project_id: number
-  site_id: number
-  ticket_date: string
-  rfo?: string | null
-  closing_date?: string | null
-}
-
-type TransactionRow = {
-  id: number
-  project_id: number
-  site_id?: number | null
-  request_date: string
-  recipient_id?: number | null
-  bucket_key?: string | null
-  type_id: number
-  amount: string
-  status_id: number
-  remarks?: string | null
-  version: number
-}
-
-type TransactionDraft = {
-  open: boolean
-  type_id: string
-  amount: string
-  remarks: string
-}
-
-const READ_ONLY_FIELDS = new Set(["budget", "cost", "paid", "balance"])
-const TODAY = new Date().toISOString().slice(0, 10)
+import type { Badge, ProjectRow, SiteDetail, StateRow, TicketRow, TransactionRow, TransitionRow, UIField, UpdateRow, UserRow, JobBucket, ProviderRow } from "./siteDetailTypes"
+import {
+  DOC_BADGE_FIELDS,
+  READ_ONLY_FIELDS,
+  buildDrafts,
+  displayValueForField,
+  draftValueForField,
+  getFieldValue,
+  isFieldChanged,
+  optionsForField,
+  projectByKey,
+  selectedBadgeFallback,
+  transitionOptions,
+} from "./siteDetailHelpers"
+import SiteUpdatesSection from "./SiteUpdatesSection"
+import SiteTicketsSection from "./SiteTicketsSection"
+import SiteFEAssignmentSection from "./SiteFEAssignmentSection"
 
 export default function SiteDetailPage() {
   const { tags, roles } = useAuth()
@@ -130,20 +37,13 @@ export default function SiteDetailPage() {
   const [updates, setUpdates] = useState<UpdateRow[]>([])
   const [tickets, setTickets] = useState<TicketRow[]>([])
   const [transactions, setTransactions] = useState<TransactionRow[]>([])
+  const [providers, setProviders] = useState<ProviderRow[]>([])
   const [drafts, setDrafts] = useState<Record<string, string | boolean>>({})
-  const [transactionDrafts, setTransactionDrafts] = useState<Record<string, TransactionDraft>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [savingFields, setSavingFields] = useState(false)
   const [saveError, setSaveError] = useState("")
   const [updatingBadgeKey, setUpdatingBadgeKey] = useState("")
-  const [updateForm, setUpdateForm] = useState({ date: TODAY, update: "", followup_date: "" })
-  const [ticketForm, setTicketForm] = useState({ ticket_date: TODAY, rfo: "" })
-  const [assignmentForm, setAssignmentForm] = useState({ bucket_id: "", fe_id: "" })
-  const [removeModal, setRemoveModal] = useState<{ open: boolean; fe_id: number; bucket_id: number; fe_label: string; final_cost: string }>({ open: false, fe_id: 0, bucket_id: 0, fe_label: "", final_cost: "" })
-  const [providers, setProviders] = useState<ProviderRow[]>([])
-  const [providerAssignId, setProviderAssignId] = useState("")
-  const [savingProviderAssign, setSavingProviderAssign] = useState(false)
 
   async function loadPage() {
     setLoading(true)
@@ -152,18 +52,9 @@ export default function SiteDetailPage() {
       const numericSiteId = Number(siteId)
       const empty = { data: [] }
       const [
-        siteResponse,
-        uiFieldsResponse,
-        badgesResponse,
-        transitionResponse,
-        statesResponse,
-        projectsResponse,
-        usersResponse,
-        bucketsResponse,
-        updatesResponse,
-        ticketsResponse,
-        transactionsResponse,
-        providersResponse,
+        siteResponse, uiFieldsResponse, badgesResponse, transitionResponse,
+        statesResponse, projectsResponse, usersResponse, bucketsResponse,
+        updatesResponse, ticketsResponse, transactionsResponse, providersResponse,
       ] = await Promise.all([
         api.get(`/sites/${projectKey}/${siteId}`),
         api.get(`/projects/${projectKey}/ui-fields`),
@@ -178,20 +69,18 @@ export default function SiteDetailPage() {
         api.get("/transactions").catch(() => empty),
         api.get(`/projects/${projectKey}/providers`),
       ])
-
       const nextProjects = projectsResponse.data as ProjectRow[]
       const project = projectByKey(nextProjects, projectKey)
-      const nextTickets = (ticketsResponse.data as TicketRow[]).filter((row) => row.project_id === project?.id && row.site_id === numericSiteId)
-      const nextTransactions = (transactionsResponse.data as TransactionRow[]).filter((row) => row.project_id === project?.id && row.site_id === numericSiteId)
+      const nextTickets = (ticketsResponse.data as TicketRow[]).filter(
+        (row) => row.project_id === project?.id && row.site_id === numericSiteId,
+      )
+      const nextTransactions = (transactionsResponse.data as TransactionRow[]).filter(
+        (row) => row.project_id === project?.id && row.site_id === numericSiteId,
+      )
       const nextSite = siteResponse.data as SiteDetail
-      const nextUiFields = (uiFieldsResponse.data as Array<{ key: string; label: string; type?: string; list_view?: boolean }>).map((field) => ({
-        key: field.key,
-        label: field.label,
-        type: field.type,
-        list_view: field.list_view,
-      }))
-
-      const nextProviders = (providersResponse.data as ProviderRow[]) ?? []
+      const nextUiFields = (uiFieldsResponse.data as Array<{ key: string; label: string; type?: string; list_view?: boolean; perm_tag?: string | null }>).map(
+        (field) => ({ key: field.key, label: field.label, type: field.type, list_view: field.list_view, perm_tag: field.perm_tag }),
+      )
       setSite(nextSite)
       setUiFields(nextUiFields)
       setBadges(badgesResponse.data)
@@ -203,7 +92,7 @@ export default function SiteDetailPage() {
       setUpdates(updatesResponse.data)
       setTickets(nextTickets)
       setTransactions(nextTransactions)
-      setProviders(nextProviders)
+      setProviders((providersResponse.data as ProviderRow[]) ?? [])
       setDrafts(buildDrafts(nextSite, nextUiFields))
     } catch {
       setError("Unable to load site details.")
@@ -212,44 +101,31 @@ export default function SiteDetailPage() {
     }
   }
 
-  useEffect(() => {
-    void loadPage()
-  }, [projectKey, siteId])
+  useEffect(() => { void loadPage() }, [projectKey, siteId])
 
-  useEffect(() => {
-    if (jobBuckets.length === 1) {
-      setAssignmentForm((current) => ({ ...current, bucket_id: String(jobBuckets[0].id) }))
-    }
-  }, [jobBuckets])
-
-  const badgeById = useMemo(() => new Map(badges.map((badge) => [badge.id, badge])), [badges])
-  const stateById = useMemo(() => new Map(states.map((state) => [state.id, state])), [states])
+  const badgeById = useMemo(() => new Map(badges.map((b) => [b.id, b])), [badges])
+  const stateById = useMemo(() => new Map(states.map((s) => [s.id, s])), [states])
   const project = useMemo(() => projectByKey(projects, projectKey), [projectKey, projects])
-  const transactionTypes = useMemo(() => badges.filter((badge) => badge.type === "transaction"), [badges])
-  const badgeFields = useMemo(() => uiFields.filter((field) => field.type === "badge"), [uiFields])
-  const regularFields = useMemo(() => uiFields.filter((field) => field.type !== "badge"), [uiFields])
+  const transactionTypes = useMemo(() => badges.filter((b) => b.type === "transaction"), [badges])
+
+  // Fix 1: filter fields by perm_tag — show if perm_tag is null/empty OR user has that tag with read=true
+  const visibleFields = useMemo(
+    () => uiFields.filter((f) => !f.perm_tag || tags[f.perm_tag]?.read === true),
+    [uiFields, tags],
+  )
+  const badgeFields = useMemo(() => visibleFields.filter((f) => f.type === "badge"), [visibleFields])
+  const regularFields = useMemo(() => visibleFields.filter((f) => f.type !== "badge"), [visibleFields])
+
   const foUsers = useMemo(
-    () =>
-      users.filter((user) =>
-        user.roles.some((role) => role.dept_key === "fo" && (role.project_id == null || role.project_id === project?.id)),
-      ),
+    () => users.filter((u) => u.roles.some((r) => r.dept_key === "fo" && (r.project_id == null || r.project_id === project?.id))),
     [project?.id, users],
   )
 
-  if (loading) {
-    return <div className="glass-panel p-6">Loading site details...</div>
-  }
-
-  if (!site) {
-    return <div className="glass-panel p-6">Site not found.</div>
-  }
-
-  if (error) {
-    return <div className="glass-panel p-6 text-red-700">{error}</div>
-  }
+  if (loading) return <div className="glass-panel p-6">Loading site details...</div>
+  if (!site) return <div className="glass-panel p-6">Site not found.</div>
+  if (error) return <div className="glass-panel p-6 text-red-700">{error}</div>
 
   const currentSite = site
-
   const isOpsL1Only = roles.length > 0 && roles.every((r) => r.dept_key === "ops" && r.level_key === "l1")
   const canRequestWrite = tags.request?.write === true
   const canTransactionWrite = tags.transaction?.write === true
@@ -257,26 +133,20 @@ export default function SiteDetailPage() {
   const cancelBadgeId = cancelBadge?.id
   const reqBadge = badges.find((b) => b.key === "req")
   const reqBadgeId = reqBadge?.id
-
-  const docBadgeVisible = tags.doc_badge?.read === true
   const docBadgeEditable = tags.doc_badge?.write === true
   const canAddUpdate = tags.update?.write === true || tags.acc_update?.write === true
   const canReadOpsUpdates = tags.update?.read === true
   const canReadAccUpdates = tags.acc_update?.read === true
   const outcomeId = typeof currentSite.fields.outcome === "number" ? currentSite.fields.outcome :
-                    typeof currentSite.fields.outcome_id === "number" ? currentSite.fields.outcome_id : null
+    typeof currentSite.fields.outcome_id === "number" ? currentSite.fields.outcome_id : null
   const isAssetTransfer = outcomeId !== null && badgeById.get(outcomeId as number)?.label?.toLowerCase() === "asset transfer"
 
   async function saveFields() {
-    const editableFields = regularFields.filter((field) => !READ_ONLY_FIELDS.has(field.key))
+    const editableFields = regularFields.filter((f) => !READ_ONLY_FIELDS.has(f.key))
     const payload = Object.fromEntries(
-      editableFields
-        .filter((field) => isFieldChanged(currentSite, field, drafts[field.key]))
-        .map((field) => [field.key, drafts[field.key]]),
+      editableFields.filter((f) => isFieldChanged(currentSite, f, drafts[f.key])).map((f) => [f.key, drafts[f.key]]),
     )
-    if (!Object.keys(payload).length) {
-      return
-    }
+    if (!Object.keys(payload).length) return
     setSavingFields(true)
     setSaveError("")
     try {
@@ -300,45 +170,6 @@ export default function SiteDetailPage() {
     }
   }
 
-  async function submitFeTransaction(feId: number, bucketKey: string) {
-    const draftKey = transactionDraftKey(feId, bucketKey)
-    const draft = transactionDrafts[draftKey]
-    if (!draft || !project?.id || !draft.type_id || !draft.amount) {
-      return
-    }
-    await api.post("/transactions", {
-      project_id: project.id,
-      site_id: currentSite.id,
-      recipient_id: feId,
-      bucket_key: bucketKey,
-      type_id: Number(draft.type_id),
-      amount: draft.amount,
-      remarks: draft.remarks || null,
-    })
-    setTransactionDrafts((current) => ({
-      ...current,
-      [draftKey]: { open: false, type_id: "", amount: "", remarks: "" },
-    }))
-    await loadPage()
-  }
-
-  async function assignProvider() {
-    if (!providerAssignId) return
-    setSavingProviderAssign(true)
-    try {
-      await api.post(`/sites/${projectKey}/${currentSite.id}/assignments`, { provider_id: Number(providerAssignId) })
-      setProviderAssignId("")
-      await loadPage()
-    } finally {
-      setSavingProviderAssign(false)
-    }
-  }
-
-  async function removeProviderAssignment(assignmentId: number) {
-    await api.delete(`/sites/${projectKey}/${currentSite.id}/assignments/${assignmentId}`)
-    await loadPage()
-  }
-
   return (
     <div className="space-y-6">
       <section className="glass-panel p-6">
@@ -350,11 +181,10 @@ export default function SiteDetailPage() {
           </div>
           <div className="flex flex-wrap gap-3">
             {badgeFields.map((field) => {
-              const isDocBadge = DOC_BADGE_FIELDS.has(field.key)
-              if (isDocBadge && !docBadgeVisible) return null
               if (field.key === "tx_copy_status" && !isAssetTransfer) return null
               const badgeValue = getFieldValue(currentSite, field)
               const currentBadge = typeof badgeValue === "number" ? badgeById.get(badgeValue) : null
+              const isDocBadge = DOC_BADGE_FIELDS.has(field.key)
               const nextTransitions = (!isDocBadge || docBadgeEditable) && typeof badgeValue === "number"
                 ? transitionOptions(transitions, field.key, badgeValue)
                 : []
@@ -365,11 +195,7 @@ export default function SiteDetailPage() {
                     <BadgeDropdown
                       badge={currentBadge ?? null}
                       fallback={String(selectedBadgeFallback(badgeValue))}
-                      options={nextTransitions.map((t) => ({
-                        id: t.to_id,
-                        label: t.to_label,
-                        color: badgeById.get(t.to_id)?.color ?? null,
-                      }))}
+                      options={nextTransitions.map((t) => ({ id: t.to_id, label: t.to_label, color: badgeById.get(t.to_id)?.color ?? null }))}
                       onSelect={(toId) => void transitionBadge(field.key, toId)}
                       disabled={updatingBadgeKey === field.key}
                     />
@@ -400,16 +226,14 @@ export default function SiteDetailPage() {
                 <div key={field.key} className="rounded-[22px] border border-jscolors-crimson/10 bg-white px-4 py-4">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">{field.label}</div>
                   {isReadOnly ? (
-                    <div className="mt-3 text-sm text-jscolors-text">
-                      <FieldRenderer field={field} value={displayValue} />
-                    </div>
+                    <div className="mt-3 text-sm text-jscolors-text"><FieldRenderer field={field} value={displayValue} /></div>
                   ) : (
                     <div className="mt-3">
                       <FieldRenderer
                         mode="input"
                         field={{ ...field, options: optionsForField(field, states) }}
                         value={drafts[field.key] ?? draftValueForField(currentSite, field)}
-                        onChange={(value) => setDrafts((current) => ({ ...current, [field.key]: value }))}
+                        onChange={(value) => setDrafts((c) => ({ ...c, [field.key]: value }))}
                       />
                     </div>
                   )}
@@ -420,627 +244,43 @@ export default function SiteDetailPage() {
         </section>
 
         <section className="grid gap-6">
-          {canAddUpdate ? (
-            <ActionPanel title="Add Update">
-              <div className="grid gap-3">
-                <input
-                  type="date"
-                  value={updateForm.date}
-                  onChange={(event) => setUpdateForm((current) => ({ ...current, date: event.target.value }))}
-                  className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-                />
-                <textarea
-                  value={updateForm.update}
-                  onChange={(event) => setUpdateForm((current) => ({ ...current, update: event.target.value }))}
-                  placeholder="Update"
-                  rows={3}
-                  className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-                />
-                <input
-                  type="date"
-                  value={updateForm.followup_date}
-                  onChange={(event) => setUpdateForm((current) => ({ ...current, followup_date: event.target.value }))}
-                  className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-                />
-                <button
-                  type="button"
-                  className="premium-button"
-                  onClick={() => {
-                    void api
-                      .post("/updates", {
-                        project_id: project?.id,
-                        site_id: currentSite.id,
-                        date: updateForm.date,
-                        update: updateForm.update,
-                        followup_date: updateForm.followup_date || null,
-                      })
-                      .then(() => {
-                        setUpdateForm({ date: TODAY, update: "", followup_date: "" })
-                        return loadPage()
-                      })
-                  }}
-                >
-                  Add Update
-                </button>
-              </div>
-              <div className="mt-4 space-y-3">
-                {updates.filter((row) => {
-                  const t = row.update_type ?? "ops"
-                  if (t === "finance") return canReadAccUpdates
-                  return canReadOpsUpdates
-                }).length ? updates.filter((row) => {
-                  const t = row.update_type ?? "ops"
-                  if (t === "finance") return canReadAccUpdates
-                  return canReadOpsUpdates
-                }).map((row) => (
-                  <InfoRow key={row.id} title={row.date} text={`${row.update}${row.followup_date ? ` • Follow-up ${row.followup_date}` : ""}${row.update_type === "finance" ? " [Finance]" : ""}`} />
-                )) : <EmptyState text="No updates yet" />}
-              </div>
-            </ActionPanel>
-          ) : null}
-
-          <ActionPanel title="Add Ticket">
-            <div className="grid gap-3">
-              <input
-                type="date"
-                value={ticketForm.ticket_date}
-                onChange={(event) => setTicketForm((current) => ({ ...current, ticket_date: event.target.value }))}
-                className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-              />
-              <textarea
-                value={ticketForm.rfo}
-                onChange={(event) => setTicketForm((current) => ({ ...current, rfo: event.target.value }))}
-                placeholder="Reason / ticket note"
-                rows={3}
-                className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-              />
-              <button
-                type="button"
-                className="premium-button"
-                onClick={() => {
-                  void api
-                    .post("/tickets", {
-                      project_id: project?.id,
-                      site_id: currentSite.id,
-                      ticket_date: ticketForm.ticket_date,
-                      rfo: ticketForm.rfo || null,
-                    })
-                    .then(() => {
-                      setTicketForm({ ticket_date: TODAY, rfo: "" })
-                      return loadPage()
-                    })
-                }}
-              >
-                Add Ticket
-              </button>
-            </div>
-            <div className="mt-4 space-y-3">
-              {tickets.length ? tickets.map((row) => (
-                <div key={row.id} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-jscolors-text">{row.ticket_date}</div>
-                      <div className="mt-1 text-sm text-jscolors-text/60">{row.rfo || "Open ticket"}</div>
-                    </div>
-                    {!row.closing_date && (
-                      <button
-                        type="button"
-                        className="premium-button-secondary shrink-0"
-                        onClick={() => {
-                          void api.patch(`/tickets/${row.id}/close`).then(() => loadPage())
-                        }}
-                      >
-                        Close
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )) : <EmptyState text="No tickets" />}
-            </div>
-          </ActionPanel>
-
-          {projectKey === "bb" ? (
-            <ActionPanel title="Provider Assignment">
-              <div className="grid gap-3">
-                <select
-                  value={providerAssignId}
-                  onChange={(event) => setProviderAssignId(event.target.value)}
-                  className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-                >
-                  <option value="">Select Provider</option>
-                  {providers.map((p) => (
-                    <option key={p.id} value={p.id}>{p.label}</option>
-                  ))}
-                </select>
-                <button type="button" className="premium-button" disabled={savingProviderAssign || !providerAssignId} onClick={() => void assignProvider()}>
-                  {savingProviderAssign ? "Assigning..." : "Assign Provider"}
-                </button>
-              </div>
-              <div className="mt-4 space-y-3">
-                {currentSite.provider_rows.length ? currentSite.provider_rows.map((row) => (
-                  <div key={row.assignment_id} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-semibold text-jscolors-text">{row.provider_label}</div>
-                        {row.created_at && <div className="mt-1 text-xs text-jscolors-text/60">{row.created_at.slice(0, 10)}</div>}
-                      </div>
-                      {row.active && (
-                        <button
-                          type="button"
-                          className="rounded-2xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition"
-                          onClick={() => void removeProviderAssignment(row.assignment_id)}
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )) : <EmptyState text="No provider assignments yet" />}
-              </div>
-            </ActionPanel>
-          ) : isOpsL1Only ? null : (
-          <ActionPanel title="FE Assignment">
-            <Modal
-              open={removeModal.open}
-              title={`Remove ${removeModal.fe_label}`}
-              onClose={() => setRemoveModal((m) => ({ ...m, open: false }))}
-            >
-              <div className="space-y-4">
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Final Cost (₹) — optional</span>
-                  <input
-                    type="number"
-                    value={removeModal.final_cost}
-                    onChange={(e) => setRemoveModal((m) => ({ ...m, final_cost: e.target.value }))}
-                    placeholder="Leave blank if unknown"
-                    className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
-                  />
-                </label>
-                <button
-                  type="button"
-                  className="premium-button w-full"
-                  onClick={() => {
-                    const { fe_id, bucket_id, final_cost } = removeModal
-                    setRemoveModal((m) => ({ ...m, open: false }))
-                    void api
-                      .patch(`/sites/${projectKey}/${currentSite.id}/assignments/${fe_id}/${bucket_id}/remove`, {
-                        final_cost: final_cost ? Number(final_cost) : null,
-                      })
-                      .then(() => loadPage())
-                  }}
-                >
-                  Confirm Remove
-                </button>
-              </div>
-            </Modal>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              {jobBuckets.length > 1 && (
-                <select
-                  value={assignmentForm.bucket_id}
-                  onChange={(event) => setAssignmentForm((current) => ({ ...current, bucket_id: event.target.value }))}
-                  className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-                >
-                  <option value="">Select Bucket</option>
-                  {jobBuckets.map((bucket) => (
-                    <option key={bucket.id} value={bucket.id}>{bucket.label}</option>
-                  ))}
-                </select>
-              )}
-              <select
-                value={assignmentForm.fe_id}
-                onChange={(event) => setAssignmentForm((current) => ({ ...current, fe_id: event.target.value }))}
-                className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-              >
-                <option value="">Select FE</option>
-                {foUsers.map((user) => (
-                  <option key={user.id} value={user.id}>{user.label}</option>
-                ))}
-              </select>
-            </div>
-            {(() => {
-              const alreadyAssigned =
-                !!assignmentForm.bucket_id &&
-                currentSite.fe_rows.some(
-                  (r) =>
-                    r.active &&
-                    r.bucket_key === jobBuckets.find((b) => String(b.id) === assignmentForm.bucket_id)?.key,
-                )
-              return (
-                <button
-                  type="button"
-                  className={`premium-button mt-3${alreadyAssigned ? " cursor-not-allowed opacity-50" : ""}`}
-                  disabled={alreadyAssigned}
-                  onClick={() => {
-                    if (!assignmentForm.bucket_id || !assignmentForm.fe_id) return
-                    void api
-                      .post(`/sites/${projectKey}/${currentSite.id}/assignments`, { bucket_id: Number(assignmentForm.bucket_id), fe_id: Number(assignmentForm.fe_id) })
-                      .then(() => {
-                        setAssignmentForm({ bucket_id: "", fe_id: "" })
-                        return loadPage()
-                      })
-                  }}
-                >
-                  Assign FE
-                </button>
-              )
-            })()}
-            <div className="mt-4 space-y-3">
-              {currentSite.fe_rows.length ? currentSite.fe_rows.map((row) => {
-                const draftKey = transactionDraftKey(row.fe_id, row.bucket_key)
-                const draft = transactionDrafts[draftKey] ?? { open: false, type_id: "", amount: "", remarks: "" }
-                const rowTransactions = transactions.filter((transaction) => transaction.recipient_id === row.fe_id && transaction.bucket_key === row.bucket_key)
-                return (
-                  <div key={`${row.fe_id}-${row.bucket_key}`} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
-                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                      <div>
-                        <div className="text-sm font-semibold text-jscolors-text">{row.fe_label} · {bucketLabel(jobBuckets, row.bucket_key)}</div>
-                        <div className="mt-1 text-sm text-jscolors-text/60">Cost {row.cost} • Paid {row.paid} • Balance {row.balance}</div>
-                      </div>
-                      <div className="flex gap-2">
-                        {canRequestWrite && (
-                          <button
-                            type="button"
-                            className="premium-button-secondary"
-                            onClick={() =>
-                              setTransactionDrafts((current) => ({
-                                ...current,
-                                [draftKey]: { ...draft, open: !draft.open },
-                              }))
-                            }
-                          >
-                            Request Transaction
-                          </button>
-                        )}
-                        {row.active && (
-                          <button
-                            type="button"
-                            className="rounded-2xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition"
-                            onClick={() => {
-                              const bucket = jobBuckets.find((b) => b.key === row.bucket_key)
-                              setRemoveModal({ open: true, fe_id: row.fe_id, bucket_id: bucket?.id ?? 0, fe_label: row.fe_label, final_cost: "" })
-                            }}
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {draft.open ? (
-                      <div className="mt-4 grid gap-3">
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <select
-                            value={draft.type_id}
-                            onChange={(event) =>
-                              setTransactionDrafts((current) => ({
-                                ...current,
-                                [draftKey]: { ...draft, type_id: event.target.value },
-                              }))
-                            }
-                            className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-                          >
-                            <option value="">Select Type</option>
-                            {transactionTypes.map((type) => (
-                              <option key={type.id} value={type.id}>{type.label}</option>
-                            ))}
-                          </select>
-                          <input
-                            type="number"
-                            value={draft.amount}
-                            onChange={(event) =>
-                              setTransactionDrafts((current) => ({
-                                ...current,
-                                [draftKey]: { ...draft, amount: event.target.value },
-                              }))
-                            }
-                            placeholder="Amount"
-                            className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-                          />
-                        </div>
-                        <textarea
-                          value={draft.remarks}
-                          onChange={(event) =>
-                            setTransactionDrafts((current) => ({
-                              ...current,
-                              [draftKey]: { ...draft, remarks: event.target.value },
-                            }))
-                          }
-                          placeholder="Remarks"
-                          rows={3}
-                          className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-                        />
-                        <button type="button" className="premium-button" onClick={() => void submitFeTransaction(row.fe_id, row.bucket_key)}>
-                          Submit Request
-                        </button>
-                      </div>
-                    ) : null}
-                    <div className="mt-4 space-y-3">
-                      {rowTransactions.length ? rowTransactions.map((transaction) => (
-                        <TransactionCard
-                          key={transaction.id}
-                          row={transaction}
-                          badges={badgeById}
-                          reqTransitions={transitionOptions(transitions, "transaction_status", reqBadgeId ?? 0)}
-                          canRequestWrite={canRequestWrite}
-                          canTransactionWrite={canTransactionWrite}
-                          cancelBadgeId={cancelBadgeId}
-                          onUpdate={loadPage}
-                        />
-                      )) : <EmptyState text="No transactions for this FE yet" />}
-                    </div>
-                  </div>
-                )
-              }) : <EmptyState text={foUsers.length ? "No FE assignments yet" : "No FO users available for this project"} />}
-            </div>
-            {transactions.some((transaction) => !transaction.recipient_id || !transaction.bucket_key) ? (
-              <div className="mt-4 space-y-3">
-                {transactions.filter((transaction) => !transaction.recipient_id || !transaction.bucket_key).map((transaction) => (
-                  <TransactionCard
-                    key={transaction.id}
-                    row={transaction}
-                    badges={badgeById}
-                    reqTransitions={transitionOptions(transitions, "transaction_status", reqBadgeId ?? 0)}
-                    canRequestWrite={canRequestWrite}
-                    canTransactionWrite={canTransactionWrite}
-                    cancelBadgeId={cancelBadgeId}
-                    onUpdate={loadPage}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </ActionPanel>
-          )}
+          <SiteUpdatesSection
+            updates={updates}
+            canReadOpsUpdates={canReadOpsUpdates}
+            canReadAccUpdates={canReadAccUpdates}
+            canAddUpdate={canAddUpdate}
+            projectId={project?.id}
+            siteId={currentSite.id}
+            onReload={loadPage}
+          />
+          <SiteTicketsSection
+            tickets={tickets}
+            canTicketRead={tags.ticket?.read === true}
+            canTicketWrite={tags.ticket?.write === true}
+            projectId={project?.id}
+            siteId={currentSite.id}
+            onReload={loadPage}
+          />
+          <SiteFEAssignmentSection
+            currentSite={currentSite}
+            projectKey={projectKey}
+            project={project}
+            jobBuckets={jobBuckets}
+            foUsers={foUsers}
+            transactions={transactions}
+            badgeById={badgeById}
+            transactionTypes={transactionTypes}
+            transitions={transitions}
+            reqBadgeId={reqBadgeId}
+            cancelBadgeId={cancelBadgeId}
+            canRequestWrite={canRequestWrite}
+            canTransactionWrite={canTransactionWrite}
+            providers={providers}
+            isOpsL1Only={isOpsL1Only}
+            onReload={loadPage}
+          />
         </section>
       </div>
     </div>
   )
-}
-
-function buildDrafts(site: SiteDetail, fields: UIField[]) {
-  return Object.fromEntries(fields.map((field) => [field.key, draftValueForField(site, field)]))
-}
-
-function draftValueForField(site: SiteDetail, field: UIField): string | boolean {
-  const value = getFieldValue(site, field)
-  if (field.type === "bool") {
-    return Boolean(value)
-  }
-  return value == null ? "" : String(value)
-}
-
-function getFieldValue(site: SiteDetail, field: UIField) {
-  if (field.key in site.financials) {
-    return site.financials[field.key as keyof SiteDetail["financials"]]
-  }
-  if (field.key in site.fields) {
-    return site.fields[field.key]
-  }
-  const suffixedKey = `${field.key}_id`
-  if (suffixedKey in site.fields) {
-    return site.fields[suffixedKey]
-  }
-  return null
-}
-
-function displayValueForField(site: SiteDetail, field: UIField, badgeById: Map<number, Badge>, stateById: Map<number, StateRow>) {
-  const value = getFieldValue(site, field)
-  if (field.type === "dropdown" && field.key === "state_id" && typeof value === "number") {
-    return stateById.get(value)?.label ?? value
-  }
-  if (field.type === "badge" && typeof value === "number") {
-    return badgeById.get(value)
-  }
-  return value
-}
-
-function optionsForField(field: UIField, states: StateRow[]) {
-  if (field.key === "state_id") {
-    return states.map((state) => ({ label: state.label, value: state.id }))
-  }
-  return field.options
-}
-
-function isFieldChanged(site: SiteDetail, field: UIField, nextValue: string | boolean | undefined) {
-  return draftValueForField(site, field) !== (nextValue ?? "")
-}
-
-function transitionOptions(transitions: TransitionRow[], fieldKey: string, fromId: number) {
-  return transitions.filter((transition) => transition.field_key === fieldKey && transition.from_id === fromId)
-}
-
-function selectedBadgeFallback(value: unknown) {
-  if (value == null || value === "") {
-    return "-"
-  }
-  return String(value)
-}
-
-function transactionDraftKey(feId: number, bucketKey: string) {
-  return `${feId}:${bucketKey}`
-}
-
-function bucketLabel(jobBuckets: JobBucket[], bucketKey: string) {
-  return jobBuckets.find((bucket) => bucket.key === bucketKey)?.label ?? bucketKey.toUpperCase()
-}
-
-function projectByKey(projects: ProjectRow[], key: string) {
-  return projects.find((project) => project.key === key) ?? null
-}
-
-function ActionPanel({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="glass-panel p-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">{title}</p>
-      <div className="mt-5">{children}</div>
-    </section>
-  )
-}
-
-function TransactionCard({
-  row,
-  badges,
-  reqTransitions,
-  canRequestWrite,
-  canTransactionWrite,
-  cancelBadgeId,
-  onUpdate,
-}: {
-  row: TransactionRow
-  badges: Map<number, Badge>
-  reqTransitions: TransitionRow[]
-  canRequestWrite: boolean
-  canTransactionWrite: boolean
-  cancelBadgeId: number | undefined
-  onUpdate: () => Promise<void>
-}) {
-  const [updating, setUpdating] = useState(false)
-  const [showExecInput, setShowExecInput] = useState(false)
-  const [execDate, setExecDate] = useState(TODAY)
-  const [pendingExctId, setPendingExctId] = useState<number | null>(null)
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
-  const [pendingCancelId, setPendingCancelId] = useState<number | null>(null)
-  const [err, setErr] = useState("")
-
-  const currentBadge = badges.get(row.status_id)
-  const statusKey = currentBadge?.key ?? ""
-  const isReq = statusKey === "req"
-
-  async function handleTransition(toId: number, executionDate?: string) {
-    setUpdating(true)
-    setErr("")
-    try {
-      await api.patch(`/transactions/${row.id}/status`, {
-        status_id: toId,
-        version: row.version,
-        execution_date: executionDate ?? null,
-      })
-      await onUpdate()
-    } catch (e: unknown) {
-      const status = (e as { response?: { status?: number } })?.response?.status
-      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      if (status === 409) {
-        setErr(detail ?? "Transaction was modified by another user — please refresh")
-        await onUpdate()
-      } else {
-        setErr(detail ?? "Failed to update transaction.")
-      }
-    } finally {
-      setUpdating(false)
-    }
-  }
-
-  // Dropdown options sourced exclusively from badge_transitions (req→exct, req→rej only)
-  const dropdownOptions: BadgeOption[] = []
-  if (isReq && canTransactionWrite) {
-    for (const t of reqTransitions) {
-      dropdownOptions.push({ id: t.to_id, label: t.to_label, color: badges.get(t.to_id)?.color ?? null })
-    }
-  }
-
-  function handleDropdownSelect(toId: number) {
-    const badge = badges.get(toId)
-    if (badge?.key === "exct") {
-      setPendingExctId(toId)
-      setShowExecInput(true)
-    } else {
-      void handleTransition(toId)
-    }
-  }
-
-  return (
-    <div className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
-      {err ? <p className="mb-2 text-xs text-red-600">{err}</p> : null}
-
-      {showCancelConfirm ? (
-        <div className="space-y-3">
-          <p className="text-sm text-jscolors-text/70">Cancel this transaction?</p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className="premium-button"
-              disabled={updating}
-              onClick={() => {
-                setShowCancelConfirm(false)
-                if (pendingCancelId !== null) void handleTransition(pendingCancelId)
-              }}
-            >
-              Confirm
-            </button>
-            <button type="button" className="premium-button-secondary" onClick={() => setShowCancelConfirm(false)}>Back</button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <div className="text-sm font-semibold text-jscolors-text">{badges.get(row.type_id)?.label ?? "Transaction"} • {row.amount}</div>
-              <div className="mt-1 text-sm text-jscolors-text/60">
-                {row.request_date}
-                {row.bucket_key ? ` • ${row.bucket_key.toUpperCase()}` : ""}
-                {row.remarks ? ` • ${row.remarks}` : ""}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <BadgeDropdown
-                badge={currentBadge ?? null}
-                fallback={statusKey || "-"}
-                options={dropdownOptions}
-                onSelect={handleDropdownSelect}
-                disabled={updating}
-              />
-              {isReq && canRequestWrite && (
-                <button
-                  type="button"
-                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-1 text-xs text-red-600 transition hover:bg-red-100"
-                  onClick={() => {
-                    setPendingCancelId(cancelBadgeId ?? null)
-                    setShowCancelConfirm(true)
-                  }}
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
-          </div>
-
-          {showExecInput ? (
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <input
-                type="date"
-                value={execDate}
-                onChange={(e) => setExecDate(e.target.value)}
-                className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-2 text-sm outline-none"
-              />
-              <button
-                type="button"
-                className="premium-button"
-                disabled={updating}
-                onClick={() => {
-                  if (pendingExctId === null) return
-                  setShowExecInput(false)
-                  void handleTransition(pendingExctId, execDate)
-                }}
-              >
-                Confirm Execution
-              </button>
-              <button type="button" className="premium-button-secondary" onClick={() => setShowExecInput(false)}>Back</button>
-            </div>
-          ) : null}
-        </>
-      )}
-    </div>
-  )
-}
-
-function InfoRow({ title, text }: { title: string; text: string }) {
-  return (
-    <div className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
-      <div className="text-sm font-semibold text-jscolors-text">{title}</div>
-      <div className="mt-1 text-sm text-jscolors-text/60">{text}</div>
-    </div>
-  )
-}
-
-function EmptyState({ text }: { text: string }) {
-  return <div className="rounded-[20px] border border-dashed border-jscolors-crimson/18 bg-jscolors-crimson/[0.03] px-4 py-4 text-sm text-jscolors-text/60">{text}</div>
 }

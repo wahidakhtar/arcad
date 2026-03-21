@@ -170,7 +170,7 @@ def list_ui_fields(db: Session, user: UserContext, project_key: str) -> list[dic
     if project_key not in {"mi", "md", "ma", "mc", "bb"}:
         return []
     rows = db.execute(
-        text(f"SELECT id, label, tag, list_view, type, form_view, bulk_view, section FROM schema_{project_key}.ui_fields ORDER BY id")
+        text(f"SELECT id, label, tag, list_view, type, form_view, bulk_view, section, perm_tag FROM schema_{project_key}.ui_fields ORDER BY id")
     ).mappings().all()
     return [
         {
@@ -182,6 +182,7 @@ def list_ui_fields(db: Session, user: UserContext, project_key: str) -> list[dic
             "form_view": row["form_view"],
             "bulk_view": row["bulk_view"],
             "section": row["section"],
+            "perm_tag": row["perm_tag"],
         }
         for row in rows
     ]

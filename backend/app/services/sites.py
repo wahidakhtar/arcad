@@ -282,7 +282,7 @@ def list_sites(db: Session, user: UserContext, project_key: str, exclude_staged:
             continue
         if exclude_staged and stage_badge_id is not None and row.status_id == stage_badge_id:
             continue
-        items.append({"id": row.id, "ckt_id": row.ckt_id, "status_key": badges[row.status_id].key, "receiving_date": row.receiving_date})
+        items.append({"id": row.id, "ckt_id": row.ckt_id, "status_key": badges[row.status_id].key, "receiving_date": row.receiving_date, "active_fe": getattr(row, "active_fe", None)})
     return items
 
 
@@ -402,6 +402,26 @@ def remove_fe_assignment(db: Session, user: UserContext, project_key: str, site_
     assignment.active = False
     if final_cost is not None:
         assignment.final_cost = final_cost
+    db.flush()
+    db.execute(
+        text(
+            f"""
+            UPDATE schema_{project_key}.sites s
+            SET active_fe = (
+                SELECT u.label
+                FROM schema_hr.users u
+                JOIN schema_ops.fe_assignment fa ON fa.fe_id = u.id
+                WHERE fa.site_id = s.id
+                  AND fa.project_id = :project_id
+                  AND fa.active = TRUE
+                ORDER BY fa.created_at DESC
+                LIMIT 1
+            )
+            WHERE s.id = :site_id
+            """
+        ),
+        {"project_id": project.id, "site_id": site_id},
+    )
     db.commit()
     return get_site(db, user, project_key, site_id)
 
@@ -469,12 +489,18 @@ def assign_fe(db: Session, user: UserContext, project_key: str, site_id: int, pa
                 created_at=datetime.now(timezone.utc),
             )
         )
+        db.flush()
+        db.execute(
+            text(f"UPDATE schema_{project_key}.sites SET active_fe = :label WHERE id = :site_id"),
+            {"label": fe_user.label, "site_id": site_id},
+        )
 
     db.commit()
     return get_site(db, user, project_key, site_id)
 
 
 def remove_assignment(db: Session, user: UserContext, project_key: str, site_id: int, assignment_id: int, final_cost: Optional[Decimal]) -> SiteOut:
+    project = get_project(db, project_key)
     ensure_permission(user, db, project_key=project_key, tag="site", action="write")
     assignment = db.execute(
         select(FEAssignment).where(
@@ -488,5 +514,25 @@ def remove_assignment(db: Session, user: UserContext, project_key: str, site_id:
     assignment.active = False
     if final_cost is not None:
         assignment.final_cost = final_cost
+    db.flush()
+    db.execute(
+        text(
+            f"""
+            UPDATE schema_{project_key}.sites s
+            SET active_fe = (
+                SELECT u.label
+                FROM schema_hr.users u
+                JOIN schema_ops.fe_assignment fa ON fa.fe_id = u.id
+                WHERE fa.site_id = s.id
+                  AND fa.project_id = :project_id
+                  AND fa.active = TRUE
+                ORDER BY fa.created_at DESC
+                LIMIT 1
+            )
+            WHERE s.id = :site_id
+            """
+        ),
+        {"project_id": project.id, "site_id": site_id},
+    )
     db.commit()
     return get_site(db, user, project_key, site_id)

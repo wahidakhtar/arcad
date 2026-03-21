@@ -47,6 +47,7 @@ class BBSite(Base):
     password: Optional[Mapped[str]] = mapped_column(String(255))
     po_number: Optional[Mapped[str]] = mapped_column(String(128))
     invoice_number: Optional[Mapped[str]] = mapped_column(String(128))
+    active_fe: Optional[Mapped[str]] = mapped_column(String(256))
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
 

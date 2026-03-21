@@ -44,6 +44,7 @@ class MDSite(Base):
     doc_status_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_core.badges.id"))
     po_number: Optional[Mapped[str]] = mapped_column(String(128))
     invoice_number: Optional[Mapped[str]] = mapped_column(String(128))
+    active_fe: Optional[Mapped[str]] = mapped_column(String(256))
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
 
