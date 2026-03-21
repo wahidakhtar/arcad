@@ -1,6 +1,20 @@
 import type { Badge, JobBucket, SiteDetail, StateRow, TransitionRow, UIField } from "./siteDetailTypes"
 
 export const READ_ONLY_FIELDS = new Set(["budget", "cost", "paid", "balance", "active_fe"])
+
+/** Returns true if the field should be visible given the user's tag map.
+ *  perm_tag = null/empty  → visible to all
+ *  perm_tag = 'billing'   → visible if tags.billing.read === true
+ *  perm_tag = 'site:write'→ visible if tags.site.write === true
+ */
+export function fieldVisible(permTag: string | null | undefined, tags: import("../../lib/auth").TagMap): boolean {
+  if (!permTag) return true
+  if (permTag.endsWith(":write")) {
+    const tag = permTag.slice(0, -6)
+    return tags[tag]?.write === true
+  }
+  return tags[permTag]?.read === true
+}
 export const DOC_BADGE_FIELDS = new Set(["wcc_status", "fsr_status", "report_status", "tx_copy_status"])
 export const TODAY = new Date().toISOString().slice(0, 10)
 

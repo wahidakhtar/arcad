@@ -12,6 +12,7 @@ import {
   buildDrafts,
   displayValueForField,
   draftValueForField,
+  fieldVisible,
   getFieldValue,
   isFieldChanged,
   optionsForField,
@@ -24,7 +25,7 @@ import SiteTicketsSection from "./SiteTicketsSection"
 import SiteFEAssignmentSection from "./SiteFEAssignmentSection"
 
 export default function SiteDetailPage() {
-  const { tags, roles } = useAuth()
+  const { tags } = useAuth()
   const { projectKey = "mi", siteId = "0" } = useParams()
   const [site, setSite] = useState<SiteDetail | null>(null)
   const [uiFields, setUiFields] = useState<UIField[]>([])
@@ -108,9 +109,8 @@ export default function SiteDetailPage() {
   const project = useMemo(() => projectByKey(projects, projectKey), [projectKey, projects])
   const transactionTypes = useMemo(() => badges.filter((b) => b.type === "transaction"), [badges])
 
-  // Fix 1: filter fields by perm_tag — show if perm_tag is null/empty OR user has that tag with read=true
   const visibleFields = useMemo(
-    () => uiFields.filter((f) => !f.perm_tag || tags[f.perm_tag]?.read === true),
+    () => uiFields.filter((f) => fieldVisible(f.perm_tag, tags)),
     [uiFields, tags],
   )
   const badgeFields = useMemo(() => visibleFields.filter((f) => f.type === "badge"), [visibleFields])
@@ -126,7 +126,7 @@ export default function SiteDetailPage() {
   if (error) return <div className="glass-panel p-6 text-red-700">{error}</div>
 
   const currentSite = site
-  const isOpsL1Only = roles.length > 0 && roles.every((r) => r.dept_key === "ops" && r.level_key === "l1")
+  const canSiteWrite = tags.site?.write === true
   const canRequestWrite = tags.request?.write === true
   const canTransactionWrite = tags.transaction?.write === true
   const cancelBadge = badges.find((b) => b.key === "cancel")
@@ -211,12 +211,14 @@ export default function SiteDetailPage() {
         <section className="glass-panel p-6">
           <div className="flex items-center justify-between gap-4">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">All Site Fields</p>
-            <div className="flex items-center gap-3">
-              {saveError ? <span className="text-sm text-red-600">{saveError}</span> : null}
-              <button type="button" className="premium-button" disabled={savingFields} onClick={() => void saveFields()}>
-                {savingFields ? "Saving..." : "Save Fields"}
-              </button>
-            </div>
+            {canSiteWrite && (
+              <div className="flex items-center gap-3">
+                {saveError ? <span className="text-sm text-red-600">{saveError}</span> : null}
+                <button type="button" className="premium-button" disabled={savingFields} onClick={() => void saveFields()}>
+                  {savingFields ? "Saving..." : "Save Fields"}
+                </button>
+              </div>
+            )}
           </div>
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             {regularFields.map((field) => {
@@ -225,7 +227,7 @@ export default function SiteDetailPage() {
               return (
                 <div key={field.key} className="rounded-[22px] border border-jscolors-crimson/10 bg-white px-4 py-4">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">{field.label}</div>
-                  {isReadOnly ? (
+                  {isReadOnly || !canSiteWrite ? (
                     <div className="mt-3 text-sm text-jscolors-text"><FieldRenderer field={field} value={displayValue} /></div>
                   ) : (
                     <div className="mt-3">
@@ -275,8 +277,8 @@ export default function SiteDetailPage() {
             cancelBadgeId={cancelBadgeId}
             canRequestWrite={canRequestWrite}
             canTransactionWrite={canTransactionWrite}
+            canSiteWrite={canSiteWrite}
             providers={providers}
-            isOpsL1Only={isOpsL1Only}
             onReload={loadPage}
           />
         </section>

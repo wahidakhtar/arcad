@@ -35,7 +35,7 @@ export default function SiteFEAssignmentSection({
   canRequestWrite,
   canTransactionWrite,
   providers,
-  isOpsL1Only,
+  canSiteWrite,
   onReload,
 }: {
   currentSite: SiteDetail
@@ -51,8 +51,8 @@ export default function SiteFEAssignmentSection({
   cancelBadgeId: number | undefined
   canRequestWrite: boolean
   canTransactionWrite: boolean
+  canSiteWrite: boolean
   providers: ProviderRow[]
-  isOpsL1Only: boolean
   onReload: () => Promise<void>
 }) {
   const [assignmentForm, setAssignmentForm] = useState({ bucket_id: "", fe_id: "" })
@@ -135,7 +135,7 @@ export default function SiteFEAssignmentSection({
     )
   }
 
-  if (isOpsL1Only) return null
+  if (!canSiteWrite) return null
 
   return (
     <ActionPanel title="FE Assignment">
