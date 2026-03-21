@@ -7,9 +7,34 @@
   - `/Users/wahidakhtar/software/backend/venv/bin/python3.9 -m compileall /Users/wahidakhtar/software/backend/app /Users/wahidakhtar/software/backend/migrations`
   - `npm run build` in `/Users/wahidakhtar/software/frontend`
   - `/Users/wahidakhtar/software/backend/venv/bin/alembic upgrade head`
-- Latest git push: `76f6d19` (main). Both backend and frontend auto-deploy on push to main.
-- Railway DB: `autorack.proxy.rlwy.net:33504`, alembic version `20260320_0010`.
-- Local DB is a full mirror of Railway DB (restored via Docker postgres:18 pg_dump).
+- Latest git push: pending (2026-03-21 session). Both backend and frontend auto-deploy on push to main.
+- Railway DB: `autorack.proxy.rlwy.net:33504`, alembic version `20260321_0017`.
+- Local DB may be behind Railway — re-sync before next session if needed.
+
+---
+
+## What was done today (2026-03-21, session 1)
+
+### Task 1 — Migration 0017: request tag + transaction cleanup
+
+- **`request` tag** added to `schema_core.permission_tags`: mgmt l3 R+W, mgmt l2/l1 R, acc l2/l1 R, ops l3/l2 R+W, fo l1 R+W. No row for ops l1 or hr l1.
+- **`transaction` write** removed from ops l3 (role 6) and fo l1 (role 10). acc l1/l2 and mgmt l3 keep R+W.
+- **`req→cancel`** removed from `schema_acc.badge_transitions`. Only req→rej and req→exct remain.
+- **`deleted_at`, `deleted_by`** columns dropped from `schema_acc.transactions`. Soft-delete pattern fully removed.
+
+### Task 2 — Backend: updated transaction endpoints
+
+- **`POST /transactions`**: now requires `request` write (was `transaction` write).
+- **`PATCH /transactions/{id}/status`**: fully rewritten with per-target permission logic:
+  - `req→cancel`: requires `request` write. Version check (WHERE version=? AND status=req). 0 rows → 409 "Transaction was modified by another user".
+  - `req→exct`: requires `transaction` write. `execution_date` required in payload. Same version check.
+  - `req→rej`: requires `transaction` write. Same version check.
+  - Current status in `{exct, rej, cancel}` → 409 "No further action allowed".
+- **`DELETE /transactions/{id}`** endpoint removed.
+- **`list_transactions`**: returns `[]` for users where all roles are ops l1.
+- `CancelRequest` schema, `cancel_transaction()` service function, all `deleted_at`/`deleted_by` references removed from backend.
+- `sidebar_counts` in `projects.py`: removed `deleted_at IS NULL` filter (cancel is now a proper status; `status_id == 38` alone excludes it).
+- Migration confirmed against Railway DB. permission_tags and badge_transitions verified via psql.
 
 ---
 
@@ -181,7 +206,7 @@
 ### Permission system
 - `ROLE_ACTION_RULES` in `backend/app/api/auth.py` defines tag-level access per dept (hardcoded).
 - `check_field_write_scope` queries `schema_core.field_permissions` (field_key, dept_key rows). `mgmt` users bypass.
-- Known seeded tags: `billing`, `doc_badge`, `field`, `people`, `project`, `rate`, `role`, `site`, `subproject`, `ticket`, `transaction`, `update`, `user`.
+- Known seeded tags: `acc_update`, `assign_role`, `billing`, `doc_badge`, `field`, `people`, `project`, `rate`, `request`, `role`, `site`, `subproject`, `ticket`, `transaction`, `update`, `user`.
 
 ### Cost calculation (`backend/app/config/calculator.py`)
 - `JOB_BUCKETS`: `bmi→[mi]`, `bmdv→[mdv]`, `bmd→[md]`, `bma→[ma]`, `bmc→[mpaint,mnbr,ep,ec,arr]`
@@ -231,8 +256,8 @@
 - `schema_core.projects`: id, key, label, active, recurring, **supports_subprojects**
 - `schema_core.field_permissions`: id, field_key, dept_key (31 rows including provider_id/ops)
 - `schema_{key}.ui_fields` (mi/md/ma/mc/bb): id, label, tag, list_view, type, form_view, bulk_view, section
-- `schema_acc.transactions`: added `deleted_at TIMESTAMP WITH TZ`, `deleted_by INT FK`; `req→cancel` transition removed
-- `schema_acc.badge_transitions`: req→rej, req→exct (cancel removed in migration 0010)
+- `schema_acc.transactions`: no `deleted_at`/`deleted_by` (dropped in 0017). Cancellation is a status transition (status_id=cancel badge).
+- `schema_acc.badge_transitions`: req→rej, req→exct only (cancel removed in 0017)
 - `schema_bb.providers`: id, label — seeded with GTPL, Railwire, Airtel, Jio
 
 ---

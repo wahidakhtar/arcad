@@ -19,11 +19,9 @@ class TransactionCreate(BaseModel):
 
 class StatusUpdate(BaseModel):
     status_id: int
+    version: int
     execution_date: Optional[date] = None
 
-
-class CancelRequest(BaseModel):
-    version: int
 
 
 class TransactionOut(BaseModel):
@@ -39,4 +37,3 @@ class TransactionOut(BaseModel):
     execution_date: Optional[date]
     remarks: Optional[str]
     version: int
-    cancelled: bool
