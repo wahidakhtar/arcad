@@ -41,7 +41,7 @@ table {
 }
 
 .page-shell {
-  @apply relative h-screen overflow-hidden;
+  @apply relative h-screen overflow-clip;
 }
 
 .page-shell::before {
