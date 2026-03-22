@@ -129,7 +129,7 @@ export default function RateCardPage() {
               <tr key={row.id} className="border-b border-jscolors-crimson/8">
                 <td className="px-5 py-4 text-sm text-jscolors-text">{row.job_label}</td>
                 <td className="px-5 py-4 text-sm text-jscolors-text">{row.date}</td>
-                <td className="px-5 py-4 text-right font-mono text-sm text-jscolors-text">
+                <td className="px-5 py-4 text-right text-sm text-jscolors-text">
                   ₹ {Number(row.cost).toLocaleString("en-IN")}
                 </td>
               </tr>
