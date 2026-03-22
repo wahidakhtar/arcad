@@ -49,20 +49,13 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/42">Projects</p>
-          <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">All projects including inactive metadata modules</h1>
+      {can("project", "write") && (
+        <div className="flex justify-end">
+          <button type="button" className="premium-button shrink-0" onClick={() => setAddOpen(true)}>
+            Add Project
+          </button>
         </div>
-        <div className="flex items-center gap-3">
-          <p className="max-w-xl text-sm leading-7 text-jscolors-text/60">Recurring modules feed the sidebar; one-off modules remain metadata-only but still participate in admin and billing/transaction scope.</p>
-          {can("project", "write") && (
-            <button type="button" className="premium-button shrink-0" onClick={() => setAddOpen(true)}>
-              + Add Project
-            </button>
-          )}
-        </div>
-      </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {projects.map((project) => {

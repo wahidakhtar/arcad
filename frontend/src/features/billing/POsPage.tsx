@@ -17,10 +17,6 @@ export default function POsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/42">Billing</p>
-        <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">PO register</h1>
-      </div>
       <FilterBar filters={[]} onFilterChange={() => {}} />
       <div className="glass-panel overflow-x-auto border-0 bg-transparent backdrop-blur-none">
         <DataTable

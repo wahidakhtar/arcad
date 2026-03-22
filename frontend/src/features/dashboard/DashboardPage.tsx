@@ -82,25 +82,14 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <section className="glass-panel p-5">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/40">Dashboard Filters</p>
-            <h2 className="mt-2 font-syne text-3xl font-semibold text-jscolors-crimson">Date Range + role-aware scope</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-7 text-jscolors-text/60">
-              KPI cards and state counts are filtered by your selected range and constrained by your account visibility.
-            </p>
-          </div>
-        </div>
-        <div className="mt-5">
-          <FilterBar
-            filters={filterConfig}
-            onFilterChange={(key, value) => {
-              if (key === "range_key") setRangeKey(value as RangeKey)
-              if (key === "start_date") setStartDate(value)
-              if (key === "end_date") setEndDate(value)
-            }}
-          />
-        </div>
+        <FilterBar
+          filters={filterConfig}
+          onFilterChange={(key, value) => {
+            if (key === "range_key") setRangeKey(value as RangeKey)
+            if (key === "start_date") setStartDate(value)
+            if (key === "end_date") setEndDate(value)
+          }}
+        />
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">

@@ -63,13 +63,9 @@ export default function RateCardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/42">Billing</p>
-          <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">Rate Card</h1>
-        </div>
-        <button type="button" className="premium-button" onClick={openModal}>
-          + Add Rate
+      <div className="flex justify-end">
+        <button type="button" className="premium-button shrink-0" onClick={openModal}>
+          Add Rate
         </button>
       </div>
 

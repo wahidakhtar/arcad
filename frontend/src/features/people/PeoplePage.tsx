@@ -148,8 +148,8 @@ export default function PeoplePage() {
 
       {canWriteUser && (
         <div className="flex justify-end">
-          <button type="button" className="premium-button-secondary" onClick={() => setOpenAddUser(true)}>
-            + Add User
+          <button type="button" className="premium-button shrink-0" onClick={() => setOpenAddUser(true)}>
+            Add User
           </button>
         </div>
       )}

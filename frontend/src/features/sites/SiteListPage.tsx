@@ -208,8 +208,8 @@ export default function SiteListPage() {
             className="rounded-full border border-jscolors-crimson/15 bg-white px-5 py-3 outline-none"
           />
           {showAddButton && (
-            <button type="button" className="premium-button-secondary" onClick={openAddHandler}>
-              + Add
+            <button type="button" className="premium-button shrink-0" onClick={openAddHandler}>
+              Add
             </button>
           )}
         </div>
