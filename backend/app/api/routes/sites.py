@@ -1,14 +1,21 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.auth import UserContext, get_current_user
+from app.api.auth import UserContext, get_current_user, permission_required
 from app.core.database import get_db
 from app.schemas.site import FEAssignmentRequest, FERemovalRequest, SiteCreate, SiteOut, SiteUpdate
+from app.services import sites as sites_service
 from app.services import sites as site_service
+
+
+class TerminationCreate(BaseModel):
+    date: date
 
 router = APIRouter(prefix="/sites", tags=["sites"])
 
@@ -53,3 +60,13 @@ def remove_assignment(project_key: str, site_id: int, assignment_id: int, payloa
 @router.patch("/{project_key}/{site_id}/assignments/{fe_id}/{bucket_id}/remove", response_model=SiteOut)
 def remove_fe(project_key: str, site_id: int, fe_id: int, bucket_id: int, payload: FERemovalRequest, user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
     return site_service.remove_fe_assignment(db, user, project_key, site_id, fe_id, bucket_id, payload.final_cost)
+
+
+@router.post("/bb/{site_id}/terminations", dependencies=[Depends(permission_required("site", "write"))])
+def create_termination(
+    site_id: int,
+    payload: TerminationCreate,
+    user: UserContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return sites_service.create_termination(db, user, "bb", site_id, payload.date)

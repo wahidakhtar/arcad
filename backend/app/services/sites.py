@@ -17,7 +17,8 @@ from app.models.core import Badge, IndianState, Job, JobBucket
 from app.models.hr import User
 from app.models.ops import FEAssignment
 from app.schemas.site import FEAssignmentRequest, SiteOut
-from app.services.common import badge_map, get_project, get_site_model, get_subproject_model, model_to_dict
+from app.services.common import badge_map, get_project, get_project_config, get_site_model, get_subproject_model, model_to_dict
+from app.services import acc_rules
 
 logger = logging.getLogger(__name__)
 
@@ -302,6 +303,8 @@ def create_site(db: Session, user: UserContext, project_key: str, subproject_id:
         db.commit()
         db.refresh(site)
         logger.info("create_site success project=%s inserted_id=%s ckt_id=%s", project_key, site.id, site.ckt_id)
+        acc_rules.create_site_po_if_needed(db, project_key, project.id, site.id, resolved_subproject_id)
+        db.commit()
         return model_to_dict(site)
     except SQLAlchemyError as exc:
         db.rollback()
@@ -362,27 +365,61 @@ def get_site(db: Session, user: UserContext, project_key: str, site_id: int) -> 
 
 
 def update_site(db: Session, user: UserContext, project_key: str, site_id: int, data: dict) -> dict:
+    project = get_project(db, project_key)
     model = get_site_model(project_key)
     site = db.get(model, site_id)
     if site is None:
         raise HTTPException(status_code=404, detail="Site not found")
-    normalized_data = _normalize_site_payload(db, project_key, data)
+
+    # Permission check for user-provided fields
     for field_name in data.keys():
         ensure_permission(user, db, project_key=project_key, tag="field", action="write", field_name=field_name)
+
+    # Normalize payload
+    normalized_data = _normalize_site_payload(db, project_key, data)
+
+    # Badge transition check for user-provided badge fields BEFORE rules
+    user_badge_fields = {f for f in data if f in TRANSITION_TYPE_BY_FIELD}
+    original_normalized = dict(normalized_data)
+    for field_name in user_badge_fields:
         resolved_field_name = _resolve_site_field_key(model, field_name)
-        if not hasattr(site, resolved_field_name):
-            raise HTTPException(status_code=400, detail=f"Unknown field: {field_name}")
-        next_value = normalized_data.get(resolved_field_name)
-        if field_name in TRANSITION_TYPE_BY_FIELD:
-            current_value = getattr(site, resolved_field_name)
-            if next_value != current_value:
-                allowed_to_ids = _allowed_badge_transitions(db, project_key, field_name, int(current_value))
-                if int(next_value) not in allowed_to_ids:
-                    raise HTTPException(status_code=400, detail=f"Transition not allowed for {field_name}")
-        setattr(site, resolved_field_name, next_value)
+        next_value = original_normalized.get(resolved_field_name)
+        if next_value is None:
+            continue
+        current_value = getattr(site, resolved_field_name)
+        if next_value != current_value:
+            allowed_to_ids = _allowed_badge_transitions(db, project_key, field_name, int(current_value))
+            if int(next_value) not in allowed_to_ids:
+                raise HTTPException(status_code=400, detail=f"Transition not allowed for {field_name}")
+
+    # Call project rules
+    config = get_project_config(project_key)
+    apply_fn = getattr(config, f"apply_{project_key}_rules", None)
+    if apply_fn:
+        normalized_data = apply_fn(site, normalized_data, db)
+
+    # Apply all fields from normalized_data (including system-generated ones)
+    for field_name, value in normalized_data.items():
+        if hasattr(site, field_name):
+            setattr(site, field_name, value)
+
+    # Version bump
+    if hasattr(site, "version"):
+        site.version = (site.version or 0) + 1
+
     db.commit()
     db.refresh(site)
-    return model_to_dict(site)
+    result = model_to_dict(site)
+
+    # ACC invoice trigger: check if site just reached comp
+    badges_dict = badge_map(db)
+    status_obj = badges_dict.get(site.status_id)
+    if status_obj and status_obj.key == "comp":
+        acc_rules.maybe_create_site_invoice(db, project_key, project.id, site.id, site.subproject_id)
+        acc_rules.maybe_create_subproject_invoice(db, project_key, project.id, site.subproject_id)
+        db.commit()
+
+    return result
 
 
 def remove_fe_assignment(db: Session, user: UserContext, project_key: str, site_id: int, fe_id: int, bucket_id: int, final_cost: Optional[Decimal]) -> SiteOut:
@@ -497,6 +534,32 @@ def assign_fe(db: Session, user: UserContext, project_key: str, site_id: int, pa
 
     db.commit()
     return get_site(db, user, project_key, site_id)
+
+
+def create_termination(db: Session, user: UserContext, project_key: str, site_id: int, termination_date: date) -> dict:
+    if project_key != "bb":
+        raise HTTPException(status_code=400, detail="Terminations are only supported for BB sites")
+    from app.models.bb import Termination
+    project = get_project(db, project_key)
+    ensure_permission(user, db, project_key=project_key, tag="site", action="write")
+    model = get_site_model(project_key)
+    site = db.get(model, site_id)
+    if site is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+    existing = db.get(Termination, site_id)
+    if existing is not None:
+        raise HTTPException(status_code=400, detail="Termination already exists for this site")
+    termination = Termination(site_id=site_id, date=termination_date)
+    db.add(termination)
+    badges = badge_map(db)
+    term_id = next((bid for bid, b in badges.items() if b.key == "term"), None)
+    if term_id:
+        site.status_id = term_id
+    if hasattr(site, "version"):
+        site.version = (site.version or 0) + 1
+    db.commit()
+    db.refresh(site)
+    return model_to_dict(site)
 
 
 def remove_assignment(db: Session, user: UserContext, project_key: str, site_id: int, assignment_id: int, final_cost: Optional[Decimal]) -> SiteOut:

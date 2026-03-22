@@ -17,6 +17,7 @@ class PO(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("schema_core.projects.id"), nullable=False)
     site_id: Optional[Mapped[int]] = mapped_column(Integer)
+    subproject_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     entity_id: Optional[Mapped[str]] = mapped_column(String(128))
     po_date: Optional[Mapped[date]] = mapped_column(Date)
     po_no: Optional[Mapped[str]] = mapped_column(String(128))

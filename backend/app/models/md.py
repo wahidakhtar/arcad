@@ -42,6 +42,7 @@ class MDSite(Base):
     dismantle_date: Optional[Mapped[date]] = mapped_column(Date)
     scrap_value: Optional[Mapped[Decimal]] = mapped_column(Numeric(12, 2))
     doc_status_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_core.badges.id"))
+    wcc_status_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("schema_core.badges.id"), nullable=True)
     po_number: Optional[Mapped[str]] = mapped_column(String(128))
     invoice_number: Optional[Mapped[str]] = mapped_column(String(128))
     active_fe: Optional[Mapped[str]] = mapped_column(String(256))

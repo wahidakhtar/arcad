@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 PROJECT_KEY = "ma"
 
 fields = [
@@ -27,3 +29,78 @@ photo_sequence = [
     "Top platform snap",
     "Earthing snap",
 ]
+
+
+def apply_ma_rules(site, payload: dict, db) -> dict:
+    from fastapi import HTTPException
+    from app.models.core import Badge
+    from sqlalchemy import select
+
+    all_badges = db.execute(select(Badge)).scalars().all()
+    status_by_key = {b.key: b.id for b in all_badges if b.type == "status"}
+    doc_by_key = {b.key: b.id for b in all_badges if b.type == "doc_status"}
+    by_id = {b.id: b.key for b in all_badges}
+    current_status_key = by_id.get(site.status_id, "")
+
+    # VALIDATION
+    # 1. permission_date requires p_wait and height
+    if "permission_date" in payload and payload["permission_date"] is not None:
+        if current_status_key != "p_wait":
+            raise HTTPException(status_code=400, detail="Permission date can only be set when status is Permission Wait")
+        height = payload.get("height") if "height" in payload else getattr(site, "height", None)
+        if height is None:
+            raise HTTPException(status_code=400, detail="Height must be set before entering permission date")
+
+    # 2. audit_date requires wip status
+    if "audit_date" in payload and payload["audit_date"] is not None:
+        if current_status_key != "wip":
+            raise HTTPException(status_code=400, detail="Audit date can only be set when status is WIP")
+
+    # 3. If comp, restrict allowed fields
+    if current_status_key == "comp":
+        allowed_when_comp = {"audit_date", "fsr_status_id", "report_status_id"}
+        for key in payload:
+            if key not in allowed_when_comp:
+                raise HTTPException(status_code=400, detail=f"Field '{key}' cannot be changed when site is complete")
+
+    # 4. fsr_status_id requires audit_date
+    if "fsr_status_id" in payload:
+        has_audit = site.audit_date is not None or (
+            "audit_date" in payload and payload["audit_date"] is not None
+        )
+        if not has_audit:
+            raise HTTPException(status_code=400, detail="FSR status cannot be set before audit date")
+
+    # 5. report_status_id requires audit_date
+    if "report_status_id" in payload:
+        has_audit = site.audit_date is not None or (
+            "audit_date" in payload and payload["audit_date"] is not None
+        )
+        if not has_audit:
+            raise HTTPException(status_code=400, detail="Report status cannot be set before audit date")
+
+    # SIDE EFFECTS
+    # 6. Status → hold, cancel, or p_iss: clear permission_date
+    if "status_id" in payload and by_id.get(payload["status_id"], "") in ("hold", "cancel", "p_iss"):
+        payload["permission_date"] = None
+
+    # 7. permission_date set: set status to wip
+    if "permission_date" in payload and payload["permission_date"] is not None:
+        payload["status_id"] = status_by_key["wip"]
+
+    # 8. audit_date set: set status to comp, default doc statuses to pend
+    if "audit_date" in payload and payload["audit_date"] is not None:
+        payload["status_id"] = status_by_key["comp"]
+        if site.fsr_status_id is None and "fsr_status_id" not in payload:
+            payload["fsr_status_id"] = doc_by_key["pend"]
+        if site.report_status_id is None and "report_status_id" not in payload:
+            payload["report_status_id"] = doc_by_key["pend"]
+
+    # 9. audit_date cleared: revert status, clear related fields
+    if "audit_date" in payload and payload["audit_date"] is None:
+        payload["status_id"] = status_by_key["p_wait"]
+        payload["permission_date"] = None
+        payload["fsr_status_id"] = None
+        payload["report_status_id"] = None
+
+    return payload

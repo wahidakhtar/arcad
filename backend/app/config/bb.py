@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 PROJECT_KEY = "bb"
 
 fields = [
@@ -16,3 +18,7 @@ system_status_triggers = {
 field_lock_rules = {}
 generate_options: list[str] = []
 photo_sequence: list[str] = []
+
+
+def apply_bb_rules(site, payload: dict, db) -> dict:
+    return payload
