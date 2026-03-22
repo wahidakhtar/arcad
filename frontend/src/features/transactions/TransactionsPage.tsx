@@ -262,16 +262,16 @@ export default function TransactionsPage() {
       </Modal>
 
       <DataTable
-        gridTemplateColumns="15% 15% 12% 18% 10% 30%"
         columns={[
-          { key: "recipient_label", label: "Recipient" },
-          { key: "project_label", label: "Project" },
-          { key: "ckt_id", label: "Site" },
-          { key: "type_label", label: "Type" },
+          { key: "recipient_label", label: "Recipient", minWidth: 120 },
+          { key: "project_label", label: "Project", minWidth: 120 },
+          { key: "ckt_id", label: "Site", minWidth: 100 },
+          { key: "type_label", label: "Type", minWidth: 140 },
           {
             key: "amount",
             label: "Amount",
             align: "right",
+            minWidth: 100,
             render: (value) => (
               <div className="text-right">₹ {Number(value).toLocaleString("en-IN")}</div>
             ),
@@ -279,6 +279,7 @@ export default function TransactionsPage() {
           {
             key: "status_label",
             label: "Status",
+            minWidth: 180,
             render: (_value, row) => {
               const txRow = row as unknown as TxRow
               const isReq = txRow.status_key === "req"

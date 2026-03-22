@@ -57,7 +57,7 @@ export default function SiteListPage() {
   const { can } = useAuth()
   const { projectKey = "mi" } = useParams()
   const [projectMeta, setProjectMeta] = useState<ProjectMeta | null>(null)
-  const [columns, setColumns] = useState<Array<{ key: string; label: string; type?: string }>>([])
+  const [columns, setColumns] = useState<Array<{ key: string; label: string; type?: string; minWidth?: number }>>([])
   const [formFields, setFormFields] = useState<Array<{ key: string; label: string; type?: string }>>([])
   const [bulkFields, setBulkFields] = useState<Array<{ key: string; label: string; type?: string }>>([])
   const [search, setSearch] = useState("")
@@ -111,6 +111,7 @@ export default function SiteListPage() {
           key: field.key === "status" ? "status_badge" : field.key,
           label: field.label,
           type: field.type,
+          minWidth: field.key === "ckt_id" ? 120 : field.key === "status" ? 140 : field.type === "date" ? 110 : 100,
         }))
       setColumns(listColumns)
       setFormFields(uiFields.filter((f) => f.form_view).map(({ key, label, type }) => ({ key, label, type })))
