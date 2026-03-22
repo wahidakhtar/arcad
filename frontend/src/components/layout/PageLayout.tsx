@@ -11,7 +11,7 @@ export default function PageLayout({ children }: { children?: React.ReactNode })
           <div className="flex-1 overflow-y-auto p-8 pb-6 md:p-10 md:pb-8">{children ?? <Outlet />}</div>
         </main>
       </div>
-      <footer className="pointer-events-none fixed bottom-2 left-1/2 z-20 -translate-x-1/2 py-0 text-center leading-none tracking-normal text-gray-800 text-[12px]">
+      <footer className="pointer-events-none fixed bottom-1 left-1/2 z-20 -translate-x-1/2 py-0 text-center leading-none tracking-normal text-gray-800 text-[12px]">
         Copyright © 2026 Wahid Akhtar. All rights reserved.
       </footer>
     </div>

@@ -72,12 +72,14 @@ export default function App() {
     function scan() {
       // Clear stale clip-paths from elements that lost the glass-panel class (e.g. React DOM reuse)
       squircled.forEach((el) => {
-        if (!el.isConnected || !el.classList.contains("glass-panel") || el.classList.contains("no-squircle")) {
+        const isGlass = el.classList.contains("glass-panel") && !el.classList.contains("no-squircle")
+        const isSquircle = el.classList.contains("squircle")
+        if (!el.isConnected || (!isGlass && !isSquircle)) {
           ;(el as HTMLElement).style.clipPath = ""
           squircled.delete(el)
         }
       })
-      document.querySelectorAll(".glass-panel:not(.no-squircle)").forEach((el) => {
+      document.querySelectorAll(".glass-panel:not(.no-squircle), .squircle").forEach((el) => {
         if (!observed.has(el)) {
           observed.add(el)
           ro.observe(el)

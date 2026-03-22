@@ -34,10 +34,10 @@ export default function Sidebar() {
   }, [])
 
   return (
-    <aside className="flex h-full w-[260px] shrink-0 flex-col overflow-hidden rounded-3xl border border-white/50 bg-white/75 backdrop-blur-xl" style={{ boxShadow: "0 18px 60px rgba(83,20,20,0.12)" }}>
+    <aside className="flex h-full w-[260px] shrink-0 flex-col overflow-hidden rounded-[36px] border border-white/50 bg-white/75 backdrop-blur-xl" style={{ boxShadow: "0 18px 60px rgba(83,20,20,0.12)" }}>
       <div className="border-b border-jscolors-crimson/10 px-5 py-4">
         <Link to="/dashboard">
-          <img src="/logo.png" alt="ARCAD" className="h-20 w-full rounded-3xl border border-jscolors-gold/30 bg-white object-contain p-2 shadow-glow" />
+          <img src="/logo.png" alt="ARCAD" className="squircle h-20 w-full border border-jscolors-gold/30 bg-white object-contain p-2 shadow-glow" />
         </Link>
       </div>
 
