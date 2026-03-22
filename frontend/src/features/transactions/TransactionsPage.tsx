@@ -262,6 +262,7 @@ export default function TransactionsPage() {
       </Modal>
 
       <DataTable
+        gridTemplateColumns="15% 15% 12% 18% 10% 30%"
         columns={[
           { key: "recipient_label", label: "Recipient" },
           { key: "project_label", label: "Project" },

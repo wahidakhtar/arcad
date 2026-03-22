@@ -15,10 +15,11 @@ type DataTableProps<T extends Record<string, unknown>> = {
   rows: T[]
   rowHref?: (row: T) => string
   getRowClassName?: (row: T) => string
+  gridTemplateColumns?: string
 }
 
-export default function DataTable<T extends Record<string, unknown>>({ columns, rows, rowHref, getRowClassName }: DataTableProps<T>) {
-  const gridTemplateColumns = `repeat(${Math.max(columns.length, 1)}, minmax(180px, 1fr))`
+export default function DataTable<T extends Record<string, unknown>>({ columns, rows, rowHref, getRowClassName, gridTemplateColumns: gridTemplateColumnsProp }: DataTableProps<T>) {
+  const gridTemplateColumns = gridTemplateColumnsProp ?? `repeat(${Math.max(columns.length, 1)}, minmax(180px, 1fr))`
   return (
     <div className="overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
       <div className="grid min-w-full grid-cols-1">
