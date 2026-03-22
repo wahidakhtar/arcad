@@ -7,9 +7,119 @@
   - `/Users/wahidakhtar/software/backend/venv/bin/python3.9 -m compileall /Users/wahidakhtar/software/backend/app /Users/wahidakhtar/software/backend/migrations`
   - `npm run build` in `/Users/wahidakhtar/software/frontend`
   - `/Users/wahidakhtar/software/backend/venv/bin/alembic upgrade head`
-- Latest git push: `a79810f` (2026-03-21 session 4). Both backend and frontend auto-deploy on push to main.
-- Railway DB: `autorack.proxy.rlwy.net:33504`, alembic version `20260321_0018`.
+- Latest git push: `46ab6cd` (2026-03-22). Both backend and frontend auto-deploy on push to main.
+- Railway DB: `autorack.proxy.rlwy.net:33504`, alembic version `20260321_0024`.
 - Local DB may be behind Railway — re-sync before next session if needed.
+
+---
+
+## What was done today (2026-03-22)
+
+### Fix 1 — DataTable header/cell alignment
+- Header row used `gap-4` between columns; data rows used `gap-3` — caused x-offset between labels and values.
+- Both now use `gap-4`. No padding changes needed (both already use `px-5` on the container).
+
+### Fix 2 — DataTable `minWidth` column prop + overflow scrolling
+- Added `minWidth?: number` to the `Column` type in `DataTable.tsx`.
+- Applied as `style={{ minWidth: col.minWidth }}` on both header div and cell div.
+- Auto-generated `gridTemplateColumns` now uses `minmax(${col.minWidth ?? 180}px, 1fr)` per column (replacing the old `repeat(N, minmax(180px, 1fr))`).
+- Rows container gets `style={{ minWidth: sumOfColumnMinWidths }}` so `overflow-x-auto` scrolls the table horizontally when viewport is too narrow rather than squishing columns.
+
+### Fix 3 — Transactions page column min-widths
+- Removed explicit `gridTemplateColumns="15% 15% 12% 18% 10% 30%"` prop.
+- Added per-column `minWidth`: Recipient 120, Project 120, Site 100, Type 140, Amount 100, Status 180.
+- STATUS (180px) ensures Cancel button is never clipped.
+
+### Fix 4 — Site list page column min-widths
+- `listColumns` mapping in `SiteListPage.tsx` now assigns `minWidth` based on field key/type:
+  - `ckt_id` → 120px, `status` → 140px, `date` type → 110px, everything else → 100px.
+- All other DataTable pages (tickets, invoices, POs, updates) default to `minmax(180px, 1fr)` unchanged.
+
+---
+
+## What was done (2026-03-21, sessions 5–10)
+
+### Session 5 — Schema refactor: schema_core.tags + role_tags (migration 0021)
+- **Replaced `permission_tags` table** with two new tables:
+  - `schema_core.tags`: self-documenting tag registry, 14 active tags seeded.
+  - `schema_core.role_tags`: FK to tags(id) + roles(id), UNIQUE(role_id, tag_id). Replaces permission_tags rows.
+- **Corrections applied**: acc l1 billing write=true; hr l1 role read=true (replacing old assign_role R).
+- **Backend**: `PermissionTag` model → `Tag` + `RoleTag`; `auth.py` `_load_user_context` queries `role_tags JOIN tags`; signature unchanged.
+- **routes/users.py + roles.py**: `"user"` tag → `"people"`; `"assign_role"` tag → `"role"`.
+- **Deprecated tags removed**: `assign_role`, `user`.
+
+### Session 6 — Site detail: perm_tag + active_fe + component extraction (migration 0022)
+
+**Fix 1 — perm_tag field visibility**
+- Migration 0022 adds `perm_tag VARCHAR` column to all project `ui_fields` tables.
+- `billing` fields → `perm_tag='billing'`; `doc_badge` fields → `perm_tag='doc_badge'`.
+- `list_ui_fields` returns `perm_tag`; frontend `fieldVisible()` helper filters: field renders only if `perm_tag` is null or user has that tag with read=true.
+- Later extended: `perm_tag='site:write'` means field hidden unless user has site write.
+
+**Fix 2 — active_fe denormalized column**
+- Migration 0022 adds `active_fe VARCHAR(256)` to all site tables; backfilled from current assignments.
+- `assign_fe` sets `active_fe = fe_user.label` on commit.
+- `remove_fe_assignment` / `remove_assignment` recalculate via subquery.
+- `list_sites` returns `active_fe`; seeded to `ui_fields` with `list_view=true`, `perm_tag='site:write'`.
+- Frontend: `active_fe` in `READ_ONLY_FIELDS`.
+
+**Fix 3 — Updates/tickets visibility**
+- Updates panel visible when user can read OR write (not just write); Add Update form gated on write.
+- Tickets panel gated on `tags.ticket?.read or write`.
+
+**Fix 4 — SiteDetailPage.tsx extracted to components**
+- `SiteDetailPage.tsx` reduced from ~700 lines to 286 lines.
+- New files: `siteDetailTypes.ts`, `siteDetailHelpers.ts`, `SiteTransactionCard.tsx`, `SiteUpdatesSection.tsx`, `SiteTicketsSection.tsx`, `SiteFEAssignmentSection.tsx`.
+
+### Session 7 — FO access fixes (migrations 0023, 0024)
+- **Migration 0023**: granted `fo l1` the `site:read` tag so FO users see project modules in sidebar (was missing, caused `canTag("site")` to fail).
+- **Migration 0024**: set `active_fe` field's `perm_tag = 'site:write'` → hidden from FO and other read-only roles.
+- **SiteDetailPage**: Fields section rendered read-only (no inputs, no Save button) when `site:write=false`.
+- **SiteFEAssignmentSection**: gated on `canSiteWrite` (replaced hardcoded `isOpsL1Only`).
+- **`fieldVisible()` in siteDetailHelpers**: supports `:write` suffix on perm_tag for write-level gating.
+- All FO/read-only logic is now data-driven from tags + `ui_fields.perm_tag`; no `is_fo` hardcoding.
+
+### Sessions 8–10 — Transactions + People page overhaul
+
+**ExecutionDateModal shared component**
+- New `frontend/src/components/ui/ExecutionDateModal.tsx`: shared modal for execution/refund date confirmation.
+- Uses `createPortal(document.body)` directly with `position: fixed; z-index: 9999/10000`. Accepts `title` prop (default "Set Execution Date"). Resets date to today on each open.
+
+**TransactionsPage overhaul**
+- Removed header block and ID column.
+- Added RECIPIENT column (from backend `recipient_label` via raw SQL LEFT JOIN schema_hr.users).
+- Added TYPE column (`type_label` from badge label).
+- Column order: RECIPIENT, PROJECT, SITE, TYPE, AMOUNT, STATUS.
+- AMOUNT: right-aligned with ₹ prefix + `en-IN` locale formatting.
+- STATUS: `BadgeDropdown` with `txStatusLabel` display; Cancel button inline.
+- Conditional execution date modal: `b_sur`/`e_sur` → immediate PATCH, `fe_pay` → "Execution Date" modal, `ref` → "Refund Date" modal.
+
+**txStatusLabel — type-aware status display**
+- `siteDetailHelpers.ts`: `txStatusLabel(typeKey, statusKey, rawLabel)` — applies only to STATUS badge display:
+  - `b_sur`/`e_sur` + `exct` → "Approved"
+  - `ref` + `exct` → "Received"
+  - All other cases: raw label unchanged.
+- Used on TransactionsPage and SiteTransactionCard.
+
+**Transaction type filter**
+- Backend `GET /projects/{key}/transaction-types` excludes `sal` and `oth` badge keys.
+- Used by SiteFEAssignmentSection Request Transaction modal.
+
+**Site detail portal modals**
+- Add Update, Add Ticket, Request Transaction all converted to `createPortal(document.body)` pattern.
+- Matches the established portal pattern (fixed inset backdrop z-9999, fixed centered card z-10000).
+
+**Add Project, Add Site, Add Subproject portals**
+- `ProjectsPage.tsx`, `SiteListPage.tsx`: Add modals converted to portal pattern.
+
+**People page cleanup**
+- Removed header block.
+- Gate changed from `tags.user?.write` → `tags.people?.write`.
+- Add User: top-right button, portal modal.
+
+**Type label revert**
+- `TX_TYPE_LABEL_OVERRIDES` and `txTypeLabel` fully removed.
+- TYPE column shows raw badge labels. Only STATUS gets overrides via `txStatusLabel`.
 
 ---
 
@@ -232,12 +342,14 @@
 
 - FastAPI app/router structure: `auth`, `badges`, `billing`, `dashboard`, `media`, `projects`, `reports`, `sites`, `states`, `tickets`, `transactions`, `updates`, `users`
 - Backend stays Python 3.9-compatible. Use `Optional[...]`, not `X | None`.
-- Migrations through `20260320_0010`.
+- Migrations through `20260321_0024`.
 
 ### Permission system
-- `ROLE_ACTION_RULES` in `backend/app/api/auth.py` defines tag-level access per dept (hardcoded).
+- `schema_core.tags` + `schema_core.role_tags` replace old `permission_tags` table (migration 0021).
+- `_load_user_context` in `auth.py` queries `role_tags JOIN tags`; interface unchanged.
 - `check_field_write_scope` queries `schema_core.field_permissions` (field_key, dept_key rows). `mgmt` users bypass.
-- Known seeded tags: `acc_update`, `assign_role`, `billing`, `doc_badge`, `field`, `people`, `project`, `rate`, `request`, `role`, `site`, `subproject`, `ticket`, `transaction`, `update`, `user`.
+- Active tags (14): `billing`, `doc_badge`, `field`, `people`, `project`, `rate`, `request`, `role`, `site`, `subproject`, `ticket`, `transaction`, `update`, `acc_update`.
+- `fieldVisible(field, tags)` in `siteDetailHelpers.ts`: null perm_tag → always visible; `'billing'` → check tags.billing?.read; `'site:write'` → check tags.site?.write.
 
 ### Cost calculation (`backend/app/config/calculator.py`)
 - `JOB_BUCKETS`: `bmi→[mi]`, `bmdv→[mdv]`, `bmd→[md]`, `bma→[ma]`, `bmc→[mpaint,mnbr,ep,ec,arr]`
@@ -262,18 +374,20 @@
 ## Frontend implemented
 
 - `frontend/src/components/ui/BadgeDropdown.tsx` — `BadgeChip` + `BadgeDropdown` (portal-based, chip-as-trigger)
-- `frontend/src/components/ui/DataTable.tsx`, `FieldRenderer.tsx`, `AddForm.tsx`, `BulkTable.tsx`, `FilterBar.tsx`
+- `frontend/src/components/ui/DataTable.tsx` — grid-based table; `Column` type has `align`, `minWidth`, `render`; auto-generates `minmax()` gridTemplateColumns; container gets computed min-width for horizontal scroll
+- `frontend/src/components/ui/ExecutionDateModal.tsx` — shared execution/refund date portal modal; `title` prop; resets to today on open
+- `frontend/src/components/ui/FieldRenderer.tsx`, `AddForm.tsx`, `BulkTable.tsx`, `FilterBar.tsx`
 - `frontend/src/hooks/useListPage.ts`
 - `frontend/src/lib/squircle.ts` — squircle path generator
 - `frontend/src/config/` — now only `dashboard.ts`, `people.ts`, `index.ts`
-- Site list page: reads ALL metadata from API.
-- Site detail page: all ui_fields, badge transitions, save button, updates, tickets, FE assignment (non-BB), Provider panel (BB), transactions
-- Transactions page: unified BadgeDropdown per row; cancel=requestWrite, exct/rej=transactionWrite; cancelled rows greyed out
+- Site list page: reads ALL metadata from API; column min-widths set from field type.
+- Site detail page: extracted into `SiteDetailPage.tsx` (286 lines) + `SiteTransactionCard`, `SiteUpdatesSection`, `SiteTicketsSection`, `SiteFEAssignmentSection`, `siteDetailTypes.ts`, `siteDetailHelpers.ts`. Fields read-only when site:write=false.
+- Transactions page: RECIPIENT/PROJECT/SITE/TYPE/AMOUNT/STATUS columns; BadgeDropdown per row; `txStatusLabel` for status display; conditional exec-date modal; Cancel inline; per-column min-widths.
 - Rate Card page: native table-fixed, Add Rate modal
 - Ticket list page + detail page
 - Sidebar: dept+level-gated visibility, pill-style nav items, subproject batch pills (right-aligned), counts poll every 60s
 - Dashboard: choropleth map, date filter, role-scoped summary
-- People page: rowspan groups, hover highlight by user, available roles endpoint for assignment
+- People page: rowspan groups, hover highlight by user, available roles endpoint for assignment; portal Add User modal
 - Squircle: all `.glass-panel` elements get dynamic `clip-path: path(...)` via ResizeObserver + MutationObserver in `App.tsx`
 - `docs/ARCAD_Permission_Model.docx` — permission reference document
 
@@ -286,8 +400,12 @@
   - job_key is the display/API key (j-prefixed)
 - `schema_core.job_buckets`: id, key, label (bmi→MI, bma→MA, bmc→MC, bmdv→Visit, bmd→Dismantle)
 - `schema_core.projects`: id, key, label, active, recurring, **supports_subprojects**
+- `schema_core.tags`: id, key, label, active — tag registry (14 rows; replaces deprecated permission_tags)
+- `schema_core.role_tags`: id, role_id FK, tag_id FK, read BOOL, write BOOL — UNIQUE(role_id, tag_id)
 - `schema_core.field_permissions`: id, field_key, dept_key (31 rows including provider_id/ops)
-- `schema_{key}.ui_fields` (mi/md/ma/mc/bb): id, label, tag, list_view, type, form_view, bulk_view, section
+- `schema_{key}.ui_fields` (mi/md/ma/mc/bb): id, label, tag, list_view, type, form_view, bulk_view, section, **perm_tag**
+  - `perm_tag` null → always visible; `'billing'` → billing read gate; `'doc_badge'` → doc_badge read gate; `'site:write'` → site write gate
+- `schema_{key}.sites` (all projects): added **active_fe VARCHAR(256)** — denormalized label of currently active FE; updated by assign/remove logic
 - `schema_acc.transactions`: no `deleted_at`/`deleted_by` (dropped in 0017). Cancellation is a status transition (status_id=cancel badge).
 - `schema_acc.badge_transitions`: req→rej, req→exct only (cancel removed in 0017)
 - `schema_bb.providers`: id, label — seeded with GTPL, Railwire, Airtel, Jio
