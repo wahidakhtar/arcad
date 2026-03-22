@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import BadgeDropdown from "../../components/ui/BadgeDropdown"
 import type { BadgeOption } from "../../components/ui/BadgeDropdown"
 import DataTable from "../../components/ui/DataTable"
+import ExecutionDateModal from "../../components/ui/ExecutionDateModal"
 import Modal from "../../components/ui/Modal"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
@@ -12,6 +13,7 @@ type TxRaw = {
   project_id: number
   site_id: number | null
   recipient_id: number | null
+  recipient_label: string | null
   bucket_key: string | null
   type_id: number
   amount: number | string
@@ -50,6 +52,7 @@ type TransitionEntry = {
 
 type TxRow = {
   id: number
+  recipient_label: string
   project_label: string
   ckt_id: string
   amount: number | string
@@ -64,10 +67,7 @@ type ExecModal = {
   transaction_id: number
   to_id: number
   version: number
-  execution_date: string
 }
-
-const TODAY = new Date().toISOString().slice(0, 10)
 
 export default function TransactionsPage() {
   const { tags } = useAuth()
@@ -81,7 +81,7 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [transitionError, setTransitionError] = useState("")
-  const [execModal, setExecModal] = useState<ExecModal>({ open: false, transaction_id: 0, to_id: 0, version: 0, execution_date: TODAY })
+  const [execModal, setExecModal] = useState<ExecModal>({ open: false, transaction_id: 0, to_id: 0, version: 0 })
   const [transitioning, setTransitioning] = useState<number | null>(null)
   const [confirmCancel, setConfirmCancel] = useState<{ open: boolean; txId: number; version: number }>({ open: false, txId: 0, version: 0 })
   const [cancelError, setCancelError] = useState("")
@@ -136,6 +136,7 @@ export default function TransactionsPage() {
         const badge = badgeById.get(tx.status_id)
         return {
           id: tx.id,
+          recipient_label: tx.recipient_label ?? "-",
           project_label: proj?.label ?? String(tx.project_id),
           ckt_id: siteMap.get(cktKey) ?? (tx.site_id ? String(tx.site_id) : "-"),
           amount: tx.amount,
@@ -210,44 +211,20 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/42">Transactions</p>
-        <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">Requested, executed, cancelled, and rejected finance flow</h1>
-      </div>
-
       {transitionError ? (
         <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{transitionError}</p>
       ) : null}
 
-      <Modal
+      <ExecutionDateModal
         open={execModal.open}
-        title="Set Execution Date"
+        submitting={transitioning === execModal.transaction_id}
+        onConfirm={(date) => {
+          const { transaction_id, to_id, version } = execModal
+          setExecModal((m) => ({ ...m, open: false }))
+          void applyTransition(transaction_id, to_id, version, date)
+        }}
         onClose={() => setExecModal((m) => ({ ...m, open: false }))}
-      >
-        <div className="space-y-4">
-          <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Execution Date</span>
-            <input
-              type="date"
-              value={execModal.execution_date}
-              onChange={(e) => setExecModal((m) => ({ ...m, execution_date: e.target.value }))}
-              className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
-            />
-          </label>
-          <button
-            type="button"
-            className="premium-button w-full"
-            disabled={transitioning === execModal.transaction_id}
-            onClick={() => {
-              const { transaction_id, to_id, version, execution_date } = execModal
-              setExecModal((m) => ({ ...m, open: false }))
-              void applyTransition(transaction_id, to_id, version, execution_date)
-            }}
-          >
-            Confirm Execution
-          </button>
-        </div>
-      </Modal>
+      />
 
       <Modal
         open={confirmCancel.open}
@@ -278,10 +255,16 @@ export default function TransactionsPage() {
 
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
+          { key: "recipient_label", label: "Recipient" },
           { key: "project_label", label: "Project" },
           { key: "ckt_id", label: "Site" },
-          { key: "amount", label: "Amount" },
+          {
+            key: "amount",
+            label: "Amount",
+            render: (value) => (
+              <div className="text-right">₹ {Number(value).toLocaleString("en-IN")}</div>
+            ),
+          },
           {
             key: "status_label",
             label: "Status",
@@ -304,7 +287,7 @@ export default function TransactionsPage() {
               function handleSelect(toId: number) {
                 const entry = badgeById.get(toId)
                 if (entry?.key === "exct") {
-                  setExecModal({ open: true, transaction_id: txRow.id, to_id: toId, version: txRow.version, execution_date: TODAY })
+                  setExecModal({ open: true, transaction_id: txRow.id, to_id: toId, version: txRow.version })
                 } else {
                   void applyTransition(txRow.id, toId, txRow.version)
                 }

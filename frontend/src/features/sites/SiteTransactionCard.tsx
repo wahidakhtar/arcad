@@ -1,8 +1,8 @@
 import { useState } from "react"
 import BadgeDropdown, { type BadgeOption } from "../../components/ui/BadgeDropdown"
+import ExecutionDateModal from "../../components/ui/ExecutionDateModal"
 import { api } from "../../lib/api"
 import type { Badge, TransactionRow, TransitionRow } from "./siteDetailTypes"
-import { TODAY } from "./siteDetailHelpers"
 
 export default function SiteTransactionCard({
   row,
@@ -22,8 +22,7 @@ export default function SiteTransactionCard({
   onUpdate: () => Promise<void>
 }) {
   const [updating, setUpdating] = useState(false)
-  const [showExecInput, setShowExecInput] = useState(false)
-  const [execDate, setExecDate] = useState(TODAY)
+  const [showExecModal, setShowExecModal] = useState(false)
   const [pendingExctId, setPendingExctId] = useState<number | null>(null)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [pendingCancelId, setPendingCancelId] = useState<number | null>(null)
@@ -68,7 +67,7 @@ export default function SiteTransactionCard({
     const badge = badges.get(toId)
     if (badge?.key === "exct") {
       setPendingExctId(toId)
-      setShowExecInput(true)
+      setShowExecModal(true)
     } else {
       void handleTransition(toId)
     }
@@ -76,6 +75,16 @@ export default function SiteTransactionCard({
 
   return (
     <div className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
+      <ExecutionDateModal
+        open={showExecModal}
+        submitting={updating}
+        onConfirm={(date) => {
+          setShowExecModal(false)
+          if (pendingExctId !== null) void handleTransition(pendingExctId, date)
+        }}
+        onClose={() => setShowExecModal(false)}
+      />
+
       {err ? <p className="mb-2 text-xs text-red-600">{err}</p> : null}
 
       {showCancelConfirm ? (
@@ -130,29 +139,6 @@ export default function SiteTransactionCard({
             </div>
           </div>
 
-          {showExecInput ? (
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <input
-                type="date"
-                value={execDate}
-                onChange={(e) => setExecDate(e.target.value)}
-                className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-2 text-sm outline-none"
-              />
-              <button
-                type="button"
-                className="premium-button"
-                disabled={updating}
-                onClick={() => {
-                  if (pendingExctId === null) return
-                  setShowExecInput(false)
-                  void handleTransition(pendingExctId, execDate)
-                }}
-              >
-                Confirm Execution
-              </button>
-              <button type="button" className="premium-button-secondary" onClick={() => setShowExecInput(false)}>Back</button>
-            </div>
-          ) : null}
         </>
       )}
     </div>

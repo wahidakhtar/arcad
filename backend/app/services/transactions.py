@@ -63,16 +63,32 @@ def list_transactions(db: Session, user: UserContext) -> list[dict]:
     if _is_ops_l1_only(user):
         return []
 
-    query = select(Transaction).order_by(Transaction.request_date.desc())
+    conditions = ["1=1"]
+    params: dict = {}
 
     if user.is_fo:
-        query = query.where(Transaction.recipient_id == user.user_id)
+        conditions.append("t.recipient_id = :user_id")
+        params["user_id"] = user.user_id
     else:
         project_ids = user_project_ids(user)
         if project_ids is not None:
-            query = query.where(Transaction.project_id.in_(project_ids))
+            conditions.append("t.project_id = ANY(:project_ids)")
+            params["project_ids"] = project_ids
 
-    return [_tx_to_dict(tx) for tx in db.execute(query).scalars().all()]
+    where_clause = " AND ".join(conditions)
+    rows = db.execute(
+        text(f"""
+            SELECT t.id, t.request_date, t.recipient_id, t.type_id, t.project_id,
+                   t.site_id, t.bucket_key, t.amount, t.status_id, t.execution_date,
+                   t.remarks, t.version, u.label AS recipient_label
+            FROM schema_acc.transactions t
+            LEFT JOIN schema_hr.users u ON u.id = t.recipient_id
+            WHERE {where_clause}
+            ORDER BY t.request_date DESC
+        """),
+        params,
+    ).mappings().all()
+    return [dict(row) for row in rows]
 
 
 def create_transaction(db: Session, payload: TransactionCreate) -> Transaction:
