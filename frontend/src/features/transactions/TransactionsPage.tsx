@@ -261,8 +261,7 @@ export default function TransactionsPage() {
         </div>
       </Modal>
 
-      <div className="glass-panel overflow-x-auto border-0 bg-transparent backdrop-blur-none [filter:none]">
-        <DataTable
+      <DataTable
           columns={[
             { key: "recipient_label", label: "Recipient", minWidth: 120 },
             { key: "project_label", label: "Project", minWidth: 120 },
@@ -337,7 +336,6 @@ export default function TransactionsPage() {
         ]}
           rows={rows as unknown as Record<string, unknown>[]}
         />
-      </div>
     </div>
   )
 }

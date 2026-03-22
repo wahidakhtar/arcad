@@ -18,8 +18,7 @@ export default function InvoicesPage() {
   return (
     <div className="space-y-6">
       <FilterBar filters={[]} onFilterChange={() => {}} />
-      <div className="glass-panel overflow-x-auto border-0 bg-transparent backdrop-blur-none [filter:none]">
-        <DataTable
+      <DataTable
           columns={[
             { key: "po_id", label: "PO ID" },
             { key: "invoice_no", label: "Invoice Number" },
@@ -29,7 +28,6 @@ export default function InvoicesPage() {
           ]}
           rows={data ?? []}
         />
-      </div>
     </div>
   )
 }

@@ -18,8 +18,7 @@ export default function POsPage() {
   return (
     <div className="space-y-6">
       <FilterBar filters={[]} onFilterChange={() => {}} />
-      <div className="glass-panel overflow-x-auto border-0 bg-transparent backdrop-blur-none [filter:none]">
-        <DataTable
+      <DataTable
           columns={[
             { key: "project_id", label: "Project" },
             { key: "entity_id", label: "Entity ID" },
@@ -29,7 +28,6 @@ export default function POsPage() {
           ]}
           rows={data ?? []}
         />
-      </div>
     </div>
   )
 }

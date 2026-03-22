@@ -118,8 +118,7 @@ export default function TicketsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="glass-panel overflow-x-auto border-0 bg-transparent backdrop-blur-none [filter:none]">
-        <DataTable
+      <DataTable
           columns={[
             {
               key: "ticket_ref",
@@ -152,7 +151,6 @@ export default function TicketsPage() {
           ]}
           rows={rows}
         />
-      </div>
     </div>
   )
 }

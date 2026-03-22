@@ -214,17 +214,15 @@ export default function SiteListPage() {
         </div>
       </div>
 
-      <div className="glass-panel overflow-x-auto border-0 bg-transparent backdrop-blur-none [filter:none]">
-        {loading && !siteData ? (
-          <div className="py-8 text-center text-sm text-jscolors-text/50">Loading sites...</div>
-        ) : (
-          <DataTable
-            columns={columns}
-            rows={filtered}
-            rowHref={(row) => `/projects/${projectKey}/site/${row.id}`}
-          />
-        )}
-      </div>
+      {loading && !siteData ? (
+        <div className="py-8 text-center text-sm text-jscolors-text/50">Loading sites...</div>
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={filtered}
+          rowHref={(row) => `/projects/${projectKey}/site/${row.id}`}
+        />
+      )}
 
       {openAddModal && createPortal(
         <div

@@ -154,7 +154,6 @@ export default function PeoplePage() {
         </div>
       )}
 
-      <div className="glass-panel border-0 bg-transparent backdrop-blur-none [filter:none]">
       <div className="overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
         <table className="min-w-full border-collapse">
           <thead>
@@ -199,7 +198,6 @@ export default function PeoplePage() {
             )}
           </tbody>
         </table>
-      </div>
       </div>
 
     </div>
