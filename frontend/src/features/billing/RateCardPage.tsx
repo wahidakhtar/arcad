@@ -114,7 +114,7 @@ export default function RateCardPage() {
         </form>
       </Modal>
 
-      <div className="overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
+      <div className="glass-panel overflow-x-auto bg-white border border-jscolors-crimson/10 backdrop-blur-none">
         <table className="min-w-full border-collapse table-fixed">
           <colgroup>
             <col className="w-1/2" />

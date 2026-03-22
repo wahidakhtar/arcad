@@ -200,9 +200,6 @@ export default function PeoplePage() {
         </table>
       </div>
 
-      <Link to="/dashboard" className="premium-button-secondary">
-        Back to Dashboard
-      </Link>
     </div>
   )
 }
