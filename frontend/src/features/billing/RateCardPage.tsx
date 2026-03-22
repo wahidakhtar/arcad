@@ -56,8 +56,8 @@ export default function RateCardPage() {
       .finally(() => setSubmitting(false))
   }
 
-  if (loading) return <div className="glass-panel p-6">Loading rate card...</div>
-  if (error) return <div className="glass-panel p-6 text-red-700">{error}</div>
+  if (loading) return <div className="p-6 text-jscolors-text/50">Loading rate card...</div>
+  if (error) return <div className="p-6 text-red-600">{error}</div>
 
   const rows = data ?? []
 

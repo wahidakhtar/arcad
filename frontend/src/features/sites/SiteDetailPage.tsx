@@ -124,9 +124,9 @@ export default function SiteDetailPage() {
     [project?.id, users],
   )
 
-  if (loading) return <div className="glass-panel p-6">Loading site details...</div>
-  if (!site) return <div className="glass-panel p-6">Site not found.</div>
-  if (error) return <div className="glass-panel p-6 text-red-700">{error}</div>
+  if (loading) return <div className="p-6 text-jscolors-text/50">Loading site details...</div>
+  if (!site) return <div className="p-6 text-jscolors-text/50">Site not found.</div>
+  if (error) return <div className="p-6 text-red-600">{error}</div>
 
   const currentSite = site
   const canSiteWrite = tags.site?.write === true

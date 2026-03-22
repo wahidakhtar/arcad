@@ -110,7 +110,7 @@ export default function UserDetailPage() {
   }
 
   if (!user) {
-    return <div className="glass-panel p-6">User not found.</div>
+    return <div className="p-6 text-jscolors-text/50">User not found.</div>
   }
 
   return (

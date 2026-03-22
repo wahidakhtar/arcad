@@ -91,8 +91,8 @@ export default function PeoplePage() {
     })
   }, [badgeLabels.department, badgeLabels.level, projectMap, data])
 
-  if (loading) return <div className="glass-panel p-6">Loading people...</div>
-  if (loadError) return <div className="glass-panel p-6 text-red-700">{loadError}</div>
+  if (loading) return <div className="p-6 text-jscolors-text/50">Loading people...</div>
+  if (loadError) return <div className="p-6 text-red-600">{loadError}</div>
 
   return (
     <div className="space-y-6">

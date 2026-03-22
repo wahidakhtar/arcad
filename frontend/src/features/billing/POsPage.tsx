@@ -8,11 +8,11 @@ export default function POsPage() {
   })
 
   if (loading) {
-    return <div className="glass-panel p-6">Loading purchase orders...</div>
+    return <div className="p-6 text-jscolors-text/50">Loading purchase orders...</div>
   }
 
   if (error) {
-    return <div className="glass-panel p-6 text-red-700">{error}</div>
+    return <div className="p-6 text-red-600">{error}</div>
   }
 
   return (

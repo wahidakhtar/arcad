@@ -53,10 +53,13 @@ export default function App() {
   useEffect(() => {
     const RADIUS = 44
 
+    const squircled = new Set<Element>()
+
     function apply(el: Element) {
       const { width, height } = el.getBoundingClientRect()
       if (width > 0 && height > 0) {
         ;(el as HTMLElement).style.clipPath = `path('${squirclePath(width, height, RADIUS)}')`
+        squircled.add(el)
       }
     }
 
@@ -67,6 +70,13 @@ export default function App() {
     const observed = new WeakSet<Element>()
 
     function scan() {
+      // Clear stale clip-paths from elements that lost the glass-panel class (e.g. React DOM reuse)
+      squircled.forEach((el) => {
+        if (!el.isConnected || !el.classList.contains("glass-panel") || el.classList.contains("no-squircle")) {
+          ;(el as HTMLElement).style.clipPath = ""
+          squircled.delete(el)
+        }
+      })
       document.querySelectorAll(".glass-panel:not(.no-squircle)").forEach((el) => {
         if (!observed.has(el)) {
           observed.add(el)
@@ -77,7 +87,7 @@ export default function App() {
     }
 
     const mo = new MutationObserver(scan)
-    mo.observe(document.body, { childList: true, subtree: true })
+    mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] })
     scan()
 
     return () => {

@@ -78,9 +78,9 @@ export default function TicketDetailPage() {
     }
   }
 
-  if (loading) return <div className="glass-panel p-6">Loading ticket...</div>
-  if (error) return <div className="glass-panel p-6 text-red-700">{error}</div>
-  if (!ticket) return <div className="glass-panel p-6">Ticket not found.</div>
+  if (loading) return <div className="p-6 text-jscolors-text/50">Loading ticket...</div>
+  if (error) return <div className="p-6 text-red-600">{error}</div>
+  if (!ticket) return <div className="p-6 text-jscolors-text/50">Ticket not found.</div>
 
   const isOpen = !ticket.closing_date
 
