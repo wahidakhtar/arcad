@@ -7,6 +7,7 @@ import ExecutionDateModal from "../../components/ui/ExecutionDateModal"
 import Modal from "../../components/ui/Modal"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
+import { txStatusLabel } from "../../features/sites/siteDetailHelpers"
 
 type TxRaw = {
   id: number
@@ -56,6 +57,7 @@ type TxRow = {
   project_label: string
   ckt_id: string
   amount: number | string
+  type_key: string
   status_id: number
   status_key: string
   status_label: string
@@ -67,6 +69,7 @@ type ExecModal = {
   transaction_id: number
   to_id: number
   version: number
+  title: string
 }
 
 export default function TransactionsPage() {
@@ -81,7 +84,7 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [transitionError, setTransitionError] = useState("")
-  const [execModal, setExecModal] = useState<ExecModal>({ open: false, transaction_id: 0, to_id: 0, version: 0 })
+  const [execModal, setExecModal] = useState<ExecModal>({ open: false, transaction_id: 0, to_id: 0, version: 0, title: "Set Execution Date" })
   const [transitioning, setTransitioning] = useState<number | null>(null)
   const [confirmCancel, setConfirmCancel] = useState<{ open: boolean; txId: number; version: number }>({ open: false, txId: 0, version: 0 })
   const [cancelError, setCancelError] = useState("")
@@ -134,12 +137,14 @@ export default function TransactionsPage() {
         const proj = projectById.get(tx.project_id)
         const cktKey = proj && tx.site_id ? `${proj.key}:${tx.site_id}` : ""
         const badge = badgeById.get(tx.status_id)
+        const typeBadge = badgeById.get(tx.type_id)
         return {
           id: tx.id,
           recipient_label: tx.recipient_label ?? "-",
           project_label: proj?.label ?? String(tx.project_id),
           ckt_id: siteMap.get(cktKey) ?? (tx.site_id ? String(tx.site_id) : "-"),
           amount: tx.amount,
+          type_key: typeBadge?.key ?? "",
           status_id: tx.status_id,
           status_key: badge?.key ?? "",
           status_label: badge?.label ?? String(tx.status_id),
@@ -217,6 +222,7 @@ export default function TransactionsPage() {
 
       <ExecutionDateModal
         open={execModal.open}
+        title={execModal.title}
         submitting={transitioning === execModal.transaction_id}
         onConfirm={(date) => {
           const { transaction_id, to_id, version } = execModal
@@ -274,21 +280,28 @@ export default function TransactionsPage() {
               const isReq = txRow.status_key === "req"
               const badgeById = new Map(allBadges.map((b) => [b.id, b]))
               const currentBadgeEntry = badgeById.get(txRow.status_id)
-              const currentBadge = { label: txRow.status_label, color: currentBadgeEntry?.color ?? null }
+              const displayLabel = txStatusLabel(txRow.type_key, txRow.status_key, txRow.status_label)
+              const currentBadge = { label: displayLabel, color: currentBadgeEntry?.color ?? null }
 
               // Dropdown options sourced exclusively from badge_transitions (req→exct, req→rej only)
               const options: BadgeOption[] = []
               if (isReq && canTransactionWrite) {
                 for (const t of transitions.filter((tr) => tr.from_id === txRow.status_id)) {
                   const badgeEntry = badgeById.get(t.to_id)
-                  options.push({ id: t.to_id, label: t.to_label, color: badgeEntry?.color ?? null })
+                  const optLabel = t.to_key === "exct" ? txStatusLabel(txRow.type_key, "exct", t.to_label) : t.to_label
+                  options.push({ id: t.to_id, label: optLabel, color: badgeEntry?.color ?? null })
                 }
               }
 
               function handleSelect(toId: number) {
                 const entry = badgeById.get(toId)
                 if (entry?.key === "exct") {
-                  setExecModal({ open: true, transaction_id: txRow.id, to_id: toId, version: txRow.version })
+                  if (txRow.type_key === "b_sur" || txRow.type_key === "e_sur") {
+                    void applyTransition(txRow.id, toId, txRow.version)
+                  } else {
+                    const modalTitle = txRow.type_key === "ref" ? "Refund Date" : "Execution Date"
+                    setExecModal({ open: true, transaction_id: txRow.id, to_id: toId, version: txRow.version, title: modalTitle })
+                  }
                 } else {
                   void applyTransition(txRow.id, toId, txRow.version)
                 }

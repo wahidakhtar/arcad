@@ -12,11 +12,13 @@ const TODAY = new Date().toISOString().slice(0, 10)
  */
 export default function ExecutionDateModal({
   open,
+  title = "Set Execution Date",
   submitting,
   onConfirm,
   onClose,
 }: {
   open: boolean
+  title?: string
   submitting: boolean
   onConfirm: (date: string) => void
   onClose: () => void
@@ -40,7 +42,7 @@ export default function ExecutionDateModal({
         className="glass-panel w-full max-w-md p-6"
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-syne text-2xl font-semibold text-jscolors-crimson">Set Execution Date</h2>
+          <h2 className="font-syne text-2xl font-semibold text-jscolors-crimson">{title}</h2>
           <button type="button" onClick={onClose} className="premium-button-secondary">
             Close
           </button>

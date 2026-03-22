@@ -272,7 +272,7 @@ def list_bb_providers(db: Session, user: UserContext) -> list[dict]:
     return [{"id": p.id, "label": p.label} for p in providers]
 
 
-_EXCLUDED_TX_TYPE_KEYS = {"salary", "other"}
+_EXCLUDED_TX_TYPE_KEYS = {"sal", "oth"}
 
 
 def list_transaction_types(db: Session, user: UserContext) -> list[dict]:
