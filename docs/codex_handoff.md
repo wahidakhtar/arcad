@@ -7,13 +7,57 @@
   - `/Users/wahidakhtar/software/backend/venv/bin/python3.9 -m compileall /Users/wahidakhtar/software/backend/app /Users/wahidakhtar/software/backend/migrations`
   - `npm run build` in `/Users/wahidakhtar/software/frontend`
   - `/Users/wahidakhtar/software/backend/venv/bin/alembic upgrade head`
-- Latest git push: `46ab6cd` (2026-03-22). Both backend and frontend auto-deploy on push to main.
+- Latest git push: `c09a327` (2026-03-22). Both backend and frontend auto-deploy on push to main.
 - Railway DB: `autorack.proxy.rlwy.net:33504`, alembic version `20260321_0024`.
 - Local DB may be behind Railway — re-sync before next session if needed.
 
 ---
 
-## What was done today (2026-03-22)
+## What was done today (2026-03-22, session 2) — frontend visual fixes
+
+### Fix 1 — Squircle clip-path persisting on page content wrappers (root cause fix)
+- **Root cause**: React reuses the same DOM node when a page transitions from its loading state (`<div className="glass-panel p-6">Loading...</div>`) to its loaded state (`<div className="space-y-6">...</div>`). React updates `className` but leaves `style.clipPath` set by the observer intact. The content wrapper ends up squircle-clipped, cutting off Add buttons at top-right corner and table corners.
+- **Fix 1**: Removed `glass-panel` from all loading/error/not-found early-return states across 10 page files (RateCardPage, InvoicesPage, POsPage, TicketsPage, TicketDetailPage, PeoplePage, UserDetailPage, SiteListPage, SiteDetailPage, TransactionsPage). These now use plain `p-6 text-jscolors-text/50` / `p-6 text-red-600`.
+- **Fix 2**: Observer in `App.tsx` now tracks squircled elements in a `Set<Element>`. On each scan, clears `style.clipPath` from any element that is no longer connected or has lost the `glass-panel`/`squircle` class. MutationObserver also watches `attributeFilter: ["class"]` to catch React className swaps immediately.
+
+### Fix 2 — Layout panels removed from glass-panel / squircle observer
+- `<main>` and `<aside>` in `PageLayout.tsx`/`Sidebar.tsx` no longer use the `glass-panel` class. Styles applied directly: `border border-white/50 bg-white backdrop-blur-xl` (sidebar) and `border border-white/50 bg-white` (main), with `box-shadow` inline (not `filter: drop-shadow`). Observer never targets them.
+- `<main>`: no `overflow-hidden` — without squircle clip-path, CSS `overflow-hidden + border-radius` would clip table corners and buttons. Content bounded by inner `overflow-y-auto` scroll div.
+- `<main>`: no `backdrop-blur-xl` — useless with opaque `bg-white`; removing it eliminates an unwanted stacking context.
+- `<aside>`: `rounded-[36px]` with `overflow-hidden` (sidebar content should clip to sidebar shape).
+
+### Fix 3 — `.squircle` marker class
+- New `.squircle {}` CSS class in `index.css` (no visual styles — marker only).
+- Observer selector extended: `.glass-panel:not(.no-squircle), .squircle`.
+- Allows any element to opt into squircle clip-path without inheriting glass-panel visual styles (border, bg, backdrop-blur, drop-shadow).
+
+### Fix 4 — Logo pill squircle with correct border
+- Logo img replaced with a wrapper div (`.squircle h-20 w-full bg-jscolors-gold/30 p-px`) + inner `<img>` (`h-full w-full bg-white object-contain p-2`).
+- The 1px padding gap shows the gold background as a border that follows the squircle curve — CSS `border` on a clip-path element only shows on straight edges and disappears at corners.
+- `filter: drop-shadow(0 8px 24px rgba(139,26,26,0.14))` on wrapper provides the glow (renders around squircle after clipping; box-shadow would be clipped).
+
+### Fix 5 — People page sort order
+- Sort: active users first, then by dept_key order `["mgmt", "ops", "acc", "hr", "fo"]` (previously alphabetical).
+- Uses `deptOrder.indexOf(dept_key)` for comparison; unknown depts sort last (999).
+
+### Fix 6 — People and Tickets pages: fully clickable rows
+- People page: name cell no longer needs explicit click — entire table row navigates to user detail.
+- Tickets page: `rowHref` on DataTable makes entire row link to ticket detail; no separate navigate button.
+- Department cell merged with `rowSpan` like name cell (one cell spans all roles for a user).
+- Modal portals: Add User and Add Rate converted to `createPortal(document.body)` to escape `backdrop-filter` containing block on `<main>`.
+
+### Fix 7 — Copyright footer position
+- Footer: `bottom-1` (4px from viewport bottom), `fixed` positioned over layout.
+
+### Fix 8 — One-off project pages
+- Non-recurring projects (HSD Tank, RBI CCTV) now clickable on ProjectsPage; route `/projects/:projectKey/overview` renders `OneOffProjectPage` placeholder.
+
+### Fix 9 — DataTable headers always visible
+- Header row: `hidden md:grid` → `grid` (always shown). Per-cell fallback labels: `md:hidden` → `hidden` (always hidden since header always shows).
+
+---
+
+## What was done today (2026-03-22, session 1)
 
 ### Fix 1 — DataTable header/cell alignment
 - Header row used `gap-4` between columns; data rows used `gap-3` — caused x-offset between labels and values.
@@ -388,7 +432,11 @@
 - Sidebar: dept+level-gated visibility, pill-style nav items, subproject batch pills (right-aligned), counts poll every 60s
 - Dashboard: choropleth map, date filter, role-scoped summary
 - People page: rowspan groups, hover highlight by user, available roles endpoint for assignment; portal Add User modal
-- Squircle: all `.glass-panel` elements get dynamic `clip-path: path(...)` via ResizeObserver + MutationObserver in `App.tsx`
+- Squircle system (`App.tsx`): ResizeObserver + MutationObserver applies `clip-path: path(squirclePath(w,h,44))` to `.glass-panel:not(.no-squircle)` and `.squircle` elements. Tracks squircled elements in a `Set`; clears stale clip-paths when element loses the class (prevents React DOM-reuse bug). Watches `attributeFilter: ["class"]` to detect className swaps.
+- `.squircle` marker class (`index.css`): no visual styles; opts element into squircle clip-path without glass-panel appearance. Used for logo pill wrapper.
+- Layout panels (`PageLayout.tsx`, `Sidebar.tsx`): `<main>` and `<aside>` do NOT use `glass-panel` class — styles applied directly so observer never targets them. `<main>`: no `overflow-hidden` (prevents corner clipping of tables/buttons), no `backdrop-blur-xl` (useless with opaque bg-white). `<aside>`: `rounded-[36px] overflow-hidden`.
+- Logo pill: squircle wrapper div with `bg-jscolors-gold/30 p-px` creates a 1px gold border following the squircle curve; inner img has `bg-white object-contain`. `filter: drop-shadow` for glow (box-shadow is clipped by clip-path).
+- Loading/error states: all pages use plain `p-6 text-jscolors-text/50` / `p-6 text-red-600` (no `glass-panel`) to prevent stale clip-path via React DOM node reuse.
 - `docs/ARCAD_Permission_Model.docx` — permission reference document
 
 ---
