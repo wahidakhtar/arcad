@@ -122,39 +122,41 @@ export default function TicketsPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/42">Tickets</p>
         <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">Ticket queue across projects</h1>
       </div>
-      <DataTable
-        columns={[
-          {
-            key: "ticket_ref",
-            label: "Ticket Number",
-            render: (_value, row) => (
-              <button
-                type="button"
-                className="text-jscolors-crimson underline-offset-2 hover:underline text-sm"
-                onClick={() => navigate(`/tickets/${(row as unknown as TicketRow).id}`)}
-              >
-                {(row as unknown as TicketRow).ticket_ref}
-              </button>
-            ),
-          },
-          { key: "project_label", label: "Project" },
-          { key: "ckt_id", label: "Site" },
-          { key: "ticket_date", label: "Date" },
-          {
-            key: "status",
-            label: "Status",
-            render: (_value, row) => {
-              const status = (row as unknown as TicketRow).status
-              return (
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status === "Closed" ? "bg-gray-100 text-gray-600" : "bg-green-50 text-green-700"}`}>
-                  {status}
-                </span>
-              )
+      <div className="overflow-x-auto">
+        <DataTable
+          columns={[
+            {
+              key: "ticket_ref",
+              label: "Ticket Number",
+              render: (_value, row) => (
+                <button
+                  type="button"
+                  className="text-jscolors-crimson underline-offset-2 hover:underline text-sm"
+                  onClick={() => navigate(`/tickets/${(row as unknown as TicketRow).id}`)}
+                >
+                  {(row as unknown as TicketRow).ticket_ref}
+                </button>
+              ),
             },
-          },
-        ]}
-        rows={rows}
-      />
+            { key: "project_label", label: "Project" },
+            { key: "ckt_id", label: "Site" },
+            { key: "ticket_date", label: "Date" },
+            {
+              key: "status",
+              label: "Status",
+              render: (_value, row) => {
+                const status = (row as unknown as TicketRow).status
+                return (
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status === "Closed" ? "bg-gray-100 text-gray-600" : "bg-green-50 text-green-700"}`}>
+                    {status}
+                  </span>
+                )
+              },
+            },
+          ]}
+          rows={rows}
+        />
+      </div>
     </div>
   )
 }

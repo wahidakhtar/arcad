@@ -22,16 +22,18 @@ export default function POsPage() {
         <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">PO register</h1>
       </div>
       <FilterBar filters={[]} onFilterChange={() => {}} />
-      <DataTable
-        columns={[
-          { key: "project_id", label: "Project" },
-          { key: "entity_id", label: "Entity ID" },
-          { key: "po_no", label: "PO Number" },
-          { key: "po_date", label: "PO Date" },
-          { key: "po_status_id", label: "Status" },
-        ]}
-        rows={data ?? []}
-      />
+      <div className="overflow-x-auto">
+        <DataTable
+          columns={[
+            { key: "project_id", label: "Project" },
+            { key: "entity_id", label: "Entity ID" },
+            { key: "po_no", label: "PO Number" },
+            { key: "po_date", label: "PO Date" },
+            { key: "po_status_id", label: "Status" },
+          ]}
+          rows={data ?? []}
+        />
+      </div>
     </div>
   )
 }

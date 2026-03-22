@@ -22,16 +22,18 @@ export default function InvoicesPage() {
         <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">Invoice register</h1>
       </div>
       <FilterBar filters={[]} onFilterChange={() => {}} />
-      <DataTable
-        columns={[
-          { key: "po_id", label: "PO ID" },
-          { key: "invoice_no", label: "Invoice Number" },
-          { key: "submission_date", label: "Submission Date" },
-          { key: "settlement_date", label: "Settlement Date" },
-          { key: "invoice_status_id", label: "Status" },
-        ]}
-        rows={data ?? []}
-      />
+      <div className="overflow-x-auto">
+        <DataTable
+          columns={[
+            { key: "po_id", label: "PO ID" },
+            { key: "invoice_no", label: "Invoice Number" },
+            { key: "submission_date", label: "Submission Date" },
+            { key: "settlement_date", label: "Settlement Date" },
+            { key: "invoice_status_id", label: "Status" },
+          ]}
+          rows={data ?? []}
+        />
+      </div>
     </div>
   )
 }

@@ -261,12 +261,13 @@ export default function TransactionsPage() {
         </div>
       </Modal>
 
-      <DataTable
-        columns={[
-          { key: "recipient_label", label: "Recipient", minWidth: 120 },
-          { key: "project_label", label: "Project", minWidth: 120 },
-          { key: "ckt_id", label: "Site", minWidth: 100 },
-          { key: "type_label", label: "Type", minWidth: 140 },
+      <div className="overflow-x-auto">
+        <DataTable
+          columns={[
+            { key: "recipient_label", label: "Recipient", minWidth: 120 },
+            { key: "project_label", label: "Project", minWidth: 120 },
+            { key: "ckt_id", label: "Site", minWidth: 100 },
+            { key: "type_label", label: "Type", minWidth: 140 },
           {
             key: "amount",
             label: "Amount",
@@ -334,8 +335,9 @@ export default function TransactionsPage() {
             },
           },
         ]}
-        rows={rows as unknown as Record<string, unknown>[]}
-      />
+          rows={rows as unknown as Record<string, unknown>[]}
+        />
+      </div>
     </div>
   )
 }
