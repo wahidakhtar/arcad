@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.api.routes.admin import router as admin_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.badges import router as badges_router
 from app.api.routes.billing import router as billing_router
@@ -69,6 +70,7 @@ app.include_router(updates_router, prefix=settings.api_prefix)
 app.include_router(media_router, prefix=settings.api_prefix)
 app.include_router(reports_router, prefix=settings.api_prefix)
 app.include_router(dashboard_router, prefix=settings.api_prefix)
+app.include_router(admin_router, prefix=settings.api_prefix)
 
 
 @app.get(f"{settings.api_prefix}/")

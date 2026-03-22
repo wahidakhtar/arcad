@@ -21,6 +21,7 @@ import RateCardPage from "./features/billing/RateCardPage"
 import TicketsPage from "./features/tickets/TicketsPage"
 import TicketDetailPage from "./features/tickets/TicketDetailPage"
 import UpdatesPage from "./features/updates/UpdatesPage"
+import AdminPage from "./features/admin/AdminPage"
 
 function PublicOnly({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -134,6 +135,7 @@ export default function App() {
         <Route path="/tickets" element={<TicketsPage />} />
         <Route path="/tickets/:ticketId" element={<TicketDetailPage />} />
         <Route path="/updates/:siteId" element={<UpdatesPage />} />
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Route>
 

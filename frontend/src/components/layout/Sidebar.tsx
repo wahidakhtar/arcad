@@ -84,6 +84,9 @@ export default function Sidebar() {
             <SectionLink to="/billing/invoices" label="Invoice" />
           </div>
         )}
+        {roles.some(r => r.dept_key === "mgmt" && ["l1", "l3"].includes(r.level_key)) && (
+          <SectionLink to="/admin" label="Admin" />
+        )}
       </nav>
 
       <div className="border-t border-jscolors-crimson/10 px-4 py-4">
