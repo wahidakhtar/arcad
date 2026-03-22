@@ -59,7 +59,7 @@ export default function DashboardPage() {
   const filterConfig: FilterBarConfig[] = [
     {
       key: "range_key",
-      label: "Date Range",
+      label: "",
       type: "badge",
       value: rangeKey,
       options: config.filterOptions,

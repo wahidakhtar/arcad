@@ -261,7 +261,7 @@ export default function TransactionsPage() {
         </div>
       </Modal>
 
-      <div className="glass-panel overflow-x-auto border-0 bg-transparent backdrop-blur-none">
+      <div className="glass-panel overflow-x-auto border-0 bg-transparent backdrop-blur-none [filter:none]">
         <DataTable
           columns={[
             { key: "recipient_label", label: "Recipient", minWidth: 120 },

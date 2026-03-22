@@ -149,7 +149,7 @@ export default function SiteListPage() {
     ? [
         {
           key: "status_badges",
-          label: "Filter by Status",
+          label: "",
           type: "badge",
           values: selectedBadges,
           options: badges
@@ -184,22 +184,21 @@ export default function SiteListPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {canSubprojectRead && subprojectTabs.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            <TabPill active={activeTab === "deployed"} onClick={() => setActiveTab("deployed")}>
-              Deployed
+      {canSubprojectRead && subprojectTabs.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <TabPill active={activeTab === "deployed"} onClick={() => setActiveTab("deployed")}>
+            Deployed
+          </TabPill>
+          {subprojectTabs.map((sub) => (
+            <TabPill key={sub.id} active={activeTab === sub.id} onClick={() => setActiveTab(sub.id)}>
+              {subprojectLabel(sub)}
             </TabPill>
-            {subprojectTabs.map((sub) => (
-              <TabPill key={sub.id} active={activeTab === sub.id} onClick={() => setActiveTab(sub.id)}>
-                {subprojectLabel(sub)}
-              </TabPill>
-            ))}
-          </div>
-        ) : (
-          <div />
-        )}
+          ))}
+        </div>
+      )}
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <FilterBar filters={badgeFilters} onFilterChange={handleFilterChange} />
         <div className="flex items-center gap-3">
           <input
             value={search}
@@ -215,9 +214,7 @@ export default function SiteListPage() {
         </div>
       </div>
 
-      <FilterBar filters={badgeFilters} onFilterChange={handleFilterChange} />
-
-      <div className="glass-panel overflow-x-auto border-0 bg-transparent backdrop-blur-none">
+      <div className="glass-panel overflow-x-auto border-0 bg-transparent backdrop-blur-none [filter:none]">
         {loading && !siteData ? (
           <div className="py-8 text-center text-sm text-jscolors-text/50">Loading sites...</div>
         ) : (
