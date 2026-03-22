@@ -194,7 +194,7 @@ export default function SiteListPage() {
       )}
 
       <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
+        <div className="flex-1">
           <FilterBar filters={badgeFilters} onFilterChange={handleFilterChange} />
         </div>
         <div className="flex shrink-0 items-center gap-3">
