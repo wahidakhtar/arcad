@@ -3,7 +3,7 @@ import { createPortal } from "react-dom"
 import Modal from "../../components/ui/Modal"
 import { api } from "../../lib/api"
 import type { Badge, JobBucket, ProjectRow, ProviderRow, SiteDetail, TransactionRow, TransitionRow, UserRow } from "./siteDetailTypes"
-import { bucketLabel, transitionOptions, txTypeLabel } from "./siteDetailHelpers"
+import { bucketLabel, transitionOptions } from "./siteDetailHelpers"
 import SiteTransactionCard from "./SiteTransactionCard"
 
 type TxModal = { open: boolean; feId: number; bucketKey: string; feLabel: string; type_id: string; amount: string; err: string }
@@ -206,7 +206,7 @@ export default function SiteFEAssignmentSection({
                 >
                   <option value="">Select Type</option>
                   {transactionTypes.map((t) => (
-                    <option key={t.id} value={t.id}>{txTypeLabel(t.key, t.label)}</option>
+                    <option key={t.id} value={t.id}>{t.label}</option>
                   ))}
                 </select>
               </label>

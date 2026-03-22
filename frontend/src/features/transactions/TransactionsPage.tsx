@@ -56,8 +56,9 @@ type TxRow = {
   recipient_label: string
   project_label: string
   ckt_id: string
-  amount: number | string
   type_key: string
+  type_label: string
+  amount: number | string
   status_id: number
   status_key: string
   status_label: string
@@ -145,6 +146,7 @@ export default function TransactionsPage() {
           ckt_id: siteMap.get(cktKey) ?? (tx.site_id ? String(tx.site_id) : "-"),
           amount: tx.amount,
           type_key: typeBadge?.key ?? "",
+          type_label: typeBadge?.label ?? "-",
           status_id: tx.status_id,
           status_key: badge?.key ?? "",
           status_label: badge?.label ?? String(tx.status_id),
@@ -264,6 +266,7 @@ export default function TransactionsPage() {
           { key: "recipient_label", label: "Recipient" },
           { key: "project_label", label: "Project" },
           { key: "ckt_id", label: "Site" },
+          { key: "type_label", label: "Type" },
           {
             key: "amount",
             label: "Amount",
@@ -308,7 +311,7 @@ export default function TransactionsPage() {
               }
 
               return (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 pl-4">
                   <BadgeDropdown
                     badge={currentBadge}
                     options={options}

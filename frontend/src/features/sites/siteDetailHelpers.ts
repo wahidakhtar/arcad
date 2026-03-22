@@ -92,18 +92,6 @@ export function projectByKey<T extends { key: string }>(projects: T[], key: stri
   return projects.find((p) => p.key === key) ?? null
 }
 
-// Transaction TYPE display label overrides (for the type column/header)
-const TX_TYPE_LABEL_OVERRIDES: Record<string, string> = {
-  b_sur: "Approved",
-  e_sur: "Approved",
-  ref: "Received",
-}
-
-export function txTypeLabel(key: string | undefined, label: string | undefined): string {
-  if (!key && !label) return "Transaction"
-  return (key && TX_TYPE_LABEL_OVERRIDES[key]) ?? label ?? "Transaction"
-}
-
 // Transaction STATUS display label override — depends on transaction type
 // b_sur/e_sur + exct → "Approved"; ref + exct → "Received"; else raw label
 export function txStatusLabel(typeKey: string | undefined, statusKey: string | undefined, statusLabel: string): string {

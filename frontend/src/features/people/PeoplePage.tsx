@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
+import { createPortal } from "react-dom"
 import { Link, useNavigate } from "react-router-dom"
 
 import FieldRenderer from "../../components/ui/FieldRenderer"
-import Modal from "../../components/ui/Modal"
 import { getPageConfig } from "../../config"
 import { useAuth } from "../../context/AuthContext"
 import { useListPage } from "../../hooks/useListPage"
@@ -31,7 +31,7 @@ export default function PeoplePage() {
   const config = getPageConfig("people")
   const navigate = useNavigate()
   const { tags } = useAuth()
-  const canWriteUser = tags.user?.write === true
+  const canWriteUser = tags.people?.write === true
   const [hoveredUserId, setHoveredUserId] = useState<number | null>(null)
   const [openAddUser, setOpenAddUser] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -88,59 +88,71 @@ export default function PeoplePage() {
 
   return (
     <div className="space-y-6">
-      <Header
-        eyebrow="People"
-        title="Users, departments, and access layers"
-        summary="Create users here, then open any row for role visibility and identity details."
-      >
-        {canWriteUser ? (
+      {canWriteUser && openAddUser && createPortal(
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 9999 }}
+          className="flex items-center justify-center bg-jscolors-text/35 px-4 backdrop-blur-sm"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) { setOpenAddUser(false); setError("") } }}
+        >
+          <div
+            style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 10000 }}
+            className="glass-panel w-full max-w-md p-6"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-syne text-2xl font-semibold text-jscolors-crimson">Add User</h2>
+              <button type="button" onClick={() => { setOpenAddUser(false); setError("") }} className="premium-button-secondary">Close</button>
+            </div>
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault()
+                if (form.password !== form.confirm_password) {
+                  setError("Passwords do not match.")
+                  return
+                }
+                setSubmitting(true)
+                setError("")
+                void api
+                  .post("/users", { label: form.label, username: form.username, password: form.password })
+                  .then(() => {
+                    setForm({ label: "", username: "", password: "", confirm_password: "" })
+                    setOpenAddUser(false)
+                    refetch()
+                  })
+                  .catch((requestError: { response?: { data?: { detail?: string } } }) => {
+                    setError(requestError.response?.data?.detail ?? "Unable to create user.")
+                  })
+                  .finally(() => setSubmitting(false))
+              }}
+            >
+              {config.addUserFields.map((field) => (
+                <label key={field.key} className="block">
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">{field.label}</span>
+                  <FieldRenderer
+                    mode="input"
+                    field={field}
+                    value={form[field.key] ?? ""}
+                    onChange={(value) => setForm((current) => ({ ...current, [field.key]: value }))}
+                  />
+                </label>
+              ))}
+              {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+              <button type="submit" className="premium-button w-full" disabled={submitting}>
+                {submitting ? "Creating User..." : "Create User"}
+              </button>
+            </form>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {canWriteUser && (
+        <div className="flex justify-end">
           <button type="button" className="premium-button-secondary" onClick={() => setOpenAddUser(true)}>
             + Add User
           </button>
-        ) : null}
-      </Header>
-
-      <Modal open={canWriteUser && openAddUser} title="Add User" onClose={() => setOpenAddUser(false)}>
-        <form
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault()
-            if (form.password !== form.confirm_password) {
-              setError("Passwords do not match.")
-              return
-            }
-            setSubmitting(true)
-            setError("")
-            void api
-              .post("/users", { label: form.label, username: form.username, password: form.password })
-              .then(() => {
-                setForm({ label: "", username: "", password: "", confirm_password: "" })
-                setOpenAddUser(false)
-                refetch()
-              })
-              .catch((requestError: { response?: { data?: { detail?: string } } }) => {
-                setError(requestError.response?.data?.detail ?? "Unable to create user.")
-              })
-              .finally(() => setSubmitting(false))
-          }}
-        >
-          {config.addUserFields.map((field) => (
-            <label key={field.key} className="block">
-              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">{field.label}</span>
-              <FieldRenderer
-                mode="input"
-                field={field}
-                value={form[field.key] ?? ""}
-                onChange={(value) => setForm((current) => ({ ...current, [field.key]: value }))}
-              />
-            </label>
-          ))}
-          {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
-          <button type="submit" className="premium-button w-full" disabled={submitting}>
-            {submitting ? "Creating User..." : "Create User"}
-          </button>
-        </form>
-      </Modal>
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
         <table className="min-w-full border-collapse">
@@ -195,17 +207,3 @@ export default function PeoplePage() {
   )
 }
 
-function Header({ eyebrow, title, summary, children }: { eyebrow: string; title: string; summary: string; children?: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/42">{eyebrow}</p>
-        <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">{title}</h1>
-      </div>
-      <div className="flex flex-col items-start gap-3 lg:items-end">
-        <p className="max-w-xl text-sm leading-7 text-jscolors-text/60 lg:text-right">{summary}</p>
-        {children}
-      </div>
-    </div>
-  )
-}
