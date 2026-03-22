@@ -179,7 +179,7 @@ export default function SiteListPage() {
   }
 
   return (
-    <div className="space-y-5 overflow-x-auto">
+    <div className="flex flex-col gap-5">
       {canSubprojectRead && subprojectTabs.length > 0 && (
         <div className="flex flex-wrap gap-2">
           <TabPill active={activeTab === "deployed"} onClick={() => setActiveTab("deployed")}>
@@ -213,15 +213,18 @@ export default function SiteListPage() {
       </div>
 
       {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
-      {loading && !siteData ? (
-        <div className="py-8 text-center text-sm text-jscolors-text/50">Loading sites...</div>
-      ) : (
-        <DataTable
-          columns={columns}
-          rows={filtered}
-          rowHref={(row) => `/projects/${projectKey}/site/${row.id}`}
-        />
-      )}
+
+      <div className="w-full overflow-x-auto">
+        {loading && !siteData ? (
+          <div className="py-8 text-center text-sm text-jscolors-text/50">Loading sites...</div>
+        ) : (
+          <DataTable
+            columns={columns}
+            rows={filtered}
+            rowHref={(row) => `/projects/${projectKey}/site/${row.id}`}
+          />
+        )}
+      </div>
 
       {openAddModal && createPortal(
         <div
