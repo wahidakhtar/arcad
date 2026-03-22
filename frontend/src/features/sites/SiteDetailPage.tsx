@@ -39,6 +39,7 @@ export default function SiteDetailPage() {
   const [tickets, setTickets] = useState<TicketRow[]>([])
   const [transactions, setTransactions] = useState<TransactionRow[]>([])
   const [providers, setProviders] = useState<ProviderRow[]>([])
+  const [transactionTypes, setTransactionTypes] = useState<Badge[]>([])
   const [drafts, setDrafts] = useState<Record<string, string | boolean>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -56,6 +57,7 @@ export default function SiteDetailPage() {
         siteResponse, uiFieldsResponse, badgesResponse, transitionResponse,
         statesResponse, projectsResponse, usersResponse, bucketsResponse,
         updatesResponse, ticketsResponse, transactionsResponse, providersResponse,
+        txTypesResponse,
       ] = await Promise.all([
         api.get(`/sites/${projectKey}/${siteId}`),
         api.get(`/projects/${projectKey}/ui-fields`),
@@ -69,6 +71,7 @@ export default function SiteDetailPage() {
         api.get("/tickets").catch(() => empty),
         api.get("/transactions").catch(() => empty),
         api.get(`/projects/${projectKey}/providers`),
+        api.get(`/projects/${projectKey}/transaction-types`).catch(() => empty),
       ])
       const nextProjects = projectsResponse.data as ProjectRow[]
       const project = projectByKey(nextProjects, projectKey)
@@ -94,6 +97,7 @@ export default function SiteDetailPage() {
       setTickets(nextTickets)
       setTransactions(nextTransactions)
       setProviders((providersResponse.data as ProviderRow[]) ?? [])
+      setTransactionTypes(Array.isArray(txTypesResponse.data) ? txTypesResponse.data as Badge[] : [])
       setDrafts(buildDrafts(nextSite, nextUiFields))
     } catch {
       setError("Unable to load site details.")
@@ -107,7 +111,6 @@ export default function SiteDetailPage() {
   const badgeById = useMemo(() => new Map(badges.map((b) => [b.id, b])), [badges])
   const stateById = useMemo(() => new Map(states.map((s) => [s.id, s])), [states])
   const project = useMemo(() => projectByKey(projects, projectKey), [projectKey, projects])
-  const transactionTypes = useMemo(() => badges.filter((b) => b.type === "transaction"), [badges])
 
   const visibleFields = useMemo(
     () => uiFields.filter((f) => fieldVisible(f.perm_tag, tags)),
@@ -170,56 +173,47 @@ export default function SiteDetailPage() {
     }
   }
 
+  async function saveSingleField(key: string, value: string | boolean) {
+    try {
+      await api.patch(`/sites/${projectKey}/${currentSite.id}`, { data: { [key]: value } })
+    } catch {
+      // silently ignore auto-save errors for bool fields
+    }
+  }
+
   return (
     <div className="space-y-6">
       <section className="glass-panel p-6">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">{project?.label ?? projectKey.toUpperCase()}</p>
-            <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">{currentSite.ckt_id}</h1>
-            <div className="mt-2 text-sm text-jscolors-text/58">Site #{currentSite.id}</div>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {badgeFields.map((field) => {
-              if (field.key === "tx_copy_status" && !isAssetTransfer) return null
-              const badgeValue = getFieldValue(currentSite, field)
-              const currentBadge = typeof badgeValue === "number" ? badgeById.get(badgeValue) : null
-              const isDocBadge = DOC_BADGE_FIELDS.has(field.key)
-              const nextTransitions = (!isDocBadge || docBadgeEditable) && typeof badgeValue === "number"
-                ? transitionOptions(transitions, field.key, badgeValue)
-                : []
-              return (
-                <div key={field.key} className="min-w-[220px] rounded-[22px] border border-jscolors-crimson/10 bg-white/90 px-4 py-4">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">{field.label}</div>
-                  <div className="mt-3">
-                    <BadgeDropdown
-                      badge={currentBadge ?? null}
-                      fallback={String(selectedBadgeFallback(badgeValue))}
-                      options={nextTransitions.map((t) => ({ id: t.to_id, label: t.to_label, color: badgeById.get(t.to_id)?.color ?? null }))}
-                      onSelect={(toId) => void transitionBadge(field.key, toId)}
-                      disabled={updatingBadgeKey === field.key}
-                    />
-                  </div>
+        <div className="flex flex-wrap gap-3">
+          {badgeFields.map((field) => {
+            if (field.key === "tx_copy_status" && !isAssetTransfer) return null
+            const badgeValue = getFieldValue(currentSite, field)
+            const currentBadge = typeof badgeValue === "number" ? badgeById.get(badgeValue) : null
+            const isDocBadge = DOC_BADGE_FIELDS.has(field.key)
+            const nextTransitions = (!isDocBadge || docBadgeEditable) && typeof badgeValue === "number"
+              ? transitionOptions(transitions, field.key, badgeValue)
+              : []
+            return (
+              <div key={field.key} className="min-w-[220px] rounded-[22px] border border-jscolors-crimson/10 bg-white/90 px-4 py-4">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">{field.label}</div>
+                <div className="mt-3">
+                  <BadgeDropdown
+                    badge={currentBadge ?? null}
+                    fallback={String(selectedBadgeFallback(badgeValue))}
+                    options={nextTransitions.map((t) => ({ id: t.to_id, label: t.to_label, color: badgeById.get(t.to_id)?.color ?? null }))}
+                    onSelect={(toId) => void transitionBadge(field.key, toId)}
+                    disabled={updatingBadgeKey === field.key}
+                  />
                 </div>
-              )
-            })}
-          </div>
+              </div>
+            )
+          })}
         </div>
       </section>
 
       <div className="grid gap-6 2xl:grid-cols-[1.05fr_0.95fr]">
         <section className="glass-panel p-6">
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">All Site Fields</p>
-            {canSiteWrite && (
-              <div className="flex items-center gap-3">
-                {saveError ? <span className="text-sm text-red-600">{saveError}</span> : null}
-                <button type="button" className="premium-button" disabled={savingFields} onClick={() => void saveFields()}>
-                  {savingFields ? "Saving..." : "Save Fields"}
-                </button>
-              </div>
-            )}
-          </div>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Details</p>
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             {regularFields.map((field) => {
               const displayValue = displayValueForField(currentSite, field, badgeById, stateById)
@@ -235,7 +229,10 @@ export default function SiteDetailPage() {
                         mode="input"
                         field={{ ...field, options: optionsForField(field, states) }}
                         value={drafts[field.key] ?? draftValueForField(currentSite, field)}
-                        onChange={(value) => setDrafts((c) => ({ ...c, [field.key]: value }))}
+                        onChange={(value) => {
+                          setDrafts((c) => ({ ...c, [field.key]: value }))
+                          if (field.type === "bool") void saveSingleField(field.key, value)
+                        }}
                       />
                     </div>
                   )}
@@ -243,6 +240,14 @@ export default function SiteDetailPage() {
               )
             })}
           </div>
+          {canSiteWrite && (
+            <div className="mt-4 flex items-center justify-end gap-3">
+              {saveError ? <span className="text-sm text-red-600">{saveError}</span> : null}
+              <button type="button" className="premium-button" disabled={savingFields} onClick={() => void saveFields()}>
+                {savingFields ? "Saving..." : "Save"}
+              </button>
+            </div>
+          )}
         </section>
 
         <section className="grid gap-6">

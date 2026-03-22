@@ -272,6 +272,24 @@ def list_bb_providers(db: Session, user: UserContext) -> list[dict]:
     return [{"id": p.id, "label": p.label} for p in providers]
 
 
+_EXCLUDED_TX_TYPE_KEYS = {"salary", "other"}
+
+
+def list_transaction_types(db: Session, user: UserContext) -> list[dict]:
+    """Return transaction type badges available for requests, excluding salary and other."""
+    rows = (
+        db.execute(
+            select(Badge)
+            .where(Badge.type == "transaction")
+            .where(Badge.key.notin_(_EXCLUDED_TX_TYPE_KEYS))
+            .order_by(Badge.id)
+        )
+        .scalars()
+        .all()
+    )
+    return [{"id": b.id, "key": b.key, "label": b.label, "color": b.color} for b in rows]
+
+
 def create_subproject(db: Session, user: UserContext, project_key: str, batch_date: str, rows: list[dict]) -> dict:
     ensure_permission(user, db, project_key=project_key, tag="subproject", action="write")
     if project_key not in {"md", "ma", "mc"}:

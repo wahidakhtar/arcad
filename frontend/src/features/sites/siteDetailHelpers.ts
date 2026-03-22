@@ -91,3 +91,14 @@ export function bucketLabel(jobBuckets: JobBucket[], bucketKey: string) {
 export function projectByKey<T extends { key: string }>(projects: T[], key: string): T | null {
   return projects.find((p) => p.key === key) ?? null
 }
+
+export const TX_TYPE_LABEL_OVERRIDES: Record<string, string> = {
+  billable_surcharge: "Approved",
+  extra_surcharge: "Approved",
+  refund: "Received",
+}
+
+export function txTypeLabel(key: string | undefined, label: string | undefined): string {
+  if (!key && !label) return "Transaction"
+  return (key && TX_TYPE_LABEL_OVERRIDES[key]) ?? label ?? "Transaction"
+}

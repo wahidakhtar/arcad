@@ -29,7 +29,7 @@ export default function FieldRenderer(props: FieldRendererProps) {
 
     if (field.type === "bool") {
       return (
-        <span className="flex h-[50px] items-center rounded-2xl border border-jscolors-crimson/15 bg-white px-4">
+        <span className="flex h-[50px] items-center gap-3 rounded-2xl border border-jscolors-crimson/15 bg-white px-4">
           <input
             type="checkbox"
             checked={Boolean(value)}
@@ -37,6 +37,7 @@ export default function FieldRenderer(props: FieldRendererProps) {
             onChange={(event) => onChange(event.target.checked)}
             className="h-4 w-4 accent-jscolors-crimson"
           />
+          <span className="text-sm text-jscolors-text">{Boolean(value) ? "Yes" : "No"}</span>
         </span>
       )
     }
