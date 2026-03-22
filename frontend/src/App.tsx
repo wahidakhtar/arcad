@@ -67,7 +67,7 @@ export default function App() {
     const observed = new WeakSet<Element>()
 
     function scan() {
-      document.querySelectorAll(".glass-panel").forEach((el) => {
+      document.querySelectorAll(".glass-panel:not(.no-squircle)").forEach((el) => {
         if (!observed.has(el)) {
           observed.add(el)
           ro.observe(el)

@@ -34,7 +34,7 @@ export default function Sidebar() {
   }, [])
 
   return (
-    <aside className="glass-panel flex h-full w-[260px] shrink-0 flex-col overflow-hidden">
+    <aside className="glass-panel no-squircle rounded-[48px] flex h-full w-[260px] shrink-0 flex-col overflow-hidden">
       <div className="border-b border-jscolors-crimson/10 px-5 py-4">
         <Link to="/dashboard">
           <img src="/logo.png" alt="ARCAD" className="h-20 w-full rounded-3xl border border-jscolors-gold/30 bg-white object-contain p-2 shadow-glow" />

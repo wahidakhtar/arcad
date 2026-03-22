@@ -7,7 +7,7 @@ export default function PageLayout({ children }: { children?: React.ReactNode })
     <div className="page-shell pb-2">
       <div className="relative z-10 flex h-full gap-4 overflow-hidden p-4">
         <Sidebar />
-        <main className="glass-panel flex flex-1 flex-col overflow-hidden">
+        <main className="glass-panel no-squircle rounded-[48px] bg-white flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-8 pb-6 md:p-10 md:pb-8">{children ?? <Outlet />}</div>
         </main>
       </div>
