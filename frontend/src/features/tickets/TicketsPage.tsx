@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
 
 import DataTable from "../../components/ui/DataTable"
 import { api } from "../../lib/api"
@@ -37,7 +36,6 @@ export default function TicketsPage() {
   const [rows, setRows] = useState<TicketRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const navigate = useNavigate()
 
   useEffect(() => {
     let cancelled = false
@@ -119,38 +117,27 @@ export default function TicketsPage() {
   return (
     <div className="space-y-6">
       <DataTable
-          columns={[
-            {
-              key: "ticket_ref",
-              label: "Ticket Number",
-              render: (_value, row) => (
-                <button
-                  type="button"
-                  className="text-jscolors-crimson underline-offset-2 hover:underline text-sm"
-                  onClick={() => navigate(`/tickets/${(row as unknown as TicketRow).id}`)}
-                >
-                  {(row as unknown as TicketRow).ticket_ref}
-                </button>
-              ),
+        columns={[
+          { key: "ticket_ref", label: "Ticket Number" },
+          { key: "project_label", label: "Project" },
+          { key: "ckt_id", label: "Site" },
+          { key: "ticket_date", label: "Date" },
+          {
+            key: "status",
+            label: "Status",
+            render: (_value, row) => {
+              const status = (row as unknown as TicketRow).status
+              return (
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status === "Closed" ? "bg-gray-100 text-gray-600" : "bg-green-50 text-green-700"}`}>
+                  {status}
+                </span>
+              )
             },
-            { key: "project_label", label: "Project" },
-            { key: "ckt_id", label: "Site" },
-            { key: "ticket_date", label: "Date" },
-            {
-              key: "status",
-              label: "Status",
-              render: (_value, row) => {
-                const status = (row as unknown as TicketRow).status
-                return (
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status === "Closed" ? "bg-gray-100 text-gray-600" : "bg-green-50 text-green-700"}`}>
-                    {status}
-                  </span>
-                )
-              },
-            },
-          ]}
-          rows={rows}
-        />
+          },
+        ]}
+        rows={rows}
+        rowHref={(row) => `/tickets/${(row as unknown as TicketRow).id}`}
+      />
     </div>
   )
 }

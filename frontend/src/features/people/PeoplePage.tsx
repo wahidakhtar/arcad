@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
-import { Link, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 
 import FieldRenderer from "../../components/ui/FieldRenderer"
 import { getPageConfig } from "../../config"
@@ -80,6 +80,9 @@ export default function PeoplePage() {
           }))
         : [{ department: "-", project: "-", access: "-" }]
       return { user_id: user.id, name: user.label, active: user.active, roles: roleEntries }
+    }).sort((a, b) => {
+      if (a.active !== b.active) return a.active ? -1 : 1
+      return (a.roles[0]?.department ?? "").localeCompare(b.roles[0]?.department ?? "")
     })
   }, [badgeLabels.department, badgeLabels.level, projectMap, data])
 
@@ -176,21 +179,15 @@ export default function PeoplePage() {
                   onMouseLeave={() => setHoveredUserId(null)}
                 >
                   {roleIndex === 0 && (
-                    <td
-                      rowSpan={group.roles.length}
-                      className="px-5 py-4 align-middle text-sm font-medium text-jscolors-text"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Link
-                        to={`/people/${group.user_id}`}
-                        className="hover:text-jscolors-crimson"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {group.name}
-                      </Link>
+                    <td rowSpan={group.roles.length} className="px-5 py-4 align-middle text-sm font-medium text-jscolors-text">
+                      {group.name}
                     </td>
                   )}
-                  <td className="px-5 py-4 text-sm text-jscolors-text">{role.department}</td>
+                  {roleIndex === 0 && (
+                    <td rowSpan={group.roles.length} className="px-5 py-4 align-middle text-sm text-jscolors-text">
+                      {role.department}
+                    </td>
+                  )}
                   <td className="px-5 py-4 text-sm text-jscolors-text">{role.project}</td>
                   <td className="px-5 py-4 text-sm text-jscolors-text">{role.access}</td>
                 </tr>
