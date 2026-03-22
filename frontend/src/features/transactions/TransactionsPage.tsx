@@ -261,6 +261,7 @@ export default function TransactionsPage() {
           {
             key: "amount",
             label: "Amount",
+            align: "right",
             render: (value) => (
               <div className="text-right">₹ {Number(value).toLocaleString("en-IN")}</div>
             ),

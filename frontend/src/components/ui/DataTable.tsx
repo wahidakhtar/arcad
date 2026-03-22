@@ -6,6 +6,7 @@ type Column = {
   key: string
   label: string
   type?: string
+  align?: "left" | "right"
   render?: (value: unknown, row: Record<string, unknown>) => React.ReactNode
 }
 
@@ -23,7 +24,7 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
       <div className="grid min-w-full grid-cols-1">
         <div className="hidden gap-4 border-b border-jscolors-crimson/10 bg-jscolors-crimson/[0.03] px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50 md:grid" style={{ gridTemplateColumns }}>
           {columns.map((column) => (
-            <div key={column.key}>{column.label}</div>
+            <div key={column.key} className={column.align === "right" ? "text-right" : ""}>{column.label}</div>
           ))}
         </div>
         {rows.map((row, index) => {
