@@ -82,7 +82,12 @@ export default function PeoplePage() {
       return { user_id: user.id, name: user.label, active: user.active, roles: roleEntries }
     }).sort((a, b) => {
       if (a.active !== b.active) return a.active ? -1 : 1
-      return (a.roles[0]?.department ?? "").localeCompare(b.roles[0]?.department ?? "")
+      const deptOrder = ["mgmt", "ops", "acc", "hr", "fo"]
+      const aKey = data?.find((u) => u.id === a.user_id)?.roles[0]?.dept_key ?? ""
+      const bKey = data?.find((u) => u.id === b.user_id)?.roles[0]?.dept_key ?? ""
+      const aOrder = deptOrder.indexOf(aKey)
+      const bOrder = deptOrder.indexOf(bKey)
+      return (aOrder === -1 ? 999 : aOrder) - (bOrder === -1 ? 999 : bOrder)
     })
   }, [badgeLabels.department, badgeLabels.level, projectMap, data])
 
