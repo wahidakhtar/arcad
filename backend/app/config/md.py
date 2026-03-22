@@ -94,23 +94,28 @@ def apply_md_rules(site, payload: dict, db) -> dict:
     if "status_id" in payload and by_id.get(payload["status_id"], "") in ("hold", "cancel"):
         payload["permission_date"] = None
 
-    # 9. permission_date set: set status to wip
+    # 9. permission_date cleared: revert status to p_wait
+    if "permission_date" in payload and payload["permission_date"] is None:
+        if by_id.get(payload.get("status_id"), "") not in ("hold", "cancel"):
+            payload["status_id"] = status_by_key["p_wait"]
+
+    # 10. permission_date set: set status to wip
     if "permission_date" in payload and payload["permission_date"] is not None:
         payload["status_id"] = status_by_key["wip"]
 
-    # 10. dismantle_date set: set status to comp, default wcc_status to pend
+    # 11. dismantle_date set: set status to comp, default wcc_status to pend
     if "dismantle_date" in payload and payload["dismantle_date"] is not None:
         payload["status_id"] = status_by_key["comp"]
         if site.wcc_status_id is None and "wcc_status_id" not in payload:
             payload["wcc_status_id"] = doc_by_key["pend"]
 
-    # 11. outcome == Asset Tx: set status to comp, default doc_status to pend
+    # 12. outcome == Asset Tx: set status to comp, default doc_status to pend
     if "outcome" in payload and payload["outcome"] == "Asset Tx":
         payload["status_id"] = status_by_key["comp"]
         if site.doc_status_id is None and "doc_status_id" not in payload:
             payload["doc_status_id"] = doc_by_key["pend"]
 
-    # 12. dismantle_date cleared: revert status, clear related fields
+    # 13. dismantle_date cleared: revert status, clear related fields
     if "dismantle_date" in payload and payload["dismantle_date"] is None:
         payload["status_id"] = status_by_key["p_wait"]
         payload["permission_date"] = None

@@ -84,11 +84,16 @@ def apply_ma_rules(site, payload: dict, db) -> dict:
     if "status_id" in payload and by_id.get(payload["status_id"], "") in ("hold", "cancel", "p_iss"):
         payload["permission_date"] = None
 
-    # 7. permission_date set: set status to wip
+    # 7. permission_date cleared: revert status to p_wait
+    if "permission_date" in payload and payload["permission_date"] is None:
+        if by_id.get(payload.get("status_id"), "") not in ("hold", "cancel", "p_iss"):
+            payload["status_id"] = status_by_key["p_wait"]
+
+    # 8. permission_date set: set status to wip
     if "permission_date" in payload and payload["permission_date"] is not None:
         payload["status_id"] = status_by_key["wip"]
 
-    # 8. audit_date set: set status to comp, default doc statuses to pend
+    # 9. audit_date set: set status to comp, default doc statuses to pend
     if "audit_date" in payload and payload["audit_date"] is not None:
         payload["status_id"] = status_by_key["comp"]
         if site.fsr_status_id is None and "fsr_status_id" not in payload:
@@ -96,7 +101,7 @@ def apply_ma_rules(site, payload: dict, db) -> dict:
         if site.report_status_id is None and "report_status_id" not in payload:
             payload["report_status_id"] = doc_by_key["pend"]
 
-    # 9. audit_date cleared: revert status, clear related fields
+    # 10. audit_date cleared: revert status, clear related fields
     if "audit_date" in payload and payload["audit_date"] is None:
         payload["status_id"] = status_by_key["p_wait"]
         payload["permission_date"] = None

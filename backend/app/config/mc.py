@@ -87,11 +87,16 @@ def apply_mc_rules(site, payload: dict, db) -> dict:
     if "status_id" in payload and by_id.get(payload["status_id"], "") in ("hold", "cancel"):
         payload["permission_date"] = None
 
-    # 7. permission_date set: set status to wip
+    # 7. permission_date cleared: revert status to p_wait
+    if "permission_date" in payload and payload["permission_date"] is None:
+        if by_id.get(payload.get("status_id"), "") not in ("hold", "cancel"):
+            payload["status_id"] = status_by_key["p_wait"]
+
+    # 8. permission_date set: set status to wip
     if "permission_date" in payload and payload["permission_date"] is not None:
         payload["status_id"] = status_by_key["wip"]
 
-    # 8. cm_date set: set status to comp, default doc statuses to pend
+    # 9. cm_date set: set status to comp, default doc statuses to pend
     if "cm_date" in payload and payload["cm_date"] is not None:
         payload["status_id"] = status_by_key["comp"]
         if site.wcc_status_id is None and "wcc_status_id" not in payload:
@@ -99,7 +104,7 @@ def apply_mc_rules(site, payload: dict, db) -> dict:
         if site.report_status_id is None and "report_status_id" not in payload:
             payload["report_status_id"] = doc_by_key["pend"]
 
-    # 9. cm_date cleared: revert status, clear related fields
+    # 10. cm_date cleared: revert status, clear related fields
     if "cm_date" in payload and payload["cm_date"] is None:
         payload["status_id"] = status_by_key["p_wait"]
         payload["permission_date"] = None

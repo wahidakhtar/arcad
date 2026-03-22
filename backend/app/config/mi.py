@@ -72,20 +72,26 @@ def apply_mi_rules(site, payload: dict, db) -> dict:
     if "status_id" in payload and by_id.get(payload["status_id"], "") in ("hold", "cancel"):
         payload["permission_date"] = None
 
-    # 6. permission_date being set: set status to wip and compute EDD
+    # 6. permission_date cleared: revert status to p_wait and clear edd
+    if "permission_date" in payload and payload["permission_date"] is None:
+        if by_id.get(payload.get("status_id"), "") not in ("hold", "cancel"):
+            payload["status_id"] = status_by_key["p_wait"]
+            payload["edd"] = None
+
+    # 7. permission_date being set: set status to wip and compute EDD
     if "permission_date" in payload and payload["permission_date"] is not None:
         payload["status_id"] = status_by_key["wip"]
         height = payload.get("height") if "height" in payload else getattr(site, "height", None)
         if height is not None:
             payload["edd"] = payload["permission_date"] + timedelta(days=15 if float(height) <= 15 else 21)
 
-    # 7. completion_date being set: set status to comp, default wcc_status to pend
+    # 8. completion_date being set: set status to comp, default wcc_status to pend
     if "completion_date" in payload and payload["completion_date"] is not None:
         payload["status_id"] = status_by_key["comp"]
         if site.wcc_status_id is None and "wcc_status_id" not in payload:
             payload["wcc_status_id"] = doc_by_key["pend"]
 
-    # 8. completion_date being cleared: revert status, clear related fields
+    # 9. completion_date being cleared: revert status, clear related fields
     if "completion_date" in payload and payload["completion_date"] is None:
         payload["status_id"] = status_by_key["p_wait"]
         payload["permission_date"] = None
