@@ -22,7 +22,7 @@ export default function POsPage() {
         <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">PO register</h1>
       </div>
       <FilterBar filters={[]} onFilterChange={() => {}} />
-      <div className="overflow-x-auto">
+      <div className="glass-panel overflow-x-auto border-0 bg-transparent backdrop-blur-none">
         <DataTable
           columns={[
             { key: "project_id", label: "Project" },

@@ -217,7 +217,7 @@ export default function SiteListPage() {
 
       <FilterBar filters={badgeFilters} onFilterChange={handleFilterChange} />
 
-      <div className="overflow-x-auto">
+      <div className="glass-panel overflow-x-auto border-0 bg-transparent backdrop-blur-none">
         {loading && !siteData ? (
           <div className="py-8 text-center text-sm text-jscolors-text/50">Loading sites...</div>
         ) : (
