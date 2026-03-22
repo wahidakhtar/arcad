@@ -124,10 +124,6 @@ export default function SiteListPage() {
     setSelectedBadges([])
   }, [activeTab])
 
-  if (error) {
-    return <div className="p-6 text-red-600">{error}</div>
-  }
-
   const badgeByKey = new Map(badges.map((badge) => [badge.key, badge]))
   const rows = (siteData ?? []).map((row) => ({
     ...row,
@@ -214,6 +210,7 @@ export default function SiteListPage() {
         </div>
       </div>
 
+      {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
       {loading && !siteData ? (
         <div className="py-8 text-center text-sm text-jscolors-text/50">Loading sites...</div>
       ) : (
