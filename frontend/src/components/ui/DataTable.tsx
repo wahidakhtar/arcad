@@ -21,7 +21,9 @@ type DataTableProps<T extends Record<string, unknown>> = {
 
 export default function DataTable<T extends Record<string, unknown>>({ columns, rows, rowHref, getRowClassName, gridTemplateColumns: gridTemplateColumnsProp }: DataTableProps<T>) {
   const gridTemplateColumns = gridTemplateColumnsProp ?? columns.map(col => `minmax(${col.minWidth ?? 180}px, 1fr)`).join(' ')
-  const minTableWidth = columns.reduce((sum, col) => sum + (col.minWidth ?? 0), 0)
+  const minTableWidth = columns.length
+    ? columns.reduce((sum, col) => sum + (col.minWidth ?? 180), 0) + (columns.length - 1) * 16 + 40
+    : 0
   return (
     <div className="overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
       <div className="grid min-w-full grid-cols-1" style={minTableWidth ? { minWidth: minTableWidth } : undefined}>

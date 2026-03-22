@@ -59,7 +59,8 @@ export default function App() {
     function apply(el: Element) {
       const { width, height } = el.getBoundingClientRect()
       if (width > 0 && height > 0) {
-        ;(el as HTMLElement).style.clipPath = `path('${squirclePath(width, height, RADIUS)}')`
+        const r = Math.min(RADIUS, width / 2, height / 2)
+        ;(el as HTMLElement).style.clipPath = `path('${squirclePath(width, height, r)}')`
         squircled.add(el)
       }
     }
