@@ -179,7 +179,7 @@ export default function SiteListPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="space-y-5">
       {canSubprojectRead && subprojectTabs.length > 0 && (
         <div className="flex flex-wrap gap-2">
           <TabPill active={activeTab === "deployed"} onClick={() => setActiveTab("deployed")}>
@@ -193,11 +193,9 @@ export default function SiteListPage() {
         </div>
       )}
 
-      <div className="flex items-start gap-3">
-        <div className="flex-1">
-          <FilterBar filters={badgeFilters} onFilterChange={handleFilterChange} />
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <FilterBar filters={badgeFilters} onFilterChange={handleFilterChange} />
+        <div className="ml-auto flex items-center gap-3">
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -213,18 +211,15 @@ export default function SiteListPage() {
       </div>
 
       {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
-
-      <div className="w-full overflow-x-auto">
-        {loading && !siteData ? (
-          <div className="py-8 text-center text-sm text-jscolors-text/50">Loading sites...</div>
-        ) : (
-          <DataTable
-            columns={columns}
-            rows={filtered}
-            rowHref={(row) => `/projects/${projectKey}/site/${row.id}`}
-          />
-        )}
-      </div>
+      {loading && !siteData ? (
+        <div className="py-8 text-center text-sm text-jscolors-text/50">Loading sites...</div>
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={filtered}
+          rowHref={(row) => `/projects/${projectKey}/site/${row.id}`}
+        />
+      )}
 
       {openAddModal && createPortal(
         <div
