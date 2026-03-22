@@ -25,7 +25,7 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
     ? columns.reduce((sum, col) => sum + (col.minWidth ?? 180), 0) + (columns.length - 1) * 16 + 40
     : 0
   return (
-    <div className="overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
+    <div className="w-full overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
       <div className="grid min-w-full grid-cols-1" style={minTableWidth ? { minWidth: minTableWidth } : undefined}>
         <div className="grid gap-4 border-b border-jscolors-crimson/10 bg-jscolors-crimson/[0.03] px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50" style={{ gridTemplateColumns }}>
           {columns.map((column) => (
