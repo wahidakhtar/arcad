@@ -25,17 +25,17 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
   return (
     <div className="overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
       <div className="grid min-w-full grid-cols-1" style={minTableWidth ? { minWidth: minTableWidth } : undefined}>
-        <div className="hidden gap-4 border-b border-jscolors-crimson/10 bg-jscolors-crimson/[0.03] px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50 md:grid" style={{ gridTemplateColumns }}>
+        <div className="grid gap-4 border-b border-jscolors-crimson/10 bg-jscolors-crimson/[0.03] px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50" style={{ gridTemplateColumns }}>
           {columns.map((column) => (
             <div key={column.key} className={column.align === "right" ? "text-right" : ""} style={column.minWidth ? { minWidth: column.minWidth } : undefined}>{column.label}</div>
           ))}
         </div>
         {rows.map((row, index) => {
           const content = (
-            <div className="grid gap-4 border-b border-jscolors-crimson/8 px-5 py-4 transition hover:bg-jscolors-gold/10 md:grid" style={{ gridTemplateColumns }}>
+            <div className="grid gap-4 border-b border-jscolors-crimson/8 px-5 py-4 transition hover:bg-jscolors-gold/10" style={{ gridTemplateColumns }}>
               {columns.map((column) => (
                 <div key={column.key} className="min-w-0" style={column.minWidth ? { minWidth: column.minWidth } : undefined}>
-                  <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/35 md:hidden">{column.label}</div>
+                  <div className="hidden">{column.label}</div>
                   <div className="text-sm text-jscolors-text">
                     {column.render ? column.render(row[column.key], row) : (
                       <div className="truncate"><FieldRenderer type={column.type} value={row[column.key]} /></div>

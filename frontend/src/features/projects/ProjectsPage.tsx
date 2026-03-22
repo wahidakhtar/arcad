@@ -63,7 +63,7 @@ export default function ProjectsPage() {
             ? project.supports_subprojects
               ? `/projects/${project.key}/subprojects`
               : `/projects/${project.key}`
-            : null
+            : `/projects/${project.key}/overview`
           const card = (
             <div className="glass-panel p-6 transition hover:shadow-glow">
               <div className="flex items-start justify-between gap-3">
@@ -78,10 +78,8 @@ export default function ProjectsPage() {
               <div className="mt-6 text-sm text-jscolors-text/60">{project.recurring ? "Recurring operational schema enabled" : "Metadata-only one-off project"}</div>
             </div>
           )
-          return href ? (
+          return (
             <Link key={project.id} to={href}>{card}</Link>
-          ) : (
-            <div key={project.id}>{card}</div>
           )
         })}
       </div>

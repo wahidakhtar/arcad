@@ -11,6 +11,7 @@ import PeoplePage from "./features/people/PeoplePage"
 import UserDetailPage from "./features/people/UserDetailPage"
 import ProjectsPage from "./features/projects/ProjectsPage"
 import SubprojectsPage from "./features/projects/SubprojectsPage"
+import OneOffProjectPage from "./features/projects/OneOffProjectPage"
 import SiteListPage from "./features/sites/SiteListPage"
 import SiteDetailPage from "./features/sites/SiteDetailPage"
 import TransactionsPage from "./features/transactions/TransactionsPage"
@@ -50,7 +51,7 @@ export default function App() {
   const { setupRequired } = useAuth()
 
   useEffect(() => {
-    const RADIUS = 20
+    const RADIUS = 32
 
     function apply(el: Element) {
       const { width, height } = el.getBoundingClientRect()
@@ -110,6 +111,7 @@ export default function App() {
         <Route path="/people/:userId" element={<UserDetailPage />} />
         <Route path="/projects-admin" element={<ProjectsPage />} />
         <Route path="/projects/:projectKey/subprojects" element={<SubprojectsPage />} />
+        <Route path="/projects/:projectKey/overview" element={<OneOffProjectPage />} />
         <Route path="/projects/:projectKey" element={<SiteListPage />} />
         <Route path="/projects/:projectKey/sub/:subprojectId" element={<SiteListPage />} />
         <Route path="/projects/:projectKey/site/:siteId" element={<SiteDetailPage />} />
