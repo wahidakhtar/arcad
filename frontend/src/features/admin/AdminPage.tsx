@@ -71,6 +71,8 @@ const inputCls =
 // ─── BadgesTab ────────────────────────────────────────────────────────────────
 
 function BadgesTab() {
+  const { can } = useAuth()
+  const canWrite = can("admin", "write")
   const [badges, setBadges] = useState<Badge[]>([])
   const [dirty, setDirty] = useState<Set<number>>(new Set())
   const [saving, setSaving] = useState<Set<number>>(new Set())
@@ -164,7 +166,7 @@ function BadgesTab() {
                   </div>
                 </td>
                 <td className={tdCls}>
-                  {dirty.has(badge.id) && (
+                  {canWrite && dirty.has(badge.id) && (
                     <button
                       className="premium-button py-1.5 px-3 text-xs"
                       onClick={() => handleSave(badge.id)}
@@ -196,6 +198,8 @@ const PROJECTS = ["mi", "md", "ma", "mc"] as const
 type ProjectKey = (typeof PROJECTS)[number]
 
 function BadgeTransitionsTab() {
+  const { can } = useAuth()
+  const canWrite = can("admin", "write")
   const [data, setData] = useState<BadgeTransitionsResponse | null>(null)
   const [newRow, setNewRow] = useState({ project: "mi", type_id: "", from_id: "", to_id: "" })
   const [adding, setAdding] = useState(false)
@@ -290,12 +294,14 @@ function BadgeTransitionsTab() {
                         <td className={tdCls}>{t.to_label}</td>
                         <td className={tdCls}>{typLabel}</td>
                         <td className={tdCls}>
-                          <button
-                            className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition"
-                            onClick={() => handleRemove(proj, t.id)}
-                          >
-                            Remove
-                          </button>
+                          {canWrite && (
+                            <button
+                              className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition"
+                              onClick={() => handleRemove(proj, t.id)}
+                            >
+                              Remove
+                            </button>
+                          )}
                         </td>
                       </tr>
                     )
@@ -315,7 +321,7 @@ function BadgeTransitionsTab() {
       })}
 
       {/* Add form */}
-      <div>
+      {canWrite && <div>
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-jscolors-text/40">
           Add Transition
         </h3>
@@ -383,7 +389,7 @@ function BadgeTransitionsTab() {
             {adding ? "Adding…" : "Add"}
           </button>
         </div>
-      </div>
+      </div>}
     </div>
   )
 }
@@ -391,6 +397,8 @@ function BadgeTransitionsTab() {
 // ─── UIFieldsTab ──────────────────────────────────────────────────────────────
 
 function UIFieldsTab() {
+  const { can } = useAuth()
+  const canWrite = can("admin", "write")
   const [fields, setFields] = useState<Record<string, UIField[]>>({})
   const [dirty, setDirty] = useState<Set<number>>(new Set())
   const [saving, setSaving] = useState<Set<number>>(new Set())
@@ -568,7 +576,7 @@ function UIFieldsTab() {
                       </select>
                     </td>
                     <td className={tdCls}>
-                      {dirty.has(field.id) && (
+                      {canWrite && dirty.has(field.id) && (
                         <button
                           className="premium-button py-1.5 px-3 text-xs"
                           onClick={() => handleSave(project, field.id)}
@@ -599,6 +607,8 @@ function UIFieldsTab() {
 // ─── JobsTab ──────────────────────────────────────────────────────────────────
 
 function JobsTab() {
+  const { can } = useAuth()
+  const canWrite = can("admin", "write")
   const [jobs, setJobs] = useState<Job[]>([])
   const [dirty, setDirty] = useState<Set<number>>(new Set())
   const [saving, setSaving] = useState<Set<number>>(new Set())
@@ -684,7 +694,7 @@ function JobsTab() {
                   </select>
                 </td>
                 <td className={tdCls}>
-                  {dirty.has(job.id) && (
+                  {canWrite && dirty.has(job.id) && (
                     <button
                       className="premium-button py-1.5 px-3 text-xs"
                       onClick={() => handleSave(job.id)}
@@ -720,6 +730,8 @@ function JobsTab() {
 // ─── RoleTagsTab ──────────────────────────────────────────────────────────────
 
 function RoleTagsTab() {
+  const { can } = useAuth()
+  const canWrite = can("admin", "write")
   const [data, setData] = useState<RoleTagsResponse | null>(null)
   const [matrix, setMatrix] = useState<Record<string, { read: boolean; write: boolean }>>({})
   const [saving, setSaving] = useState<Set<string>>(new Set())
@@ -809,7 +821,7 @@ function RoleTagsTab() {
                             checked={perm.read}
                             onChange={() => handleToggle(role.id, tag.id, "read", !perm.read)}
                             className="h-3 w-3"
-                            disabled={saving.has(key)}
+                            disabled={!canWrite || saving.has(key)}
                           />
                           R
                         </label>
@@ -819,7 +831,7 @@ function RoleTagsTab() {
                             checked={perm.write}
                             onChange={() => handleToggle(role.id, tag.id, "write", !perm.write)}
                             className="h-3 w-3"
-                            disabled={saving.has(key)}
+                            disabled={!canWrite || saving.has(key)}
                           />
                           W
                         </label>
@@ -849,7 +861,7 @@ export default function AdminPage() {
   const { can } = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>("Badges")
 
-  if (!can("site", "read")) return <div className="p-6 text-red-600">Access denied.</div>
+  if (!can("admin", "read")) return <div className="p-6 text-red-600">Access denied.</div>
 
   return (
     <div className="space-y-6">

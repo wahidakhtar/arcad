@@ -85,7 +85,7 @@ export default function Sidebar() {
             <SectionLink to="/billing/invoices" label="Invoice" />
           </div>
         )}
-        {can("site", "read") && (
+        {can("admin", "read") && (
           <SectionLink to="/admin" label="Admin" />
         )}
       </nav>
