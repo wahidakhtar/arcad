@@ -169,35 +169,34 @@ export default function SiteDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="sticky top-0 z-20 bg-white">
-        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar whitespace-nowrap px-0 py-3">
-          {badgeFields.map((field) => {
-            if (field.key === "tx_copy_status" && !isAssetTransfer) return null
-            const badgeValue = getFieldValue(currentSite, field)
-            const currentBadge = typeof badgeValue === "number" ? badgeById.get(badgeValue) : null
-            const isDocBadge = DOC_BADGE_FIELDS.has(field.key)
-            const nextTransitions = (!isDocBadge || docBadgeEditable) && typeof badgeValue === "number"
-              ? transitionOptions(transitions, field.key, badgeValue)
-              : []
-            return (
-              <div key={field.key} className="shrink-0 rounded-[18px] border border-jscolors-crimson/10 bg-white px-3 py-2">
-                <div className="text-[9px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">{field.label}</div>
-                <div className="mt-2">
-                  <BadgeDropdown
-                    badge={currentBadge ?? null}
-                    fallback={String(selectedBadgeFallback(badgeValue))}
-                    options={nextTransitions.map((t) => ({ id: t.to_id, label: t.to_label, color: badgeById.get(t.to_id)?.color ?? null }))}
-                    onSelect={(toId) => void transitionBadge(field.key, toId)}
-                    disabled={updatingBadgeKey === field.key}
-                  />
-                </div>
+    <div className="flex flex-col h-full">
+      <div className="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar pb-4">
+        {badgeFields.map((field) => {
+          if (field.key === "tx_copy_status" && !isAssetTransfer) return null
+          const badgeValue = getFieldValue(currentSite, field)
+          const currentBadge = typeof badgeValue === "number" ? badgeById.get(badgeValue) : null
+          const isDocBadge = DOC_BADGE_FIELDS.has(field.key)
+          const nextTransitions = (!isDocBadge || docBadgeEditable) && typeof badgeValue === "number"
+            ? transitionOptions(transitions, field.key, badgeValue)
+            : []
+          return (
+            <div key={field.key} className="shrink-0 rounded-[18px] border border-jscolors-crimson/10 bg-white px-3 py-2">
+              <div className="text-[9px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">{field.label}</div>
+              <div className="mt-2">
+                <BadgeDropdown
+                  badge={currentBadge ?? null}
+                  fallback={String(selectedBadgeFallback(badgeValue))}
+                  options={nextTransitions.map((t) => ({ id: t.to_id, label: t.to_label, color: badgeById.get(t.to_id)?.color ?? null }))}
+                  onSelect={(toId) => void transitionBadge(field.key, toId)}
+                  disabled={updatingBadgeKey === field.key}
+                />
               </div>
-            )
-          })}
-        </div>
+            </div>
+          )
+        })}
       </div>
 
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-6">
       <div className="grid gap-6 2xl:grid-cols-[1.05fr_0.95fr]">
         <section className="glass-panel p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Details</p>
@@ -306,6 +305,7 @@ export default function SiteDetailPage() {
             onReload={loadPage}
           />
         </section>
+      </div>
       </div>
     </div>
   )
