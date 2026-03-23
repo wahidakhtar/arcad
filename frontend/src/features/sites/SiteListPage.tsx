@@ -179,7 +179,7 @@ export default function SiteListPage() {
   }
 
   return (
-    <div className="w-full space-y-5">
+    <div className="space-y-5">
       {canSubprojectRead && subprojectTabs.length > 0 && (
         <div className="flex flex-wrap gap-2">
           <TabPill active={activeTab === "deployed"} onClick={() => setActiveTab("deployed")}>
