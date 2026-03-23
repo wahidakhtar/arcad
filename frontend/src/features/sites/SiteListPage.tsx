@@ -193,39 +193,35 @@ export default function SiteListPage() {
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        <div className="min-w-max space-y-5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <FilterBar filters={badgeFilters} onFilterChange={handleFilterChange} />
-            </div>
-            <div className="flex shrink-0 items-center gap-3">
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search by Circuit ID"
-                className="rounded-full border border-jscolors-crimson/15 bg-white px-5 py-3 outline-none"
-              />
-              {showAddButton && (
-                <button type="button" className="premium-button shrink-0" onClick={openAddHandler}>
-                  Add
-                </button>
-              )}
-            </div>
-          </div>
-
-          {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
-          {loading && !siteData ? (
-            <div className="py-8 text-center text-sm text-jscolors-text/50">Loading sites...</div>
-          ) : (
-            <DataTable
-              columns={columns}
-              rows={filtered}
-              rowHref={(row) => `/projects/${projectKey}/site/${row.id}`}
-            />
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterBar filters={badgeFilters} onFilterChange={handleFilterChange} />
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search by Circuit ID"
+            className="rounded-full border border-jscolors-crimson/15 bg-white px-5 py-3 outline-none"
+          />
+          {showAddButton && (
+            <button type="button" className="premium-button shrink-0" onClick={openAddHandler}>
+              Add
+            </button>
           )}
         </div>
       </div>
+
+      {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
+      {loading && !siteData ? (
+        <div className="py-8 text-center text-sm text-jscolors-text/50">Loading sites...</div>
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={filtered}
+          rowHref={(row) => `/projects/${projectKey}/site/${row.id}`}
+        />
+      )}
 
       {openAddModal && createPortal(
         <div
