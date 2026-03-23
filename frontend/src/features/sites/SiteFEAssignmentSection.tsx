@@ -235,30 +235,6 @@ export default function SiteFEAssignmentSection({
         document.body,
       )}
 
-      <div className="grid gap-3 md:grid-cols-2">
-        {jobBuckets.length > 1 && (
-          <select
-            value={assignmentForm.bucket_id}
-            onChange={(e) => setAssignmentForm((c) => ({ ...c, bucket_id: e.target.value }))}
-            className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-          >
-            <option value="">Select Bucket</option>
-            {jobBuckets.map((b) => (
-              <option key={b.id} value={b.id}>{b.label}</option>
-            ))}
-          </select>
-        )}
-        <select
-          value={assignmentForm.fe_id}
-          onChange={(e) => setAssignmentForm((c) => ({ ...c, fe_id: e.target.value }))}
-          className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-        >
-          <option value="">Select FE</option>
-          {foUsers.map((u) => (
-            <option key={u.id} value={u.id}>{u.label}</option>
-          ))}
-        </select>
-      </div>
       {(() => {
         const alreadyAssigned =
           !!assignmentForm.bucket_id &&
@@ -266,23 +242,45 @@ export default function SiteFEAssignmentSection({
             (r) => r.active && r.bucket_key === jobBuckets.find((b) => String(b.id) === assignmentForm.bucket_id)?.key,
           )
         return (
-          <div className="mt-3 flex justify-end">
-          <button
-            type="button"
-            className={`premium-button${alreadyAssigned ? " cursor-not-allowed opacity-50" : ""}`}
-            disabled={alreadyAssigned}
-            onClick={() => {
-              if (!assignmentForm.bucket_id || !assignmentForm.fe_id) return
-              void api
-                .post(`/sites/${projectKey}/${currentSite.id}/assignments`, { bucket_id: Number(assignmentForm.bucket_id), fe_id: Number(assignmentForm.fe_id) })
-                .then(() => {
-                  setAssignmentForm({ bucket_id: "", fe_id: "" })
-                  return onReload()
-                })
-            }}
-          >
-            Assign FE
-          </button>
+          <div className="flex items-center gap-3">
+            {jobBuckets.length > 1 && (
+              <select
+                value={assignmentForm.bucket_id}
+                onChange={(e) => setAssignmentForm((c) => ({ ...c, bucket_id: e.target.value }))}
+                className="flex-1 rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
+              >
+                <option value="">Select Bucket</option>
+                {jobBuckets.map((b) => (
+                  <option key={b.id} value={b.id}>{b.label}</option>
+                ))}
+              </select>
+            )}
+            <select
+              value={assignmentForm.fe_id}
+              onChange={(e) => setAssignmentForm((c) => ({ ...c, fe_id: e.target.value }))}
+              className="flex-1 rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
+            >
+              <option value="">Select FE</option>
+              {foUsers.map((u) => (
+                <option key={u.id} value={u.id}>{u.label}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className={`premium-button shrink-0${alreadyAssigned ? " cursor-not-allowed opacity-50" : ""}`}
+              disabled={alreadyAssigned}
+              onClick={() => {
+                if (!assignmentForm.bucket_id || !assignmentForm.fe_id) return
+                void api
+                  .post(`/sites/${projectKey}/${currentSite.id}/assignments`, { bucket_id: Number(assignmentForm.bucket_id), fe_id: Number(assignmentForm.fe_id) })
+                  .then(() => {
+                    setAssignmentForm({ bucket_id: "", fe_id: "" })
+                    return onReload()
+                  })
+              }}
+            >
+              Assign FE
+            </button>
           </div>
         )
       })()}

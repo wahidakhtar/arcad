@@ -193,7 +193,7 @@ export default function SiteListPage() {
         </div>
       )}
 
-      <div className="sticky top-0 z-10 -mx-8 bg-white px-8 pb-3 md:-mx-10 md:px-10">
+      <div className="sticky top-0 z-20 bg-white py-2">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <FilterBar filters={badgeFilters} onFilterChange={handleFilterChange} />

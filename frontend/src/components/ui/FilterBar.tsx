@@ -93,7 +93,7 @@ export default function FilterBar({
         return (
           <div key={filter.key} className="flex items-center gap-2">
             {filter.label ? <div className="text-sm font-medium text-jscolors-text/60">{filter.label}</div> : null}
-            <div className="flex flex-nowrap gap-1.5 overflow-x-auto">
+            <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar">
               {filter.options.map((option) => {
                 const active = selected.includes(option.value)
                 return (
@@ -101,7 +101,7 @@ export default function FilterBar({
                     key={option.value}
                     type="button"
                     onClick={() => onFilterChange(filter.key, option.value)}
-                    className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold tracking-[0.06em] ${
+                    className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${
                       active ? "shadow-sm" : ""
                     }`}
                     style={{
