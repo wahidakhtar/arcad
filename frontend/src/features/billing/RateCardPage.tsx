@@ -1,5 +1,6 @@
 import { useState } from "react"
 
+import { useAuth } from "../../context/AuthContext"
 import { useListPage } from "../../hooks/useListPage"
 import Modal from "../../components/ui/Modal"
 import { api } from "../../lib/api"
@@ -20,6 +21,7 @@ type JobEntry = {
 }
 
 export default function RateCardPage() {
+  const { can } = useAuth()
   const { data, loading, error, refetch } = useListPage<RateCardRow[]>({ endpoint: "/billing/rate-card" })
   const [openAdd, setOpenAdd] = useState(false)
   const [jobs, setJobs] = useState<JobEntry[]>([])
@@ -64,9 +66,11 @@ export default function RateCardPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        <button type="button" className="premium-button shrink-0" onClick={openModal}>
-          Add Rate
-        </button>
+        {can("billing", "write") && (
+          <button type="button" className="premium-button shrink-0" onClick={openModal}>
+            Add Rate
+          </button>
+        )}
       </div>
 
       <Modal open={openAdd} title="Add Rate" onClose={() => setOpenAdd(false)}>

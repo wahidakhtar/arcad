@@ -26,6 +26,7 @@ from app.api.routes.tickets import router as tickets_router
 from app.api.routes.transactions import router as transactions_router
 from app.api.routes.updates import router as updates_router
 from app.api.routes.roles import router as roles_router
+from app.api.routes.me import router as me_router
 from app.api.routes.users import router as users_router
 from app.core.config import get_settings
 from app.core.database import engine, get_db
@@ -95,6 +96,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router, prefix=settings.api_prefix)
+app.include_router(me_router, prefix=settings.api_prefix)
 app.include_router(badges_router, prefix=settings.api_prefix)
 app.include_router(setup_router, prefix=settings.api_prefix)
 app.include_router(users_router, prefix=settings.api_prefix)

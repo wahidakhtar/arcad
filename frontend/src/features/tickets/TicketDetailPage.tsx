@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 
+import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
 
 type TicketRaw = {
@@ -25,6 +26,7 @@ type SiteEntry = {
 }
 
 export default function TicketDetailPage() {
+  const { can } = useAuth()
   const { ticketId } = useParams()
   const navigate = useNavigate()
   const [ticket, setTicket] = useState<TicketRaw | null>(null)
@@ -114,7 +116,7 @@ export default function TicketDetailPage() {
           {ticket.rfo ? <InfoField label="Note / RFO" value={ticket.rfo} /> : null}
         </div>
 
-        {isOpen && (
+        {isOpen && can("ticket", "write") && (
           <div className="pt-2">
             <button
               type="button"

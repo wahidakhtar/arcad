@@ -846,11 +846,10 @@ function RoleTagsTab() {
 // ─── AdminPage ────────────────────────────────────────────────────────────────
 
 export default function AdminPage() {
-  const { roles } = useAuth()
-  const isAdmin = roles.some((r) => r.dept_key === "mgmt" && ["l1", "l3"].includes(r.level_key))
+  const { can } = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>("Badges")
 
-  if (!isAdmin) return <div className="p-6 text-red-600">Access denied.</div>
+  if (!can("site", "read")) return <div className="p-6 text-red-600">Access denied.</div>
 
   return (
     <div className="space-y-6">

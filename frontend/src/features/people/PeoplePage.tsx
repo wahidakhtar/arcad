@@ -30,8 +30,8 @@ type ProjectEntry = {
 export default function PeoplePage() {
   const config = getPageConfig("people")
   const navigate = useNavigate()
-  const { tags } = useAuth()
-  const canWriteUser = tags.people?.write === true
+  const { can } = useAuth()
+  const canWriteUser = can("people", "write")
   const [hoveredUserId, setHoveredUserId] = useState<number | null>(null)
   const [openAddUser, setOpenAddUser] = useState(false)
   const [submitting, setSubmitting] = useState(false)

@@ -74,9 +74,9 @@ type ExecModal = {
 }
 
 export default function TransactionsPage() {
-  const { tags } = useAuth()
-  const canRequestWrite = tags.request?.write === true
-  const canTransactionWrite = tags.transaction?.write === true
+  const { can } = useAuth()
+  const canRequestWrite = can("request", "write")
+  const canTransactionWrite = can("transaction", "write")
 
   const [rows, setRows] = useState<TxRow[]>([])
   const [allBadges, setAllBadges] = useState<BadgeEntry[]>([])

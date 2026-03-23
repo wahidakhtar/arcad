@@ -27,10 +27,10 @@ type AvailableRole = {
 
 export default function UserDetailPage() {
   const { userId } = useParams()
-  const { tags } = useAuth()
-  const canWriteUser = tags.user?.write === true
-  const canReadAssignRole = tags.assign_role?.read === true
-  const canWriteAssignRole = tags.assign_role?.write === true
+  const { can } = useAuth()
+  const canWriteUser = can("people", "write")
+  const canReadAssignRole = can("role", "read")
+  const canWriteAssignRole = can("role", "write")
 
   const [user, setUser] = useState<UserDetail | null>(null)
   const [availableRoles, setAvailableRoles] = useState<AvailableRole[]>([])

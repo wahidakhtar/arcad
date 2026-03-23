@@ -12,7 +12,6 @@ import {
   READ_ONLY_FIELDS,
   displayValueForField,
   draftValueForField,
-  fieldVisible,
   getFieldValue,
   optionsForField,
   projectByKey,
@@ -24,7 +23,7 @@ import SiteTicketsSection from "./SiteTicketsSection"
 import SiteFEAssignmentSection from "./SiteFEAssignmentSection"
 
 export default function SiteDetailPage() {
-  const { tags } = useAuth()
+  const { can, canPermTag } = useAuth()
   const { projectKey = "mi", siteId = "0" } = useParams()
   const [site, setSite] = useState<SiteDetail | null>(null)
   const [uiFields, setUiFields] = useState<UIField[]>([])
@@ -111,8 +110,8 @@ export default function SiteDetailPage() {
   const project = useMemo(() => projectByKey(projects, projectKey), [projectKey, projects])
 
   const visibleFields = useMemo(
-    () => uiFields.filter((f) => fieldVisible(f.perm_tag, tags)),
-    [uiFields, tags],
+    () => uiFields.filter((f) => canPermTag(f.perm_tag)),
+    [uiFields, canPermTag],
   )
   const badgeFields = useMemo(() => visibleFields.filter((f) => f.type === "badge"), [visibleFields])
   const regularFields = useMemo(() => visibleFields.filter((f) => f.type !== "badge"), [visibleFields])
@@ -127,17 +126,17 @@ export default function SiteDetailPage() {
   if (error) return <div className="p-6 text-red-600">{error}</div>
 
   const currentSite = site
-  const canSiteWrite = tags.site?.write === true
-  const canRequestWrite = tags.request?.write === true
-  const canTransactionWrite = tags.transaction?.write === true
+  const canSiteWrite = can("site", "write")
+  const canRequestWrite = can("request", "write")
+  const canTransactionWrite = can("transaction", "write")
   const cancelBadge = badges.find((b) => b.key === "cancel")
   const cancelBadgeId = cancelBadge?.id
   const reqBadge = badges.find((b) => b.key === "req")
   const reqBadgeId = reqBadge?.id
-  const docBadgeEditable = tags.doc_badge?.write === true
-  const canAddUpdate = tags.update?.write === true || tags.acc_update?.write === true
-  const canReadOpsUpdates = tags.update?.read === true
-  const canReadAccUpdates = tags.acc_update?.read === true
+  const docBadgeEditable = can("doc_badge", "write")
+  const canAddUpdate = can("update", "write") || can("acc_update", "write")
+  const canReadOpsUpdates = can("update", "read")
+  const canReadAccUpdates = can("acc_update", "read")
   const outcomeId = typeof currentSite.fields.outcome === "number" ? currentSite.fields.outcome :
     typeof currentSite.fields.outcome_id === "number" ? currentSite.fields.outcome_id : null
   const isAssetTransfer = outcomeId !== null && badgeById.get(outcomeId as number)?.label?.toLowerCase() === "asset transfer"
@@ -280,8 +279,8 @@ export default function SiteDetailPage() {
           />
           <SiteTicketsSection
             tickets={tickets}
-            canTicketRead={tags.ticket?.read === true}
-            canTicketWrite={tags.ticket?.write === true}
+            canTicketRead={can("ticket", "read")}
+            canTicketWrite={can("ticket", "write")}
             projectId={project?.id}
             siteId={currentSite.id}
             onReload={loadPage}

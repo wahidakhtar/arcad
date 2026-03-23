@@ -21,6 +21,7 @@ type AuthContextValue = {
   logout: () => Promise<void>
   refreshAuth: () => Promise<void>
   can: (tag: string, action: "read" | "write") => boolean
+  canPermTag: (permTag?: string | null) => boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -175,6 +176,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         refreshAuth,
         can: (tag, action) => hasPermission(tags, tag, action),
+        canPermTag: (permTag) => {
+          if (!permTag) return true
+          const [tag, action = "read"] = permTag.split(":")
+          return hasPermission(tags, tag, action as "read" | "write")
+        },
       }}
     >
       {children}

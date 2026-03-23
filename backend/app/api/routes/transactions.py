@@ -30,7 +30,7 @@ def create_transaction(payload: TransactionCreate, db: Session = Depends(get_db)
 def update_status(
     transaction_id: int,
     payload: StatusUpdate,
-    user: UserContext = Depends(get_current_user),
+    user: UserContext = Depends(permission_required("transaction", "write")),
     db: Session = Depends(get_db),
 ):
     return transaction_service.update_status(

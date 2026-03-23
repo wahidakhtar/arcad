@@ -13,15 +13,14 @@ type SidebarProject = {
 }
 
 export default function Sidebar() {
-  const { user, roles, tags, projectKeys, logout } = useAuth()
+  const { user, can, projectKeys, logout } = useAuth()
   const [projects, setProjects] = useState<SidebarProject[]>([])
   const [counts, setCounts] = useState({ transactions: 0, tickets: 0 })
   const countsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const canTag = (tag: string) => tags[tag]?.read === true
 
   useEffect(() => {
-    void api.get("/projects").then((r) => setProjects(r.data)).catch(() => {})
+    void api.get("/me/projects").then((r) => setProjects(r.data)).catch(() => {})
 
     const fetchCounts = () => {
       void api.get("/projects/counts").then((r) => setCounts(r.data)).catch(() => {})
@@ -47,10 +46,10 @@ export default function Sidebar() {
 
       <nav className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-5 text-sm">
         <SectionLink to="/dashboard" label="Dashboard" />
-        {canTag("people") && <SectionLink to="/people" label="People" />}
-        {canTag("project") && <SectionLink to="/projects-admin" label="Projects" />}
+        {can("people", "read") && <SectionLink to="/people" label="People" />}
+        {can("project", "read") && <SectionLink to="/projects-admin" label="Projects" />}
 
-        {canTag("site") && roles.some((r) => r.project_id !== null || r.key === "mgmtl3") && (
+        {can("site", "read") && (
         <div className="space-y-3">
           <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-jscolors-text/40">Project Modules</p>
           {projects
@@ -76,17 +75,17 @@ export default function Sidebar() {
         </div>
         )}
 
-        {canTag("transaction") && <SectionLink to="/transactions" label={`Transactions (${counts.transactions})`} />}
-        {canTag("ticket") && <SectionLink to="/tickets" label={`Tickets (${counts.tickets})`} />}
-        {canTag("rate") && <SectionLink to="/billing/rate-card" label="Rate Card" />}
-        {canTag("billing") && (
+        {can("transaction", "read") && <SectionLink to="/transactions" label={`Transactions (${counts.transactions})`} />}
+        {can("ticket", "read") && <SectionLink to="/tickets" label={`Tickets (${counts.tickets})`} />}
+        {can("rate", "read") && <SectionLink to="/billing/rate-card" label="Rate Card" />}
+        {can("billing", "read") && (
           <div className="space-y-2">
             <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-jscolors-text/40">Billing</p>
             <SectionLink to="/billing/pos" label="PO" />
             <SectionLink to="/billing/invoices" label="Invoice" />
           </div>
         )}
-        {roles.some(r => r.dept_key === "mgmt" && ["l1", "l3"].includes(r.level_key)) && (
+        {can("site", "read") && (
           <SectionLink to="/admin" label="Admin" />
         )}
       </nav>
