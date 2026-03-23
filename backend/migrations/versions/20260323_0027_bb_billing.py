@@ -39,17 +39,12 @@ def upgrade() -> None:
     conn = op.get_bind()
 
     def seed_badge(type_: str, key: str, label: str, color: str | None = None) -> None:
-        exists = conn.execute(
-            sa.text("SELECT 1 FROM schema_core.badges WHERE type = :t AND key = :k"),
-            {"t": type_, "k": key},
-        ).scalar_one_or_none()
-        if exists is None:
-            conn.execute(
-                sa.text(
-                    "INSERT INTO schema_core.badges (type, key, label, color) VALUES (:t, :k, :l, :c)"
-                ),
-                {"t": type_, "k": key, "l": label, "c": color},
-            )
+        conn.execute(
+            sa.text(
+                "INSERT INTO schema_core.badges (type, key, label, color) VALUES (:t, :k, :l, :c) ON CONFLICT DO NOTHING"
+            ),
+            {"t": type_, "k": key, "l": label, "c": color},
+        )
 
     seed_badge("po_status", "po_exp", "Expired", "#F2D0D3")
     seed_badge("po_status", "npa", "New PO Awaited", "#93DCF9")
