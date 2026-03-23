@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import logging
 from decimal import Decimal
 from typing import Any, Optional
@@ -303,7 +303,10 @@ def create_site(db: Session, user: UserContext, project_key: str, subproject_id:
         db.commit()
         db.refresh(site)
         logger.info("create_site success project=%s inserted_id=%s ckt_id=%s", project_key, site.id, site.ckt_id)
-        acc_rules.create_site_po_if_needed(db, project_key, project.id, site.id, resolved_subproject_id)
+        if project_key == "bb":
+            acc_rules.create_bb_site_po(db, site.id)
+        else:
+            acc_rules.create_site_po_if_needed(db, project_key, project.id, site.id, resolved_subproject_id)
         db.commit()
         return model_to_dict(site)
     except SQLAlchemyError as exc:
@@ -540,6 +543,7 @@ def create_termination(db: Session, user: UserContext, project_key: str, site_id
     if project_key != "bb":
         raise HTTPException(status_code=400, detail="Terminations are only supported for BB sites")
     from app.models.bb import Termination
+    from app.models.acc import Invoice, PO
     project = get_project(db, project_key)
     ensure_permission(user, db, project_key=project_key, tag="site", action="write")
     model = get_site_model(project_key)
@@ -549,14 +553,31 @@ def create_termination(db: Session, user: UserContext, project_key: str, site_id
     existing = db.get(Termination, site_id)
     if existing is not None:
         raise HTTPException(status_code=400, detail="Termination already exists for this site")
+
     termination = Termination(site_id=site_id, date=termination_date)
     db.add(termination)
+
     badges = badge_map(db)
     term_id = next((bid for bid, b in badges.items() if b.key == "term"), None)
     if term_id:
         site.status_id = term_id
     if hasattr(site, "version"):
         site.version = (site.version or 0) + 1
+
+    # Cancel pending invoices on the site's active PO
+    pend_id = next((bid for bid, b in badges.items() if b.type == "doc_status" and b.key == "pend"), None)
+    canc_id = next((bid for bid, b in badges.items() if b.type == "doc_status" and b.key == "canc"), None)
+    if pend_id is not None and canc_id is not None:
+        po = db.execute(
+            select(PO).where(PO.project_id == project.id, PO.site_id == site_id)
+        ).scalar_one_or_none()
+        if po is not None:
+            pending_invoices = db.execute(
+                select(Invoice).where(Invoice.po_id == po.id, Invoice.invoice_status_id == pend_id)
+            ).scalars().all()
+            for inv in pending_invoices:
+                inv.invoice_status_id = canc_id
+
     db.commit()
     db.refresh(site)
     return model_to_dict(site)
@@ -599,3 +620,69 @@ def remove_assignment(db: Session, user: UserContext, project_key: str, site_id:
     )
     db.commit()
     return get_site(db, user, project_key, site_id)
+
+
+# ---------------------------------------------------------------------------
+# BB recharge
+# ---------------------------------------------------------------------------
+
+def _calc_next_recharge_date(recharge_date: date, validity: int, uom: str) -> date:
+    if uom == "months":
+        import calendar
+        month = recharge_date.month - 1 + validity
+        year = recharge_date.year + month // 12
+        month = month % 12 + 1
+        day = min(recharge_date.day, calendar.monthrange(year, month)[1])
+        return date(year, month, day)
+    return recharge_date + timedelta(days=validity)
+
+
+def list_recharges(db: Session, user: UserContext, site_id: int) -> list[dict]:
+    from app.models.bb import Recharge
+    ensure_permission(user, db, project_key="bb", tag="site", action="read")
+    rows = db.execute(
+        select(Recharge).where(Recharge.site_id == site_id).order_by(Recharge.date.desc())
+    ).scalars().all()
+    return [
+        {
+            "id": r.id,
+            "site_id": r.site_id,
+            "date": r.date,
+            "amount": r.amount,
+            "validity": r.validity,
+            "uom": r.uom,
+            "next_recharge_date": r.next_recharge_date,
+        }
+        for r in rows
+    ]
+
+
+def create_recharge(db: Session, user: UserContext, site_id: int, recharge_date: date, amount, validity: int, uom: str) -> dict:
+    from app.models.bb import Recharge, BBSite
+    ensure_permission(user, db, project_key="bb", tag="site", action="write")
+    site = db.get(BBSite, site_id)
+    if site is None:
+        raise HTTPException(status_code=404, detail="BB site not found")
+    if uom not in ("months", "days"):
+        raise HTTPException(status_code=400, detail="uom must be 'months' or 'days'")
+    next_recharge_date = _calc_next_recharge_date(recharge_date, validity, uom)
+    row = Recharge(
+        site_id=site_id,
+        date=recharge_date,
+        amount=amount,
+        validity=validity,
+        uom=uom,
+        next_recharge_date=next_recharge_date,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {
+        "id": row.id,
+        "site_id": row.site_id,
+        "date": row.date,
+        "amount": row.amount,
+        "validity": row.validity,
+        "uom": row.uom,
+        "next_recharge_date": row.next_recharge_date,
+    }

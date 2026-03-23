@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session
 
 from app.api.auth import permission_required
 from app.core.database import get_db
-from app.schemas.billing import InvoiceCreate, POCreate, RateCardCreate, StatusUpdate
+from app.schemas.billing import ActivatePORequest, InvoiceCreate, POCreate, RateCardCreate, StatusUpdate
 from app.services import billing as billing_service
+from app.services import acc_rules
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -39,6 +40,13 @@ def create_po(payload: POCreate, db: Session = Depends(get_db)):
 @router.patch("/pos/{po_id}/status", dependencies=[Depends(permission_required("billing", "write"))])
 def update_po_status(po_id: int, payload: StatusUpdate, db: Session = Depends(get_db)):
     return billing_service.update_po_status(db, po_id, payload.status_id)
+
+
+@router.patch("/pos/{po_id}/activate", dependencies=[Depends(permission_required("billing", "write"))])
+def activate_po(po_id: int, payload: ActivatePORequest, db: Session = Depends(get_db)):
+    po = acc_rules.activate_bb_po(db, po_id, payload.valid_from, payload.valid_to)
+    db.commit()
+    return {"id": po.id, "valid_from": po.valid_from, "valid_to": po.valid_to, "po_status_id": po.po_status_id}
 
 
 @router.get("/invoices", dependencies=[Depends(permission_required("billing", "read"))])

@@ -49,6 +49,11 @@ class StatusUpdate(BaseModel):
     status_id: int
 
 
+class ActivatePORequest(BaseModel):
+    valid_from: date
+    valid_to: date
+
+
 class RateCardCreate(BaseModel):
     job_id: int
     date: date

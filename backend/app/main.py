@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone, timedelta
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -23,9 +28,12 @@ from app.api.routes.updates import router as updates_router
 from app.api.routes.roles import router as roles_router
 from app.api.routes.users import router as users_router
 from app.core.config import get_settings
-from app.core.database import engine
+from app.core.database import engine, get_db
 from app.core.errors import PermissionDenied
 from app.models.hr import User
+from app.services import acc_rules
+
+_scheduler_log = logging.getLogger("arcad.scheduler")
 
 import app.models.acc  # noqa: F401
 import app.models.auth  # noqa: F401
@@ -40,7 +48,38 @@ import app.models.ops  # noqa: F401
 import app.models.updates  # noqa: F401
 
 settings = get_settings()
-app = FastAPI(title="ARCAD")
+
+
+async def _daily_expiry_loop() -> None:
+    """Run expire_bb_pos once per day at midnight IST (UTC+5:30)."""
+    IST_OFFSET = timedelta(hours=5, minutes=30)
+    while True:
+        now_ist = datetime.now(timezone.utc) + IST_OFFSET
+        # Seconds until next midnight IST
+        next_midnight = (now_ist + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        sleep_secs = (next_midnight - now_ist).total_seconds()
+        _scheduler_log.info("expire_bb_pos: next run in %.0f seconds", sleep_secs)
+        await asyncio.sleep(sleep_secs)
+        try:
+            db = next(get_db())
+            expired = acc_rules.expire_bb_pos(db)
+            _scheduler_log.info("expire_bb_pos: expired %d POs", expired)
+        except Exception:
+            _scheduler_log.exception("expire_bb_pos scheduler error")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(_daily_expiry_loop())
+    yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+
+app = FastAPI(title="ARCAD", lifespan=lifespan)
 
 
 @app.exception_handler(PermissionDenied)

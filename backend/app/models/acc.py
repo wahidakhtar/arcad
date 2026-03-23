@@ -23,6 +23,8 @@ class PO(Base):
     po_no: Optional[Mapped[str]] = mapped_column(String(128))
     period_from: Optional[Mapped[date]] = mapped_column(Date)
     period_to: Optional[Mapped[date]] = mapped_column(Date)
+    valid_from: Optional[Mapped[date]] = mapped_column(Date)
+    valid_to: Optional[Mapped[date]] = mapped_column(Date)
     po_status_id: Mapped[int] = mapped_column(ForeignKey("schema_core.badges.id"), nullable=False)
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
@@ -34,6 +36,8 @@ class Invoice(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     po_id: Mapped[int] = mapped_column(ForeignKey("schema_acc.pos.id"), nullable=False)
     invoice_no: Optional[Mapped[str]] = mapped_column(String(128))
+    period_from: Optional[Mapped[date]] = mapped_column(Date)
+    period_to: Optional[Mapped[date]] = mapped_column(Date)
     submission_date: Optional[Mapped[date]] = mapped_column(Date)
     settlement_date: Optional[Mapped[date]] = mapped_column(Date)
     invoice_status_id: Mapped[int] = mapped_column(ForeignKey("schema_core.badges.id"), nullable=False)

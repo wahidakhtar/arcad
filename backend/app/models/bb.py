@@ -72,6 +72,7 @@ class Recharge(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     validity: Mapped[int] = mapped_column(Integer, nullable=False)
     uom: Mapped[str] = mapped_column(String(32), nullable=False)
+    next_recharge_date: Optional[Mapped[date]] = mapped_column(Date, nullable=True)
 
 
 class Termination(Base):

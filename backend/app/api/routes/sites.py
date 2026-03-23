@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from decimal import Decimal
+
 from app.api.auth import UserContext, get_current_user, permission_required
 from app.core.database import get_db
 from app.schemas.site import FEAssignmentRequest, FERemovalRequest, SiteCreate, SiteOut, SiteUpdate
@@ -16,6 +18,13 @@ from app.services import sites as site_service
 
 class TerminationCreate(BaseModel):
     date: date
+
+
+class RechargeCreate(BaseModel):
+    date: date
+    amount: Decimal
+    validity: int
+    uom: str
 
 router = APIRouter(prefix="/sites", tags=["sites"])
 
@@ -60,6 +69,25 @@ def remove_assignment(project_key: str, site_id: int, assignment_id: int, payloa
 @router.patch("/{project_key}/{site_id}/assignments/{fe_id}/{bucket_id}/remove", response_model=SiteOut)
 def remove_fe(project_key: str, site_id: int, fe_id: int, bucket_id: int, payload: FERemovalRequest, user: UserContext = Depends(get_current_user), db: Session = Depends(get_db)):
     return site_service.remove_fe_assignment(db, user, project_key, site_id, fe_id, bucket_id, payload.final_cost)
+
+
+@router.get("/bb/{site_id}/recharges", dependencies=[Depends(permission_required("site", "read"))])
+def list_recharges(
+    site_id: int,
+    user: UserContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return sites_service.list_recharges(db, user, site_id)
+
+
+@router.post("/bb/{site_id}/recharges", dependencies=[Depends(permission_required("site", "write"))])
+def create_recharge(
+    site_id: int,
+    payload: RechargeCreate,
+    user: UserContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return sites_service.create_recharge(db, user, site_id, payload.date, payload.amount, payload.validity, payload.uom)
 
 
 @router.post("/bb/{site_id}/terminations", dependencies=[Depends(permission_required("site", "write"))])
