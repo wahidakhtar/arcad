@@ -37,8 +37,8 @@ export default function Sidebar() {
     <aside className="flex h-full w-[260px] shrink-0 flex-col overflow-hidden rounded-[36px] border border-white/50 bg-white/75 backdrop-blur-xl" style={{ boxShadow: "0 18px 60px rgba(83,20,20,0.12)" }}>
       <div className="border-b border-jscolors-crimson/10 px-5 py-4">
         <Link to="/dashboard" className="block">
-          <div className="overflow-hidden rounded-[32px] bg-jscolors-gold/30 h-20 w-full">
-            <div className="flex h-full w-full items-center justify-center">
+          <div className="overflow-hidden rounded-[44px] h-20 w-full">
+            <div className="squircle h-full w-full bg-jscolors-gold/30 p-px">
               <img src="/logo.png" alt="ARCAD" className="h-full w-full bg-white object-contain p-2" />
             </div>
           </div>
