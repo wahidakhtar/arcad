@@ -193,9 +193,11 @@ export default function SiteListPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <FilterBar filters={badgeFilters} onFilterChange={handleFilterChange} />
-        <div className="ml-auto flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterBar filters={badgeFilters} onFilterChange={handleFilterChange} />
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
