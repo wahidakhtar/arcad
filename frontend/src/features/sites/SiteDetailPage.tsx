@@ -170,8 +170,8 @@ export default function SiteDetailPage() {
 
   return (
     <div className="space-y-6">
-      <section className="glass-panel p-6">
-        <div className="flex flex-wrap gap-3">
+      <div className="sticky top-0 z-20 bg-white">
+        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar whitespace-nowrap px-0 py-3">
           {badgeFields.map((field) => {
             if (field.key === "tx_copy_status" && !isAssetTransfer) return null
             const badgeValue = getFieldValue(currentSite, field)
@@ -181,9 +181,9 @@ export default function SiteDetailPage() {
               ? transitionOptions(transitions, field.key, badgeValue)
               : []
             return (
-              <div key={field.key} className="min-w-[220px] rounded-[22px] border border-jscolors-crimson/10 bg-white/90 px-4 py-4">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">{field.label}</div>
-                <div className="mt-3">
+              <div key={field.key} className="shrink-0 rounded-[18px] border border-jscolors-crimson/10 bg-white px-3 py-2">
+                <div className="text-[9px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">{field.label}</div>
+                <div className="mt-2">
                   <BadgeDropdown
                     badge={currentBadge ?? null}
                     fallback={String(selectedBadgeFallback(badgeValue))}
@@ -196,7 +196,7 @@ export default function SiteDetailPage() {
             )
           })}
         </div>
-      </section>
+      </div>
 
       <div className="grid gap-6 2xl:grid-cols-[1.05fr_0.95fr]">
         <section className="glass-panel p-6">
