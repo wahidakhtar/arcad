@@ -266,9 +266,10 @@ export default function SiteFEAssignmentSection({
             (r) => r.active && r.bucket_key === jobBuckets.find((b) => String(b.id) === assignmentForm.bucket_id)?.key,
           )
         return (
+          <div className="mt-3 flex justify-end">
           <button
             type="button"
-            className={`premium-button mt-3${alreadyAssigned ? " cursor-not-allowed opacity-50" : ""}`}
+            className={`premium-button${alreadyAssigned ? " cursor-not-allowed opacity-50" : ""}`}
             disabled={alreadyAssigned}
             onClick={() => {
               if (!assignmentForm.bucket_id || !assignmentForm.fe_id) return
@@ -282,6 +283,7 @@ export default function SiteFEAssignmentSection({
           >
             Assign FE
           </button>
+          </div>
         )
       })()}
 

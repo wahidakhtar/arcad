@@ -91,9 +91,9 @@ export default function FilterBar({
         // Badge filter — multi-select (values[]) or single-select (value) for backward compat
         const selected = filter.values ?? (filter.value ? [filter.value] : [])
         return (
-          <div key={filter.key} className="flex flex-wrap items-center gap-2">
-            <div className="text-sm font-medium text-jscolors-text/60">{filter.label}</div>
-            <div className="flex flex-wrap gap-2">
+          <div key={filter.key} className="flex items-center gap-2">
+            {filter.label ? <div className="text-sm font-medium text-jscolors-text/60">{filter.label}</div> : null}
+            <div className="flex flex-nowrap gap-1.5 overflow-x-auto">
               {filter.options.map((option) => {
                 const active = selected.includes(option.value)
                 return (
@@ -101,7 +101,7 @@ export default function FilterBar({
                     key={option.value}
                     type="button"
                     onClick={() => onFilterChange(filter.key, option.value)}
-                    className={`rounded-full border px-4 py-2 text-xs font-semibold tracking-[0.08em] ${
+                    className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold tracking-[0.06em] ${
                       active ? "shadow-sm" : ""
                     }`}
                     style={{

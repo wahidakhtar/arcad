@@ -193,22 +193,24 @@ export default function SiteListPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <FilterBar filters={badgeFilters} onFilterChange={handleFilterChange} />
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by Circuit ID"
-            className="rounded-full border border-jscolors-crimson/15 bg-white px-5 py-3 outline-none"
-          />
-          {showAddButton && (
-            <button type="button" className="premium-button shrink-0" onClick={openAddHandler}>
-              Add
-            </button>
-          )}
+      <div className="sticky top-0 z-10 -mx-8 bg-white px-8 pb-3 md:-mx-10 md:px-10">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <FilterBar filters={badgeFilters} onFilterChange={handleFilterChange} />
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by Circuit ID"
+              className="rounded-full border border-jscolors-crimson/15 bg-white px-5 py-3 outline-none"
+            />
+            {showAddButton && (
+              <button type="button" className="premium-button shrink-0" onClick={openAddHandler}>
+                Add
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

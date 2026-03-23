@@ -149,7 +149,7 @@ export default function SiteUpdatesSection({
       <ActionPanel
         title="Updates"
         action={canAddUpdate ? (
-          <button type="button" className="premium-button-secondary" onClick={openModal}>Add Update</button>
+          <button type="button" className="premium-button" onClick={openModal}>Add Update</button>
         ) : undefined}
       >
         <div className="space-y-3">

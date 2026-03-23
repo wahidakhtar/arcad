@@ -28,17 +28,18 @@ export default function FieldRenderer(props: FieldRendererProps) {
     const inputClassName = className ?? "w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none transition focus:border-jscolors-crimson/40"
 
     if (field.type === "bool") {
+      const checked = Boolean(value)
       return (
-        <span className="flex h-[50px] items-center gap-3 rounded-2xl border border-jscolors-crimson/15 bg-white px-4">
+        <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3">
           <input
             type="checkbox"
-            checked={Boolean(value)}
+            checked={checked}
             onFocus={onFocus}
             onChange={(event) => onChange(event.target.checked)}
             className="h-4 w-4 accent-jscolors-crimson"
           />
-          <span className="text-sm text-jscolors-text">{Boolean(value) ? "Yes" : "No"}</span>
-        </span>
+          <span className="text-sm font-medium text-jscolors-text">{checked ? "Required" : "Not Required"}</span>
+        </label>
       )
     }
 
@@ -95,7 +96,7 @@ export default function FieldRenderer(props: FieldRendererProps) {
   }
 
   if (typeof value === "boolean") {
-    return <span>{value ? "Yes" : "No"}</span>
+    return <span>{value ? "Required" : "Not Required"}</span>
   }
 
   if (value == null || value === "") {

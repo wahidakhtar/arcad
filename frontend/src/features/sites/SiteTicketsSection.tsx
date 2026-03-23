@@ -122,7 +122,7 @@ export default function SiteTicketsSection({
       <ActionPanel
         title="Tickets"
         action={canTicketWrite ? (
-          <button type="button" className="premium-button-secondary" onClick={openModal}>Add Ticket</button>
+          <button type="button" className="premium-button" onClick={openModal}>Add Ticket</button>
         ) : undefined}
       >
         <div className="space-y-3">

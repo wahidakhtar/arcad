@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { createPortal } from "react-dom"
 import { useParams } from "react-router-dom"
 
 import FieldRenderer from "../../components/ui/FieldRenderer"
@@ -9,12 +10,10 @@ import type { Badge, ProjectRow, SiteDetail, StateRow, TicketRow, TransactionRow
 import {
   DOC_BADGE_FIELDS,
   READ_ONLY_FIELDS,
-  buildDrafts,
   displayValueForField,
   draftValueForField,
   fieldVisible,
   getFieldValue,
-  isFieldChanged,
   optionsForField,
   projectByKey,
   selectedBadgeFallback,
@@ -40,11 +39,11 @@ export default function SiteDetailPage() {
   const [transactions, setTransactions] = useState<TransactionRow[]>([])
   const [providers, setProviders] = useState<ProviderRow[]>([])
   const [transactionTypes, setTransactionTypes] = useState<Badge[]>([])
-  const [drafts, setDrafts] = useState<Record<string, string | boolean>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const [savingFields, setSavingFields] = useState(false)
-  const [saveError, setSaveError] = useState("")
+  const [editingField, setEditingField] = useState<{ field: UIField; draft: string | boolean } | null>(null)
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState("")
   const [updatingBadgeKey, setUpdatingBadgeKey] = useState("")
 
   async function loadPage() {
@@ -98,7 +97,6 @@ export default function SiteDetailPage() {
       setTransactions(nextTransactions)
       setProviders((providersResponse.data as ProviderRow[]) ?? [])
       setTransactionTypes(Array.isArray(txTypesResponse.data) ? txTypesResponse.data as Badge[] : [])
-      setDrafts(buildDrafts(nextSite, nextUiFields))
     } catch {
       setError("Unable to load site details.")
     } finally {
@@ -144,22 +142,19 @@ export default function SiteDetailPage() {
     typeof currentSite.fields.outcome_id === "number" ? currentSite.fields.outcome_id : null
   const isAssetTransfer = outcomeId !== null && badgeById.get(outcomeId as number)?.label?.toLowerCase() === "asset transfer"
 
-  async function saveFields() {
-    const editableFields = regularFields.filter((f) => !READ_ONLY_FIELDS.has(f.key))
-    const payload = Object.fromEntries(
-      editableFields.filter((f) => isFieldChanged(currentSite, f, drafts[f.key])).map((f) => [f.key, drafts[f.key]]),
-    )
-    if (!Object.keys(payload).length) return
-    setSavingFields(true)
-    setSaveError("")
+  async function saveFieldEdit() {
+    if (!editingField) return
+    setEditSaving(true)
+    setEditError("")
     try {
-      await api.patch(`/sites/${projectKey}/${currentSite.id}`, { data: payload })
+      await api.patch(`/sites/${projectKey}/${currentSite.id}`, { data: { [editingField.field.key]: editingField.draft } })
+      setEditingField(null)
       await loadPage()
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setSaveError(detail ?? "Save failed.")
+      setEditError(detail ?? "Save failed.")
     } finally {
-      setSavingFields(false)
+      setEditSaving(false)
     }
   }
 
@@ -170,14 +165,6 @@ export default function SiteDetailPage() {
       await loadPage()
     } finally {
       setUpdatingBadgeKey("")
-    }
-  }
-
-  async function saveSingleField(key: string, value: string | boolean) {
-    try {
-      await api.patch(`/sites/${projectKey}/${currentSite.id}`, { data: { [key]: value } })
-    } catch {
-      // silently ignore auto-save errors for bool fields
     }
   }
 
@@ -218,37 +205,69 @@ export default function SiteDetailPage() {
             {regularFields.map((field) => {
               const displayValue = displayValueForField(currentSite, field, badgeById, stateById)
               const isReadOnly = READ_ONLY_FIELDS.has(field.key)
+              const rawVal = draftValueForField(currentSite, field)
+              const isEmpty = field.type !== "bool" && (rawVal === "" || rawVal === null || rawVal === undefined)
               return (
                 <div key={field.key} className="rounded-[22px] border border-jscolors-crimson/10 bg-white px-4 py-4">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">{field.label}</div>
-                  {isReadOnly || !canSiteWrite ? (
-                    <div className="mt-3 text-sm text-jscolors-text"><FieldRenderer field={field} value={displayValue} /></div>
-                  ) : (
-                    <div className="mt-3">
-                      <FieldRenderer
-                        mode="input"
-                        field={{ ...field, options: optionsForField(field, states) }}
-                        value={drafts[field.key] ?? draftValueForField(currentSite, field)}
-                        onChange={(value) => {
-                          setDrafts((c) => ({ ...c, [field.key]: value }))
-                          if (field.type === "bool") void saveSingleField(field.key, value)
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">{field.label}</div>
+                    {canSiteWrite && !isReadOnly && (
+                      <button
+                        type="button"
+                        className="shrink-0 rounded-full border border-jscolors-crimson/20 px-2.5 py-0.5 text-[10px] font-semibold text-jscolors-crimson transition hover:border-jscolors-crimson/40"
+                        onClick={() => {
+                          setEditingField({ field, draft: typeof rawVal === "boolean" ? rawVal : String(rawVal ?? "") })
+                          setEditError("")
                         }}
-                      />
-                    </div>
-                  )}
+                      >
+                        {isEmpty ? "Add" : "Edit"}
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-3 text-sm text-jscolors-text">
+                    <FieldRenderer field={field} value={displayValue} />
+                  </div>
                 </div>
               )
             })}
           </div>
-          {canSiteWrite && (
-            <div className="mt-4 flex items-center justify-end gap-3">
-              {saveError ? <span className="text-sm text-red-600">{saveError}</span> : null}
-              <button type="button" className="premium-button" disabled={savingFields} onClick={() => void saveFields()}>
-                {savingFields ? "Saving..." : "Save"}
-              </button>
-            </div>
-          )}
         </section>
+
+        {editingField && createPortal(
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 9999 }}
+            className="flex items-center justify-center bg-jscolors-text/35 px-4 backdrop-blur-sm"
+            onMouseDown={(e) => { if (e.target === e.currentTarget) setEditingField(null) }}
+          >
+            <div
+              style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 10000 }}
+              className="glass-panel w-full max-w-sm p-6"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-syne text-xl font-semibold text-jscolors-crimson">{editingField.field.label}</h2>
+                <button type="button" onClick={() => setEditingField(null)} className="premium-button-secondary">Close</button>
+              </div>
+              <div className="space-y-4">
+                <FieldRenderer
+                  mode="input"
+                  field={{ ...editingField.field, options: optionsForField(editingField.field, states) }}
+                  value={editingField.draft}
+                  onChange={(value) => setEditingField((c) => c ? { ...c, draft: value } : null)}
+                />
+                {editError ? <p className="text-sm text-red-600">{editError}</p> : null}
+                <button
+                  type="button"
+                  className="premium-button w-full"
+                  disabled={editSaving}
+                  onClick={() => void saveFieldEdit()}
+                >
+                  {editSaving ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
 
         <section className="grid gap-6">
           <SiteUpdatesSection
