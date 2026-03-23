@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 
 import { api } from "../../lib/api"
 import { useAuth } from "../../context/AuthContext"
+import Modal from "../../components/ui/Modal"
 
 // ─── API Types ───────────────────────────────────────────────────────────────
 
@@ -65,8 +66,8 @@ const theadRowCls = "border-b border-jscolors-crimson/10 bg-jscolors-crimson/[0.
 const thCls = "px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50"
 const tbodyRowCls = "border-b border-jscolors-crimson/8"
 const tdCls = "px-5 py-4 text-sm text-jscolors-text"
-const inputCls =
-  "w-full rounded-xl border border-jscolors-crimson/15 bg-white px-3 py-1.5 text-sm outline-none focus:border-jscolors-crimson/40"
+const fieldCls = "w-full rounded-xl border border-jscolors-crimson/15 bg-white px-3 py-2 text-sm outline-none focus:border-jscolors-crimson/40"
+const labelCls = "mb-1 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45"
 
 // ─── BadgesTab ────────────────────────────────────────────────────────────────
 
@@ -74,9 +75,11 @@ function BadgesTab() {
   const { can } = useAuth()
   const canWrite = can("admin", "write")
   const [badges, setBadges] = useState<Badge[]>([])
-  const [dirty, setDirty] = useState<Set<number>>(new Set())
-  const [saving, setSaving] = useState<Set<number>>(new Set())
+  const [editingBadge, setEditingBadge] = useState<Badge | null>(null)
+  const [editDraft, setEditDraft] = useState({ label: "", color: "" })
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const [modalError, setModalError] = useState("")
 
   useEffect(() => {
     void api
@@ -87,34 +90,30 @@ function BadgesTab() {
       )
   }, [])
 
-  function updateBadge(id: number, patch: Partial<Badge>) {
-    setBadges((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)))
-    setDirty((prev) => new Set(prev).add(id))
+  function openEdit(badge: Badge) {
+    setEditingBadge(badge)
+    setEditDraft({ label: badge.label, color: badge.color ?? "" })
+    setModalError("")
   }
 
-  function handleSave(id: number) {
-    const badge = badges.find((b) => b.id === id)
-    if (!badge) return
-    setSaving((prev) => new Set(prev).add(id))
+  function handleSave() {
+    if (!editingBadge) return
+    setSaving(true)
+    setModalError("")
     void api
-      .patch(`/admin/badges/${id}`, { label: badge.label, color: badge.color })
+      .patch(`/admin/badges/${editingBadge.id}`, { label: editDraft.label, color: editDraft.color || null })
       .then(() => {
-        setDirty((prev) => {
-          const next = new Set(prev)
-          next.delete(id)
-          return next
-        })
+        setBadges((prev) =>
+          prev.map((b) =>
+            b.id === editingBadge.id ? { ...b, label: editDraft.label, color: editDraft.color || null } : b,
+          ),
+        )
+        setEditingBadge(null)
       })
       .catch((err: { response?: { data?: { detail?: string } } }) =>
-        setError(err.response?.data?.detail ?? "Failed to save badge"),
+        setModalError(err.response?.data?.detail ?? "Failed to save badge"),
       )
-      .finally(() => {
-        setSaving((prev) => {
-          const next = new Set(prev)
-          next.delete(id)
-          return next
-        })
-      })
+      .finally(() => setSaving(false))
   }
 
   return (
@@ -122,6 +121,43 @@ function BadgesTab() {
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
+
+      <Modal open={editingBadge !== null} title="Edit Badge" onClose={() => setEditingBadge(null)} size="sm">
+        <div className="space-y-4">
+          <div>
+            <label className={labelCls}>Label</label>
+            <input
+              type="text"
+              value={editDraft.label}
+              onChange={(e) => setEditDraft((d) => ({ ...d, label: e.target.value }))}
+              className={fieldCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Color</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={editDraft.color || "#cccccc"}
+                onChange={(e) => setEditDraft((d) => ({ ...d, color: e.target.value }))}
+                className="h-8 w-8 cursor-pointer rounded border-0 p-0"
+              />
+              <input
+                type="text"
+                value={editDraft.color}
+                onChange={(e) => setEditDraft((d) => ({ ...d, color: e.target.value }))}
+                className="w-28 rounded-xl border border-jscolors-crimson/15 px-2 py-1.5 text-sm outline-none focus:border-jscolors-crimson/40"
+                placeholder="#rrggbb"
+              />
+            </div>
+          </div>
+          {modalError && <p className="text-sm text-red-600">{modalError}</p>}
+          <button className="premium-button w-full" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </Modal>
+
       <div className={tableWrapCls}>
         <table className={tableCls}>
           <thead>
@@ -131,7 +167,7 @@ function BadgesTab() {
               <th className={thCls}>Key</th>
               <th className={thCls}>Label</th>
               <th className={thCls}>Color</th>
-              <th className={thCls}></th>
+              {canWrite && <th className={thCls}></th>}
             </tr>
           </thead>
           <tbody>
@@ -140,47 +176,33 @@ function BadgesTab() {
                 <td className={tdCls}>{badge.id}</td>
                 <td className={tdCls}>{badge.type}</td>
                 <td className={tdCls}>{badge.key}</td>
-                <td className={tdCls}>
-                  <input
-                    type="text"
-                    value={badge.label}
-                    onChange={(e) => updateBadge(badge.id, { label: e.target.value })}
-                    className={inputCls}
-                  />
-                </td>
+                <td className={tdCls}>{badge.label}</td>
                 <td className={tdCls}>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={badge.color ?? "#cccccc"}
-                      onChange={(e) => updateBadge(badge.id, { color: e.target.value })}
-                      className="h-8 w-8 cursor-pointer rounded border-0 p-0"
-                    />
-                    <input
-                      type="text"
-                      value={badge.color ?? ""}
-                      onChange={(e) => updateBadge(badge.id, { color: e.target.value })}
-                      className="w-24 rounded-xl border border-jscolors-crimson/15 px-2 py-1 text-sm outline-none focus:border-jscolors-crimson/40"
-                      placeholder="#rrggbb"
-                    />
+                    {badge.color && (
+                      <span
+                        className="inline-block h-4 w-4 rounded-full border border-black/10"
+                        style={{ background: badge.color }}
+                      />
+                    )}
+                    <span className="text-xs text-jscolors-text/60">{badge.color ?? "—"}</span>
                   </div>
                 </td>
-                <td className={tdCls}>
-                  {canWrite && dirty.has(badge.id) && (
+                {canWrite && (
+                  <td className={tdCls}>
                     <button
-                      className="premium-button py-1.5 px-3 text-xs"
-                      onClick={() => handleSave(badge.id)}
-                      disabled={saving.has(badge.id)}
+                      className="rounded-full border border-jscolors-crimson/20 px-3 py-1.5 text-xs font-semibold text-jscolors-crimson hover:border-jscolors-crimson/40 transition"
+                      onClick={() => openEdit(badge)}
                     >
-                      {saving.has(badge.id) ? "Saving…" : "Save"}
+                      Edit
                     </button>
-                  )}
-                </td>
+                  </td>
+                )}
               </tr>
             ))}
             {badges.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-5 py-6 text-center text-sm text-jscolors-text/50">
+                <td colSpan={canWrite ? 6 : 5} className="px-5 py-6 text-center text-sm text-jscolors-text/50">
                   No badges configured.
                 </td>
               </tr>
@@ -201,9 +223,11 @@ function BadgeTransitionsTab() {
   const { can } = useAuth()
   const canWrite = can("admin", "write")
   const [data, setData] = useState<BadgeTransitionsResponse | null>(null)
+  const [addOpen, setAddOpen] = useState(false)
   const [newRow, setNewRow] = useState({ project: "mi", type_id: "", from_id: "", to_id: "" })
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState("")
+  const [modalError, setModalError] = useState("")
 
   function fetchData() {
     void api
@@ -214,12 +238,9 @@ function BadgeTransitionsTab() {
       )
   }
 
-  useEffect(() => {
-    fetchData()
-  }, [])
+  useEffect(() => { fetchData() }, [])
 
   function handleRemove(project: string, id: number) {
-    // Optimistically remove from local state
     if (data) {
       const key = project as ProjectKey
       setData((prev) => {
@@ -235,13 +256,19 @@ function BadgeTransitionsTab() {
       })
   }
 
+  function openAdd() {
+    setNewRow({ project: "mi", type_id: "", from_id: "", to_id: "" })
+    setModalError("")
+    setAddOpen(true)
+  }
+
   function handleAdd() {
     if (!newRow.type_id || !newRow.from_id || !newRow.to_id) {
-      setError("All fields are required.")
+      setModalError("All fields are required.")
       return
     }
     setAdding(true)
-    setError("")
+    setModalError("")
     void api
       .post("/admin/badge-transitions", {
         project: newRow.project,
@@ -250,22 +277,78 @@ function BadgeTransitionsTab() {
         to_id: Number(newRow.to_id),
       })
       .then(() => {
-        setNewRow({ project: "mi", type_id: "", from_id: "", to_id: "" })
+        setAddOpen(false)
         fetchData()
       })
       .catch((err: { response?: { data?: { detail?: string } } }) =>
-        setError(err.response?.data?.detail ?? "Failed to add transition"),
+        setModalError(err.response?.data?.detail ?? "Failed to add transition"),
       )
       .finally(() => setAdding(false))
   }
 
   const selectCls =
-    "rounded-xl border border-jscolors-crimson/15 bg-white px-3 py-1.5 text-sm outline-none focus:border-jscolors-crimson/40"
+    "w-full rounded-xl border border-jscolors-crimson/15 bg-white px-3 py-2 text-sm outline-none focus:border-jscolors-crimson/40"
 
   return (
     <div className="space-y-6">
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      )}
+
+      <Modal open={addOpen} title="Add Transition" onClose={() => setAddOpen(false)}>
+        <div className="space-y-4">
+          <div>
+            <label className={labelCls}>Project</label>
+            <select value={newRow.project} onChange={(e) => setNewRow((r) => ({ ...r, project: e.target.value }))} className={selectCls}>
+              {PROJECTS.map((p) => (
+                <option key={p} value={p}>{p.toUpperCase()}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Type</label>
+            <select value={newRow.type_id} onChange={(e) => setNewRow((r) => ({ ...r, type_id: e.target.value }))} className={selectCls}>
+              <option value="">Select type</option>
+              {(data?.transition_types ?? []).map((tt) => (
+                <option key={tt.id} value={tt.id}>{tt.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>From</label>
+            <select value={newRow.from_id} onChange={(e) => setNewRow((r) => ({ ...r, from_id: e.target.value }))} className={selectCls}>
+              <option value="">Select badge</option>
+              {(data?.badges ?? [])
+                .filter((b) => b.type !== "dept" && b.type !== "level")
+                .map((b) => (
+                  <option key={b.id} value={b.id}>{b.label}</option>
+                ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>To</label>
+            <select value={newRow.to_id} onChange={(e) => setNewRow((r) => ({ ...r, to_id: e.target.value }))} className={selectCls}>
+              <option value="">Select badge</option>
+              {(data?.badges ?? [])
+                .filter((b) => b.type !== "dept" && b.type !== "level")
+                .map((b) => (
+                  <option key={b.id} value={b.id}>{b.label}</option>
+                ))}
+            </select>
+          </div>
+          {modalError && <p className="text-sm text-red-600">{modalError}</p>}
+          <button className="premium-button w-full" onClick={handleAdd} disabled={adding}>
+            {adding ? "Adding…" : "Add"}
+          </button>
+        </div>
+      </Modal>
+
+      {canWrite && (
+        <div className="flex justify-end">
+          <button className="premium-button py-1.5 px-4 text-sm" onClick={openAdd}>
+            Add Transition
+          </button>
+        </div>
       )}
 
       {PROJECTS.map((proj) => {
@@ -282,7 +365,7 @@ function BadgeTransitionsTab() {
                     <th className={thCls}>From</th>
                     <th className={thCls}>To</th>
                     <th className={thCls}>Type</th>
-                    <th className={thCls}></th>
+                    {canWrite && <th className={thCls}></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -293,22 +376,22 @@ function BadgeTransitionsTab() {
                         <td className={tdCls}>{t.from_label}</td>
                         <td className={tdCls}>{t.to_label}</td>
                         <td className={tdCls}>{typLabel}</td>
-                        <td className={tdCls}>
-                          {canWrite && (
+                        {canWrite && (
+                          <td className={tdCls}>
                             <button
                               className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition"
                               onClick={() => handleRemove(proj, t.id)}
                             >
                               Remove
                             </button>
-                          )}
-                        </td>
+                          </td>
+                        )}
                       </tr>
                     )
                   })}
                   {transitions.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-5 py-4 text-center text-sm text-jscolors-text/50">
+                      <td colSpan={canWrite ? 4 : 3} className="px-5 py-4 text-center text-sm text-jscolors-text/50">
                         No transitions for {proj.toUpperCase()}.
                       </td>
                     </tr>
@@ -319,77 +402,6 @@ function BadgeTransitionsTab() {
           </div>
         )
       })}
-
-      {/* Add form */}
-      {canWrite && <div>
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-jscolors-text/40">
-          Add Transition
-        </h3>
-        <div className="flex gap-3 items-end flex-wrap mt-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Project</span>
-            <select
-              value={newRow.project}
-              onChange={(e) => setNewRow((r) => ({ ...r, project: e.target.value }))}
-              className={selectCls}
-            >
-              {PROJECTS.map((p) => (
-                <option key={p} value={p}>{p.toUpperCase()}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Type</span>
-            <select
-              value={newRow.type_id}
-              onChange={(e) => setNewRow((r) => ({ ...r, type_id: e.target.value }))}
-              className={selectCls}
-            >
-              <option value="">Select type</option>
-              {(data?.transition_types ?? []).map((tt) => (
-                <option key={tt.id} value={tt.id}>{tt.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">From</span>
-            <select
-              value={newRow.from_id}
-              onChange={(e) => setNewRow((r) => ({ ...r, from_id: e.target.value }))}
-              className={selectCls}
-            >
-              <option value="">Select badge</option>
-              {(data?.badges ?? [])
-                .filter((b) => b.type !== "dept" && b.type !== "level")
-                .map((b) => (
-                  <option key={b.id} value={b.id}>{b.label}</option>
-                ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">To</span>
-            <select
-              value={newRow.to_id}
-              onChange={(e) => setNewRow((r) => ({ ...r, to_id: e.target.value }))}
-              className={selectCls}
-            >
-              <option value="">Select badge</option>
-              {(data?.badges ?? [])
-                .filter((b) => b.type !== "dept" && b.type !== "level")
-                .map((b) => (
-                  <option key={b.id} value={b.id}>{b.label}</option>
-                ))}
-            </select>
-          </div>
-          <button
-            className="premium-button py-1.5 px-4 text-sm"
-            onClick={handleAdd}
-            disabled={adding}
-          >
-            {adding ? "Adding…" : "Add"}
-          </button>
-        </div>
-      </div>}
     </div>
   )
 }
@@ -400,9 +412,11 @@ function UIFieldsTab() {
   const { can } = useAuth()
   const canWrite = can("admin", "write")
   const [fields, setFields] = useState<Record<string, UIField[]>>({})
-  const [dirty, setDirty] = useState<Set<number>>(new Set())
-  const [saving, setSaving] = useState<Set<number>>(new Set())
+  const [editingField, setEditingField] = useState<{ project: string; field: UIField } | null>(null)
+  const [editDraft, setEditDraft] = useState<Partial<UIField>>({})
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const [modalError, setModalError] = useState("")
   const dragRef = useRef<number>(-1)
   const dropRef = useRef<number>(-1)
 
@@ -415,44 +429,46 @@ function UIFieldsTab() {
       )
   }, [])
 
-  function updateField(project: string, id: number, patch: Partial<UIField>) {
-    setFields((prev) => ({
-      ...prev,
-      [project]: prev[project].map((f) => (f.id === id ? { ...f, ...patch } : f)),
-    }))
-    setDirty((prev) => new Set(prev).add(id))
+  function openEdit(project: string, field: UIField) {
+    setEditingField({ project, field })
+    setEditDraft({
+      label: field.label,
+      list_view: field.list_view,
+      form_view: field.form_view,
+      bulk_view: field.bulk_view,
+      section: field.section,
+      perm_tag: field.perm_tag,
+    })
+    setModalError("")
   }
 
-  function handleSave(project: string, id: number) {
-    const field = fields[project]?.find((f) => f.id === id)
-    if (!field) return
-    setSaving((prev) => new Set(prev).add(id))
+  function handleSave() {
+    if (!editingField) return
+    const { project, field } = editingField
+    setSaving(true)
+    setModalError("")
     void api
-      .patch(`/admin/ui-fields/${project}/${id}`, {
-        label: field.label,
-        list_view: field.list_view,
-        form_view: field.form_view,
-        bulk_view: field.bulk_view,
-        section: field.section,
-        perm_tag: field.perm_tag,
+      .patch(`/admin/ui-fields/${project}/${field.id}`, {
+        label: editDraft.label,
+        list_view: editDraft.list_view,
+        form_view: editDraft.form_view,
+        bulk_view: editDraft.bulk_view,
+        section: editDraft.section,
+        perm_tag: editDraft.perm_tag ?? null,
       })
       .then(() => {
-        setDirty((prev) => {
-          const next = new Set(prev)
-          next.delete(id)
-          return next
-        })
+        setFields((prev) => ({
+          ...prev,
+          [project]: prev[project].map((f) =>
+            f.id === field.id ? { ...f, ...editDraft } : f,
+          ),
+        }))
+        setEditingField(null)
       })
       .catch((err: { response?: { data?: { detail?: string } } }) =>
-        setError(err.response?.data?.detail ?? "Failed to save field"),
+        setModalError(err.response?.data?.detail ?? "Failed to save field"),
       )
-      .finally(() => {
-        setSaving((prev) => {
-          const next = new Set(prev)
-          next.delete(id)
-          return next
-        })
-      })
+      .finally(() => setSaving(false))
   }
 
   function handleReorder(project: string) {
@@ -465,7 +481,6 @@ function UIFieldsTab() {
       list.splice(to, 0, moved)
       return { ...prev, [project]: list }
     })
-    // Post reorder after state update — use current fields snapshot + splice
     setFields((prev) => {
       const ids = prev[project].map((f) => f.id)
       void api
@@ -486,6 +501,59 @@ function UIFieldsTab() {
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
+
+      <Modal open={editingField !== null} title="Edit Field" onClose={() => setEditingField(null)}>
+        <div className="space-y-4">
+          <div>
+            <label className={labelCls}>Label</label>
+            <input
+              type="text"
+              value={String(editDraft.label ?? "")}
+              onChange={(e) => setEditDraft((d) => ({ ...d, label: e.target.value }))}
+              className={fieldCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Section</label>
+            <input
+              type="text"
+              value={String(editDraft.section ?? "")}
+              onChange={(e) => setEditDraft((d) => ({ ...d, section: e.target.value }))}
+              className={fieldCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Perm Tag</label>
+            <select
+              value={editDraft.perm_tag ?? ""}
+              onChange={(e) => setEditDraft((d) => ({ ...d, perm_tag: e.target.value === "" ? null : e.target.value }))}
+              className={fieldCls}
+            >
+              {PERM_TAG_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>{opt === "" ? "—" : opt}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-6">
+            {(["list_view", "form_view", "bulk_view"] as const).map((key) => (
+              <label key={key} className="flex items-center gap-2 text-sm text-jscolors-text/70 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={Boolean(editDraft[key])}
+                  onChange={(e) => setEditDraft((d) => ({ ...d, [key]: e.target.checked }))}
+                  className="h-4 w-4"
+                />
+                {key === "list_view" ? "List" : key === "form_view" ? "Form" : "Bulk"}
+              </label>
+            ))}
+          </div>
+          {modalError && <p className="text-sm text-red-600">{modalError}</p>}
+          <button className="premium-button w-full" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </Modal>
+
       {projectKeys.map((project) => (
         <div key={project} className="mb-8">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-jscolors-text/40">
@@ -502,7 +570,7 @@ function UIFieldsTab() {
                   <th className={thCls}>Bulk</th>
                   <th className={thCls}>Section</th>
                   <th className={thCls}>Perm Tag</th>
-                  <th className={thCls}></th>
+                  {canWrite && <th className={thCls}></th>}
                 </tr>
               </thead>
               <tbody>
@@ -510,87 +578,41 @@ function UIFieldsTab() {
                   <tr
                     key={field.id}
                     className={tbodyRowCls}
-                    draggable="true"
+                    draggable={canWrite ? "true" : undefined}
                     onDragStart={(e) => {
+                      if (!canWrite) return
                       dragRef.current = index
                       e.dataTransfer.effectAllowed = "move"
                     }}
                     onDragOver={(e) => {
+                      if (!canWrite) return
                       e.preventDefault()
                       dropRef.current = index
                     }}
-                    onDrop={() => handleReorder(project)}
+                    onDrop={() => { if (canWrite) handleReorder(project) }}
                   >
                     <td className="px-3 py-4 text-jscolors-text/30 cursor-grab text-base select-none">≡</td>
-                    <td className={tdCls}>
-                      <input
-                        type="text"
-                        value={field.label}
-                        onChange={(e) => updateField(project, field.id, { label: e.target.value })}
-                        className={inputCls}
-                      />
-                    </td>
-                    <td className={tdCls}>
-                      <input
-                        type="checkbox"
-                        checked={field.list_view}
-                        onChange={(e) => updateField(project, field.id, { list_view: e.target.checked })}
-                        className="h-4 w-4"
-                      />
-                    </td>
-                    <td className={tdCls}>
-                      <input
-                        type="checkbox"
-                        checked={field.form_view}
-                        onChange={(e) => updateField(project, field.id, { form_view: e.target.checked })}
-                        className="h-4 w-4"
-                      />
-                    </td>
-                    <td className={tdCls}>
-                      <input
-                        type="checkbox"
-                        checked={field.bulk_view}
-                        onChange={(e) => updateField(project, field.id, { bulk_view: e.target.checked })}
-                        className="h-4 w-4"
-                      />
-                    </td>
-                    <td className={tdCls}>
-                      <input
-                        type="text"
-                        value={field.section}
-                        onChange={(e) => updateField(project, field.id, { section: e.target.value })}
-                        className="w-28 rounded-xl border border-jscolors-crimson/15 bg-white px-3 py-1.5 text-sm outline-none focus:border-jscolors-crimson/40"
-                      />
-                    </td>
-                    <td className={tdCls}>
-                      <select
-                        value={field.perm_tag ?? ""}
-                        onChange={(e) =>
-                          updateField(project, field.id, { perm_tag: e.target.value === "" ? null : e.target.value })
-                        }
-                        className="rounded-xl border border-jscolors-crimson/15 bg-white px-3 py-1.5 text-sm outline-none focus:border-jscolors-crimson/40"
-                      >
-                        {PERM_TAG_OPTIONS.map((opt) => (
-                          <option key={opt} value={opt}>{opt === "" ? "—" : opt}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className={tdCls}>
-                      {canWrite && dirty.has(field.id) && (
+                    <td className={tdCls}>{field.label}</td>
+                    <td className={tdCls}>{field.list_view ? "✓" : "—"}</td>
+                    <td className={tdCls}>{field.form_view ? "✓" : "—"}</td>
+                    <td className={tdCls}>{field.bulk_view ? "✓" : "—"}</td>
+                    <td className={tdCls}>{field.section || "—"}</td>
+                    <td className={tdCls}>{field.perm_tag ?? "—"}</td>
+                    {canWrite && (
+                      <td className={tdCls}>
                         <button
-                          className="premium-button py-1.5 px-3 text-xs"
-                          onClick={() => handleSave(project, field.id)}
-                          disabled={saving.has(field.id)}
+                          className="rounded-full border border-jscolors-crimson/20 px-3 py-1.5 text-xs font-semibold text-jscolors-crimson hover:border-jscolors-crimson/40 transition"
+                          onClick={() => openEdit(project, field)}
                         >
-                          {saving.has(field.id) ? "Saving…" : "Save"}
+                          Edit
                         </button>
-                      )}
-                    </td>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {(fields[project] ?? []).length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-5 py-4 text-center text-sm text-jscolors-text/50">
+                    <td colSpan={canWrite ? 8 : 7} className="px-5 py-4 text-center text-sm text-jscolors-text/50">
                       No fields for {project.toUpperCase()}.
                     </td>
                   </tr>
@@ -610,9 +632,11 @@ function JobsTab() {
   const { can } = useAuth()
   const canWrite = can("admin", "write")
   const [jobs, setJobs] = useState<Job[]>([])
-  const [dirty, setDirty] = useState<Set<number>>(new Set())
-  const [saving, setSaving] = useState<Set<number>>(new Set())
+  const [editingJob, setEditingJob] = useState<Job | null>(null)
+  const [editDraft, setEditDraft] = useState({ label: "", scale_by: "" })
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const [modalError, setModalError] = useState("")
 
   useEffect(() => {
     void api
@@ -623,34 +647,28 @@ function JobsTab() {
       )
   }, [])
 
-  function updateJob(id: number, patch: Partial<Job>) {
-    setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)))
-    setDirty((prev) => new Set(prev).add(id))
+  function openEdit(job: Job) {
+    setEditingJob(job)
+    setEditDraft({ label: job.label, scale_by: job.scale_by })
+    setModalError("")
   }
 
-  function handleSave(id: number) {
-    const job = jobs.find((j) => j.id === id)
-    if (!job) return
-    setSaving((prev) => new Set(prev).add(id))
+  function handleSave() {
+    if (!editingJob) return
+    setSaving(true)
+    setModalError("")
     void api
-      .patch(`/admin/jobs/${id}`, { label: job.label, scale_by: job.scale_by })
+      .patch(`/admin/jobs/${editingJob.id}`, { label: editDraft.label, scale_by: editDraft.scale_by })
       .then(() => {
-        setDirty((prev) => {
-          const next = new Set(prev)
-          next.delete(id)
-          return next
-        })
+        setJobs((prev) =>
+          prev.map((j) => (j.id === editingJob.id ? { ...j, label: editDraft.label, scale_by: editDraft.scale_by } : j)),
+        )
+        setEditingJob(null)
       })
       .catch((err: { response?: { data?: { detail?: string } } }) =>
-        setError(err.response?.data?.detail ?? "Failed to save job"),
+        setModalError(err.response?.data?.detail ?? "Failed to save job"),
       )
-      .finally(() => {
-        setSaving((prev) => {
-          const next = new Set(prev)
-          next.delete(id)
-          return next
-        })
-      })
+      .finally(() => setSaving(false))
   }
 
   return (
@@ -658,6 +676,37 @@ function JobsTab() {
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
+
+      <Modal open={editingJob !== null} title="Edit Job" onClose={() => setEditingJob(null)} size="sm">
+        <div className="space-y-4">
+          <div>
+            <label className={labelCls}>Label</label>
+            <input
+              type="text"
+              value={editDraft.label}
+              onChange={(e) => setEditDraft((d) => ({ ...d, label: e.target.value }))}
+              className={fieldCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Scale By</label>
+            <select
+              value={editDraft.scale_by}
+              onChange={(e) => setEditDraft((d) => ({ ...d, scale_by: e.target.value }))}
+              className={fieldCls}
+            >
+              {SCALE_BY_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+          </div>
+          {modalError && <p className="text-sm text-red-600">{modalError}</p>}
+          <button className="premium-button w-full" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </Modal>
+
       <div className={tableWrapCls}>
         <table className={tableCls}>
           <thead>
@@ -666,7 +715,7 @@ function JobsTab() {
               <th className={thCls}>Bucket</th>
               <th className={thCls}>Label</th>
               <th className={thCls}>Scale By</th>
-              <th className={thCls}></th>
+              {canWrite && <th className={thCls}></th>}
             </tr>
           </thead>
           <tbody>
@@ -674,41 +723,23 @@ function JobsTab() {
               <tr key={job.id} className={tbodyRowCls}>
                 <td className={tdCls}>{job.job_key}</td>
                 <td className={tdCls}>{job.bucket_label}</td>
-                <td className={tdCls}>
-                  <input
-                    type="text"
-                    value={job.label}
-                    onChange={(e) => updateJob(job.id, { label: e.target.value })}
-                    className={inputCls}
-                  />
-                </td>
-                <td className={tdCls}>
-                  <select
-                    value={job.scale_by}
-                    onChange={(e) => updateJob(job.id, { scale_by: e.target.value })}
-                    className="rounded-xl border border-jscolors-crimson/15 bg-white px-3 py-1.5 text-sm outline-none focus:border-jscolors-crimson/40"
-                  >
-                    {SCALE_BY_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                </td>
-                <td className={tdCls}>
-                  {canWrite && dirty.has(job.id) && (
+                <td className={tdCls}>{job.label}</td>
+                <td className={tdCls}>{job.scale_by}</td>
+                {canWrite && (
+                  <td className={tdCls}>
                     <button
-                      className="premium-button py-1.5 px-3 text-xs"
-                      onClick={() => handleSave(job.id)}
-                      disabled={saving.has(job.id)}
+                      className="rounded-full border border-jscolors-crimson/20 px-3 py-1.5 text-xs font-semibold text-jscolors-crimson hover:border-jscolors-crimson/40 transition"
+                      onClick={() => openEdit(job)}
                     >
-                      {saving.has(job.id) ? "Saving…" : "Save"}
+                      Edit
                     </button>
-                  )}
-                </td>
+                  </td>
+                )}
               </tr>
             ))}
             {jobs.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-5 py-6 text-center text-sm text-jscolors-text/50">
+                <td colSpan={canWrite ? 5 : 4} className="px-5 py-6 text-center text-sm text-jscolors-text/50">
                   No jobs configured.
                 </td>
               </tr>
@@ -754,7 +785,6 @@ function RoleTagsTab() {
     const prev = matrix[key] ?? { read: false, write: false }
     const updated = { ...prev, [field]: value }
 
-    // Immediately update local state
     setMatrix((m) => ({ ...m, [key]: updated }))
     setSaving((s) => new Set(s).add(key))
 
@@ -762,7 +792,6 @@ function RoleTagsTab() {
       .patch("/admin/role-tags", { role_id: roleId, tag_id: tagId, read: updated.read, write: updated.write })
       .catch((err: { response?: { data?: { detail?: string } } }) => {
         setError(err.response?.data?.detail ?? "Failed to save permission")
-        // Revert on error
         setMatrix((m) => ({ ...m, [key]: prev }))
       })
       .finally(() => {
@@ -786,18 +815,9 @@ function RoleTagsTab() {
         <table className="border-collapse text-sm">
           <thead>
             <tr className={theadRowCls}>
-              <th
-                className={thCls}
-                style={{ minWidth: 140 }}
-              >
-                Role
-              </th>
+              <th className={thCls} style={{ minWidth: 140 }}>Role</th>
               {tags.map((tag) => (
-                <th
-                  key={tag.id}
-                  className={thCls}
-                  style={{ minWidth: 80, textAlign: "center" }}
-                >
+                <th key={tag.id} className={thCls} style={{ minWidth: 80, textAlign: "center" }}>
                   {tag.tag}
                 </th>
               ))}
@@ -806,9 +826,7 @@ function RoleTagsTab() {
           <tbody>
             {roles.map((role) => (
               <tr key={role.id} className={tbodyRowCls}>
-                <td className={tdCls} style={{ minWidth: 140 }}>
-                  {role.label}
-                </td>
+                <td className={tdCls} style={{ minWidth: 140 }}>{role.label}</td>
                 {tags.map((tag) => {
                   const key = `${role.id}:${tag.id}`
                   const perm = matrix[key] ?? { read: false, write: false }
@@ -865,7 +883,6 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6">
-      {/* Tab bar */}
       <div className="glass-panel p-4 flex gap-2 flex-wrap">
         {TABS.map((tab) => (
           <button
@@ -882,7 +899,6 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {/* Tab content */}
       <div className="glass-panel p-6">
         {activeTab === "Badges" && <BadgesTab />}
         {activeTab === "Badge Transitions" && <BadgeTransitionsTab />}

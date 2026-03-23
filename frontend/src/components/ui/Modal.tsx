@@ -5,13 +5,17 @@ export default function Modal({
   title,
   onClose,
   children,
+  size = "md",
 }: {
   open: boolean
   title: string
   onClose: () => void
   children: React.ReactNode
+  size?: "sm" | "md"
 }) {
   if (!open) return null
+
+  const maxW = size === "sm" ? "max-w-sm" : "max-w-2xl"
 
   return createPortal(
     <div
@@ -21,7 +25,7 @@ export default function Modal({
     >
       <div
         style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 10000 }}
-        className="glass-panel w-full max-w-2xl p-6"
+        className={`glass-panel w-full ${maxW} p-6`}
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-syne text-2xl font-semibold text-jscolors-crimson">{title}</h2>
