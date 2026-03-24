@@ -74,13 +74,39 @@ export default function SiteFEAssignmentSection({
   async function assignProvider() {
     if (!providerAssignId) return
     const payload = { provider_id: Number(providerAssignId) }
-    console.log("ASSIGN TYPE:", isBB ? "provider" : "fe")
-    console.log("ASSIGN PAYLOAD:", payload)
+    const endpoint = `/sites/${projectKey}/${currentSite.id}/assignments`
+    console.log("[SiteFEAssignmentSection] assignProvider:start", {
+      projectKey,
+      isBB,
+      siteId: currentSite.id,
+      providerAssignId,
+      feAssignId: null,
+      endpoint,
+      payload,
+    })
     setSavingProviderAssign(true)
     try {
-      await api.post(`/sites/${projectKey}/${currentSite.id}/assignments`, payload)
+      const response = await api.post(endpoint, payload)
+      console.log("[SiteFEAssignmentSection] assignProvider:success", {
+        status: response.status,
+        data: response.data,
+      })
       setProviderAssignId("")
       await onReload()
+    } catch (error: unknown) {
+      const response = (error as { response?: { status?: number; data?: unknown } }).response
+      console.error("[SiteFEAssignmentSection] assignProvider:error", {
+        projectKey,
+        isBB,
+        siteId: currentSite.id,
+        providerAssignId,
+        endpoint,
+        payload,
+        status: response?.status,
+        data: response?.data,
+        error,
+      })
+      throw error
     } finally {
       setSavingProviderAssign(false)
     }
@@ -153,7 +179,9 @@ export default function SiteFEAssignmentSection({
                   type="button"
                   className="premium-button w-full"
                   disabled={savingProviderAssign || !providerAssignId}
-                  onClick={() => void assignProvider().then(() => setProviderModal(false))}
+                  onClick={() => {
+                    void assignProvider().then(() => setProviderModal(false))
+                  }}
                 >
                   {savingProviderAssign ? "Assigning..." : "Assign Provider"}
                 </button>
@@ -286,18 +314,45 @@ export default function SiteFEAssignmentSection({
                 type="button"
                 className="premium-button w-full"
                 disabled={alreadyAssigned || !assignmentForm.bucket_id || !assignmentForm.fe_id}
-                onClick={() => {
+                onClick={async () => {
                   if (!assignmentForm.bucket_id || !assignmentForm.fe_id) return
                   const payload = { bucket_id: Number(assignmentForm.bucket_id), fe_id: Number(assignmentForm.fe_id) }
-                  console.log("ASSIGN TYPE:", isBB ? "provider" : "fe")
-                  console.log("ASSIGN PAYLOAD:", payload)
-                  void api
-                    .post(`/sites/${projectKey}/${currentSite.id}/assignments`, payload)
-                    .then(() => {
-                      setAssignmentForm({ bucket_id: "", fe_id: "" })
-                      setAssignModal(false)
-                      return onReload()
+                  const endpoint = `/sites/${projectKey}/${currentSite.id}/assignments`
+                  console.log("[SiteFEAssignmentSection] assignFE:start", {
+                    projectKey,
+                    isBB,
+                    siteId: currentSite.id,
+                    providerAssignId,
+                    feAssignId: assignmentForm.fe_id,
+                    bucketId: assignmentForm.bucket_id,
+                    endpoint,
+                    payload,
+                  })
+                  try {
+                    const response = await api.post(endpoint, payload)
+                    console.log("[SiteFEAssignmentSection] assignFE:success", {
+                      status: response.status,
+                      data: response.data,
                     })
+                    setAssignmentForm({ bucket_id: "", fe_id: "" })
+                    setAssignModal(false)
+                    await onReload()
+                  } catch (error: unknown) {
+                    const response = (error as { response?: { status?: number; data?: unknown } }).response
+                    console.error("[SiteFEAssignmentSection] assignFE:error", {
+                      projectKey,
+                      isBB,
+                      siteId: currentSite.id,
+                      providerAssignId,
+                      feAssignId: assignmentForm.fe_id,
+                      bucketId: assignmentForm.bucket_id,
+                      endpoint,
+                      payload,
+                      status: response?.status,
+                      data: response?.data,
+                      error,
+                    })
+                  }
                 }}
               >
                 Assign FE

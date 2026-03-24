@@ -14,6 +14,7 @@ from app.api.auth import UserContext, ensure_permission
 from app.config.calculator import FEAssignmentRow, RateCardRow, TransactionRow, calculate_site_financials
 from app.models.acc import RateCard, Transaction
 from app.models.core import Badge, IndianState, Job, JobBucket
+from app.models.bb import Provider
 from app.models.hr import User
 from app.models.ops import FEAssignment
 from app.schemas.site import FEAssignmentRequest, SiteOut
@@ -476,8 +477,47 @@ def assign_fe(db: Session, user: UserContext, project_key: str, site_id: int, pa
 
     # BB project: use provider_id, no bucket/FE
     if project_key == "bb":
+        logger.info(
+            "bb assignment start",
+            extra={
+                "project_key": project_key,
+                "site_id": site_id,
+                "project_id": project.id,
+                "provider_id": payload.provider_id,
+                "fe_id": payload.fe_id,
+                "bucket_id": payload.bucket_id,
+            },
+        )
         if not payload.provider_id:
+            logger.warning(
+                "bb assignment validation failed: missing provider_id",
+                extra={"project_key": project_key, "site_id": site_id},
+            )
             raise HTTPException(status_code=400, detail="provider_id required for BB assignments")
+        provider = db.get(Provider, payload.provider_id)
+        logger.info(
+            "bb assignment provider lookup",
+            extra={
+                "project_key": project_key,
+                "site_id": site_id,
+                "provider_id": payload.provider_id,
+                "provider_found": provider is not None,
+                "provider_active": None if provider is None else provider.active,
+                "provider_label": None if provider is None else provider.label,
+            },
+        )
+        if provider is None:
+            logger.warning(
+                "bb assignment validation failed: provider not found",
+                extra={"project_key": project_key, "site_id": site_id, "provider_id": payload.provider_id},
+            )
+            raise HTTPException(status_code=404, detail=f"Provider {payload.provider_id} not found")
+        if not provider.active:
+            logger.warning(
+                "bb assignment validation failed: provider inactive",
+                extra={"project_key": project_key, "site_id": site_id, "provider_id": payload.provider_id},
+            )
+            raise HTTPException(status_code=400, detail=f"Provider {payload.provider_id} is inactive")
         existing = db.execute(
             select(FEAssignment).where(
                 FEAssignment.project_id == project.id,
@@ -486,19 +526,45 @@ def assign_fe(db: Session, user: UserContext, project_key: str, site_id: int, pa
                 FEAssignment.active.is_(True),
             )
         ).scalar_one_or_none()
-        if existing is not None:
-            raise HTTPException(status_code=400, detail="An active assignment already exists for this provider")
-        db.add(
-            FEAssignment(
-                project_id=project.id,
-                site_id=site_id,
-                bucket_id=None,
-                fe_id=None,
-                provider_id=payload.provider_id,
-                active=True,
-                created_at=datetime.now(timezone.utc),
-            )
+        logger.info(
+            "bb assignment existing check",
+            extra={
+                "project_key": project_key,
+                "site_id": site_id,
+                "provider_id": payload.provider_id,
+                "existing_assignment": existing is not None,
+                "existing_assignment_id": None if existing is None else existing.id,
+            },
         )
+        if existing is not None:
+            logger.warning(
+                "bb assignment validation failed: duplicate active assignment",
+                extra={
+                    "project_key": project_key,
+                    "site_id": site_id,
+                    "provider_id": payload.provider_id,
+                    "existing_assignment_id": existing.id,
+                },
+            )
+            raise HTTPException(status_code=400, detail="An active assignment already exists for this provider")
+        assignment = FEAssignment(
+            project_id=project.id,
+            site_id=site_id,
+            bucket_id=None,
+            fe_id=None,
+            provider_id=payload.provider_id,
+            active=True,
+            created_at=datetime.now(timezone.utc),
+        )
+        logger.info(
+            "bb assignment insert attempt",
+            extra={
+                "project_key": project_key,
+                "site_id": site_id,
+                "provider_id": payload.provider_id,
+            },
+        )
+        db.add(assignment)
     else:
         if not payload.bucket_id or not payload.fe_id:
             raise HTTPException(status_code=400, detail="bucket_id and fe_id required for FE assignments")
@@ -535,7 +601,54 @@ def assign_fe(db: Session, user: UserContext, project_key: str, site_id: int, pa
             {"label": fe_user.label, "site_id": site_id},
         )
 
-    db.commit()
+    try:
+        logger.info(
+            "assignment commit start",
+            extra={
+                "project_key": project_key,
+                "site_id": site_id,
+                "is_bb": project_key == "bb",
+                "provider_id": payload.provider_id,
+                "fe_id": payload.fe_id,
+                "bucket_id": payload.bucket_id,
+            },
+        )
+        db.commit()
+        logger.info(
+            "assignment commit success",
+            extra={
+                "project_key": project_key,
+                "site_id": site_id,
+                "is_bb": project_key == "bb",
+                "provider_id": payload.provider_id,
+                "fe_id": payload.fe_id,
+                "bucket_id": payload.bucket_id,
+            },
+        )
+    except Exception as exc:
+        logger.exception(
+            "assignment commit failed",
+            extra={
+                "project_key": project_key,
+                "site_id": site_id,
+                "is_bb": project_key == "bb",
+                "provider_id": payload.provider_id,
+                "fe_id": payload.fe_id,
+                "bucket_id": payload.bucket_id,
+            },
+        )
+        raise
+    logger.info(
+        "assignment success before return",
+        extra={
+            "project_key": project_key,
+            "site_id": site_id,
+            "is_bb": project_key == "bb",
+            "provider_id": payload.provider_id,
+            "fe_id": payload.fe_id,
+            "bucket_id": payload.bucket_id,
+        },
+    )
     return get_site(db, user, project_key, site_id)
 
 

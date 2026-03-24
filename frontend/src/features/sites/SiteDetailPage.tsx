@@ -109,6 +109,13 @@ export default function SiteDetailPage() {
   const stateById = useMemo(() => new Map(states.map((s) => [s.id, s])), [states])
   const project = useMemo(() => projectByKey(projects, projectKey), [projectKey, projects])
 
+  console.log("[SiteDetailPage] assignment context", {
+    projectKey,
+    routeSiteId: siteId,
+    resolvedProjectId: project?.id ?? null,
+    resolvedProjectLabel: project?.label ?? null,
+  })
+
   const visibleFields = useMemo(
     () => uiFields.filter((f) => canPermTag(f.perm_tag)),
     [uiFields, canPermTag],
