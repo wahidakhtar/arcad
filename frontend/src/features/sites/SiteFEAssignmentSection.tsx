@@ -1,12 +1,14 @@
 import { useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
+
 import Modal from "../../components/ui/Modal"
 import { api } from "../../lib/api"
-import type { Badge, JobBucket, ProjectRow, ProviderRow, SiteDetail, TransactionRow, TransitionRow, UserRow } from "./siteDetailTypes"
+import type { Badge, JobBucket, ProjectRow, SiteDetail, SubconRow, TransactionRow, TransitionRow } from "./siteDetailTypes"
 import { bucketLabel, transitionOptions } from "./siteDetailHelpers"
 import SiteTransactionCard from "./SiteTransactionCard"
 
-type TxModal = { open: boolean; feId: number; bucketKey: string; feLabel: string; type_id: string; amount: string; err: string }
+type TxModal = { open: boolean; subconId: number; bucketKey: string; subconLabel: string; type_id: string; amount: string; err: string }
+type RemoveModal = { open: boolean; assignment_id: number; subcon_label: string; final_cost: string; err: string }
 
 function EmptyState({ text }: { text: string }) {
   return <div className="rounded-[20px] border border-dashed border-jscolors-crimson/18 bg-jscolors-crimson/[0.03] px-4 py-4 text-sm text-jscolors-text/60">{text}</div>
@@ -29,7 +31,7 @@ export default function SiteFEAssignmentSection({
   projectKey,
   project,
   jobBuckets,
-  foUsers,
+  subcons,
   transactions,
   badgeById,
   transactionTypes,
@@ -38,7 +40,6 @@ export default function SiteFEAssignmentSection({
   cancelBadgeId,
   canRequestWrite,
   canTransactionWrite,
-  providers,
   canSiteWrite,
   onReload,
 }: {
@@ -46,7 +47,7 @@ export default function SiteFEAssignmentSection({
   projectKey: string
   project: ProjectRow | null
   jobBuckets: JobBucket[]
-  foUsers: UserRow[]
+  subcons: SubconRow[]
   transactions: TransactionRow[]
   badgeById: Map<number, Badge>
   transactionTypes: Badge[]
@@ -56,185 +57,148 @@ export default function SiteFEAssignmentSection({
   canRequestWrite: boolean
   canTransactionWrite: boolean
   canSiteWrite: boolean
-  providers: ProviderRow[]
   onReload: () => Promise<void>
 }) {
-  const isBB = projectKey === "bb"
-  const [assignmentForm, setAssignmentForm] = useState({ bucket_id: "", fe_id: "" })
+  const [assignmentForm, setAssignmentForm] = useState({ bucket_id: "", subcon_id: "" })
   const [assignModal, setAssignModal] = useState(false)
-  const [removeModal, setRemoveModal] = useState<{ open: boolean; fe_id: number; bucket_id: number; fe_label: string; final_cost: string }>({ open: false, fe_id: 0, bucket_id: 0, fe_label: "", final_cost: "" })
-  const [txModal, setTxModal] = useState<TxModal>({ open: false, feId: 0, bucketKey: "", feLabel: "", type_id: "", amount: "", err: "" })
+  const [assigning, setAssigning] = useState(false)
+  const [assignErr, setAssignErr] = useState("")
+  const [removeModal, setRemoveModal] = useState<RemoveModal>({ open: false, assignment_id: 0, subcon_label: "", final_cost: "", err: "" })
+  const [removing, setRemoving] = useState(false)
+  const [txModal, setTxModal] = useState<TxModal>({ open: false, subconId: 0, bucketKey: "", subconLabel: "", type_id: "", amount: "", err: "" })
   const [txSubmitting, setTxSubmitting] = useState(false)
-  const [providerAssignId, setProviderAssignId] = useState("")
-  const [providerModal, setProviderModal] = useState(false)
-  const [savingProviderAssign, setSavingProviderAssign] = useState(false)
-  const [providerErr, setProviderErr] = useState("")
 
   const reqTransitions = transitionOptions(transitions, "transaction_status", reqBadgeId ?? 0)
-  const currentProviderIdRaw = currentSite.fields.provider_id
-  const currentProviderId = typeof currentProviderIdRaw === "number"
-    ? currentProviderIdRaw
-    : typeof currentProviderIdRaw === "string" && currentProviderIdRaw.trim()
-      ? Number(currentProviderIdRaw)
-      : null
-  const currentProvider = currentProviderId != null && Number.isFinite(currentProviderId)
-    ? providers.find((p) => p.id === currentProviderId) ?? null
-    : null
+  const selectedBucket = jobBuckets.find((bucket) => String(bucket.id) === assignmentForm.bucket_id) ?? null
+  const alreadyAssigned = !!selectedBucket && currentSite.subcon_rows.some((row) => row.active && row.bucket_key === selectedBucket.key)
 
-  async function assignProvider() {
-    if (!providerAssignId) return
-    const payload = { data: { provider_id: Number(providerAssignId) } }
-    const endpoint = `/sites/${projectKey}/${currentSite.id}`
-    console.log("[SiteFEAssignmentSection] assignProvider:start", {
+  async function assignSubcon() {
+    if (!assignmentForm.bucket_id || !assignmentForm.subcon_id) return
+    const payload = { bucket_id: Number(assignmentForm.bucket_id), subcon_id: Number(assignmentForm.subcon_id) }
+    const endpoint = `/sites/${projectKey}/${currentSite.id}/assignments`
+    console.log("[SiteFEAssignmentSection] assignSubcon:start", {
       projectKey,
-      isBB,
       siteId: currentSite.id,
-      providerAssignId,
-      feAssignId: null,
+      bucketId: assignmentForm.bucket_id,
+      subconId: assignmentForm.subcon_id,
       endpoint,
       payload,
     })
-    setSavingProviderAssign(true)
-    setProviderErr("")
+    setAssigning(true)
+    setAssignErr("")
     try {
-      const response = await api.patch(endpoint, payload)
-      console.log("[SiteFEAssignmentSection] assignProvider:success", {
+      const response = await api.post(endpoint, payload)
+      console.log("[SiteFEAssignmentSection] assignSubcon:success", {
         status: response.status,
         data: response.data,
       })
-      setProviderAssignId("")
-      setProviderModal(false)
+      setAssignmentForm({ bucket_id: "", subcon_id: "" })
+      setAssignModal(false)
       await onReload()
     } catch (error: unknown) {
-      const response = (error as { response?: { status?: number; data?: unknown } }).response
-      console.error("[SiteFEAssignmentSection] assignProvider:error", {
+      const response = (error as { response?: { status?: number; data?: { detail?: string } } }).response
+      console.error("[SiteFEAssignmentSection] assignSubcon:error", {
         projectKey,
-        isBB,
         siteId: currentSite.id,
-        providerAssignId,
+        bucketId: assignmentForm.bucket_id,
+        subconId: assignmentForm.subcon_id,
         endpoint,
         payload,
         status: response?.status,
         data: response?.data,
         error,
       })
-      const detail = (response?.data as { detail?: string } | undefined)?.detail
-      setProviderErr(detail ?? "Failed to assign provider.")
+      setAssignErr(response?.data?.detail ?? "Failed to assign subcon.")
     } finally {
-      setSavingProviderAssign(false)
+      setAssigning(false)
+    }
+  }
+
+  async function removeSubcon() {
+    if (!removeModal.assignment_id) return
+    const payload = { final_cost: removeModal.final_cost ? Number(removeModal.final_cost) : null }
+    const endpoint = `/sites/${projectKey}/${currentSite.id}/assignments/${removeModal.assignment_id}`
+    console.log("[SiteFEAssignmentSection] removeSubcon:start", {
+      projectKey,
+      siteId: currentSite.id,
+      assignmentId: removeModal.assignment_id,
+      endpoint,
+      payload,
+    })
+    setRemoving(true)
+    setRemoveModal((current) => ({ ...current, err: "" }))
+    try {
+      const response = await api.delete(endpoint, { data: payload })
+      console.log("[SiteFEAssignmentSection] removeSubcon:success", {
+        status: response.status,
+        data: response.data,
+      })
+      setRemoveModal({ open: false, assignment_id: 0, subcon_label: "", final_cost: "", err: "" })
+      await onReload()
+    } catch (error: unknown) {
+      const response = (error as { response?: { status?: number; data?: { detail?: string } } }).response
+      console.error("[SiteFEAssignmentSection] removeSubcon:error", {
+        projectKey,
+        siteId: currentSite.id,
+        assignmentId: removeModal.assignment_id,
+        endpoint,
+        payload,
+        status: response?.status,
+        data: response?.data,
+        error,
+      })
+      setRemoveModal((current) => ({ ...current, err: response?.data?.detail ?? "Failed to remove subcon." }))
+    } finally {
+      setRemoving(false)
     }
   }
 
   async function submitTxModal() {
     if (!project?.id || !txModal.type_id || !txModal.amount) return
     setTxSubmitting(true)
-    setTxModal((m) => ({ ...m, err: "" }))
+    setTxModal((current) => ({ ...current, err: "" }))
     try {
       await api.post("/transactions", {
         project_id: project.id,
         site_id: currentSite.id,
-        recipient_id: txModal.feId,
+        recipient_id: txModal.subconId,
         bucket_key: txModal.bucketKey,
         type_id: Number(txModal.type_id),
         amount: txModal.amount,
       })
-      setTxModal({ open: false, feId: 0, bucketKey: "", feLabel: "", type_id: "", amount: "", err: "" })
+      setTxModal({ open: false, subconId: 0, bucketKey: "", subconLabel: "", type_id: "", amount: "", err: "" })
       await onReload()
-    } catch (e: unknown) {
-      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setTxModal((m) => ({ ...m, err: detail ?? "Failed to submit request." }))
+    } catch (error: unknown) {
+      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setTxModal((current) => ({ ...current, err: detail ?? "Failed to submit request." }))
     } finally {
       setTxSubmitting(false)
     }
   }
 
-  if (isBB) {
-    return (
-      <ActionPanel
-        title="Provider Assignment"
-        action={
-          canSiteWrite ? (
-            <button type="button" className="premium-button" onClick={() => { setProviderAssignId(currentProviderId != null ? String(currentProviderId) : ""); setProviderErr(""); setProviderModal(true) }}>
-              {currentProvider ? "Change Provider" : "Assign Provider"}
-            </button>
-          ) : undefined
-        }
-      >
-        {providerModal && createPortal(
-          <div
-            style={{ position: "fixed", inset: 0, zIndex: 9999 }}
-            className="flex items-center justify-center bg-jscolors-text/35 px-4 backdrop-blur-sm"
-            onMouseDown={(e) => { if (e.target === e.currentTarget) setProviderModal(false) }}
-          >
-            <div
-              style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 10000 }}
-              className="glass-panel w-full max-w-sm p-6"
-            >
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="font-syne text-2xl font-semibold text-jscolors-crimson">Assign Provider</h2>
-                <button type="button" onClick={() => setProviderModal(false)} className="premium-button-secondary">Close</button>
-              </div>
-              <div className="space-y-4">
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Provider</span>
-                  <select
-                    value={providerAssignId}
-                    onChange={(e) => setProviderAssignId(e.target.value)}
-                    className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-                  >
-                    <option value="">Select Provider</option>
-                    {providers.map((p) => (
-                      <option key={p.id} value={p.id}>{p.label}</option>
-                    ))}
-                  </select>
-                </label>
-                {providerErr ? <p className="text-sm text-red-600">{providerErr}</p> : null}
-                <button
-                  type="button"
-                  className="premium-button w-full"
-                  disabled={savingProviderAssign || !providerAssignId}
-                  onClick={() => void assignProvider()}
-                >
-                  {savingProviderAssign ? "Assigning..." : "Assign Provider"}
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
-        <div className="space-y-3">
-          {currentProvider ? (
-            <div className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
-              <div className="text-sm font-semibold text-jscolors-text">{currentProvider.label}</div>
-              <div className="mt-1 text-xs text-jscolors-text/60">Current provider on this BB site</div>
-            </div>
-          ) : <EmptyState text="No provider selected yet" />}
-        </div>
-      </ActionPanel>
-    )
-  }
-
   if (!canSiteWrite) return null
-
-  const alreadyAssigned =
-    !!assignmentForm.bucket_id &&
-    currentSite.fe_rows.some(
-      (r) => r.active && r.bucket_key === jobBuckets.find((b) => String(b.id) === assignmentForm.bucket_id)?.key,
-    )
 
   return (
     <ActionPanel
-      title="FE Assignment"
+      title="Subcon Assignment"
       action={
-        <button type="button" className="premium-button" onClick={() => { setAssignmentForm({ bucket_id: "", fe_id: "" }); setAssignModal(true) }}>
-          Assign FE
+        <button
+          type="button"
+          className="premium-button"
+          onClick={() => {
+            setAssignmentForm({ bucket_id: "", subcon_id: "" })
+            setAssignErr("")
+            setAssignModal(true)
+          }}
+        >
+          Assign Subcon
         </button>
       }
     >
       <Modal
         open={removeModal.open}
-        title={`Remove ${removeModal.fe_label}`}
-        onClose={() => setRemoveModal((m) => ({ ...m, open: false }))}
+        title={`Remove ${removeModal.subcon_label}`}
+        onClose={() => setRemoveModal((current) => ({ ...current, open: false, err: "" }))}
       >
         <div className="space-y-4">
           <label className="block">
@@ -242,25 +206,19 @@ export default function SiteFEAssignmentSection({
             <input
               type="number"
               value={removeModal.final_cost}
-              onChange={(e) => setRemoveModal((m) => ({ ...m, final_cost: e.target.value }))}
+              onChange={(event) => setRemoveModal((current) => ({ ...current, final_cost: event.target.value }))}
               placeholder="Leave blank if unknown"
               className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
             />
           </label>
+          {removeModal.err ? <p className="text-sm text-red-600">{removeModal.err}</p> : null}
           <button
             type="button"
             className="premium-button w-full"
-            onClick={() => {
-              const { fe_id, bucket_id, final_cost } = removeModal
-              setRemoveModal((m) => ({ ...m, open: false }))
-              void api
-                .patch(`/sites/${projectKey}/${currentSite.id}/assignments/${fe_id}/${bucket_id}/remove`, {
-                  final_cost: final_cost ? Number(final_cost) : null,
-                })
-                .then(() => onReload())
-            }}
+            disabled={removing}
+            onClick={() => void removeSubcon()}
           >
-            Confirm Remove
+            {removing ? "Removing..." : "Confirm Remove"}
           </button>
         </div>
       </Modal>
@@ -269,14 +227,14 @@ export default function SiteFEAssignmentSection({
         <div
           style={{ position: "fixed", inset: 0, zIndex: 9999 }}
           className="flex items-center justify-center bg-jscolors-text/35 px-4 backdrop-blur-sm"
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setAssignModal(false) }}
+          onMouseDown={(event) => { if (event.target === event.currentTarget) setAssignModal(false) }}
         >
           <div
             style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 10000 }}
             className="glass-panel w-full max-w-sm p-6"
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-syne text-2xl font-semibold text-jscolors-crimson">Assign FE</h2>
+              <h2 className="font-syne text-2xl font-semibold text-jscolors-crimson">Assign Subcon</h2>
               <button type="button" onClick={() => setAssignModal(false)} className="premium-button-secondary">Close</button>
             </div>
             <div className="space-y-4">
@@ -285,76 +243,38 @@ export default function SiteFEAssignmentSection({
                   <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Bucket</span>
                   <select
                     value={assignmentForm.bucket_id}
-                    onChange={(e) => setAssignmentForm((c) => ({ ...c, bucket_id: e.target.value }))}
+                    onChange={(event) => setAssignmentForm((current) => ({ ...current, bucket_id: event.target.value }))}
                     className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
                   >
                     <option value="">Select Bucket</option>
-                    {jobBuckets.map((b) => (
-                      <option key={b.id} value={b.id}>{b.label}</option>
+                    {jobBuckets.map((bucket) => (
+                      <option key={bucket.id} value={bucket.id}>{bucket.label}</option>
                     ))}
                   </select>
                 </label>
               )}
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Field Engineer</span>
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Subcon</span>
                 <select
-                  value={assignmentForm.fe_id}
-                  onChange={(e) => setAssignmentForm((c) => ({ ...c, fe_id: e.target.value }))}
+                  value={assignmentForm.subcon_id}
+                  onChange={(event) => setAssignmentForm((current) => ({ ...current, subcon_id: event.target.value }))}
                   className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
                 >
-                  <option value="">Select FE</option>
-                  {foUsers.map((u) => (
-                    <option key={u.id} value={u.id}>{u.label}</option>
+                  <option value="">Select Subcon</option>
+                  {subcons.map((subcon) => (
+                    <option key={subcon.id} value={subcon.id}>{subcon.label}</option>
                   ))}
                 </select>
               </label>
-              {alreadyAssigned && <p className="text-sm text-red-600">A FE is already active for this bucket.</p>}
+              {alreadyAssigned ? <p className="text-sm text-red-600">An active subcon already exists for this bucket.</p> : null}
+              {assignErr ? <p className="text-sm text-red-600">{assignErr}</p> : null}
               <button
                 type="button"
                 className="premium-button w-full"
-                disabled={alreadyAssigned || !assignmentForm.bucket_id || !assignmentForm.fe_id}
-                onClick={async () => {
-                  if (!assignmentForm.bucket_id || !assignmentForm.fe_id) return
-                  const payload = { bucket_id: Number(assignmentForm.bucket_id), fe_id: Number(assignmentForm.fe_id) }
-                  const endpoint = `/sites/${projectKey}/${currentSite.id}/assignments`
-                  console.log("[SiteFEAssignmentSection] assignFE:start", {
-                    projectKey,
-                    isBB,
-                    siteId: currentSite.id,
-                    providerAssignId,
-                    feAssignId: assignmentForm.fe_id,
-                    bucketId: assignmentForm.bucket_id,
-                    endpoint,
-                    payload,
-                  })
-                  try {
-                    const response = await api.post(endpoint, payload)
-                    console.log("[SiteFEAssignmentSection] assignFE:success", {
-                      status: response.status,
-                      data: response.data,
-                    })
-                    setAssignmentForm({ bucket_id: "", fe_id: "" })
-                    setAssignModal(false)
-                    await onReload()
-                  } catch (error: unknown) {
-                    const response = (error as { response?: { status?: number; data?: unknown } }).response
-                    console.error("[SiteFEAssignmentSection] assignFE:error", {
-                      projectKey,
-                      isBB,
-                      siteId: currentSite.id,
-                      providerAssignId,
-                      feAssignId: assignmentForm.fe_id,
-                      bucketId: assignmentForm.bucket_id,
-                      endpoint,
-                      payload,
-                      status: response?.status,
-                      data: response?.data,
-                      error,
-                    })
-                  }
-                }}
+                disabled={assigning || alreadyAssigned || !assignmentForm.bucket_id || !assignmentForm.subcon_id}
+                onClick={() => void assignSubcon()}
               >
-                Assign FE
+                {assigning ? "Assigning..." : "Assign Subcon"}
               </button>
             </div>
           </div>
@@ -366,7 +286,7 @@ export default function SiteFEAssignmentSection({
         <div
           style={{ position: "fixed", inset: 0, zIndex: 9999 }}
           className="flex items-center justify-center bg-jscolors-text/35 px-4 backdrop-blur-sm"
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setTxModal((m) => ({ ...m, open: false })) }}
+          onMouseDown={(event) => { if (event.target === event.currentTarget) setTxModal((current) => ({ ...current, open: false })) }}
         >
           <div
             style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 10000 }}
@@ -374,20 +294,20 @@ export default function SiteFEAssignmentSection({
           >
             <div className="mb-1 flex items-center justify-between">
               <h2 className="font-syne text-2xl font-semibold text-jscolors-crimson">Request Transaction</h2>
-              <button type="button" onClick={() => setTxModal((m) => ({ ...m, open: false }))} className="premium-button-secondary">Close</button>
+              <button type="button" onClick={() => setTxModal((current) => ({ ...current, open: false }))} className="premium-button-secondary">Close</button>
             </div>
-            <p className="mb-4 text-sm text-jscolors-text/60">{txModal.feLabel}</p>
+            <p className="mb-4 text-sm text-jscolors-text/60">{txModal.subconLabel}</p>
             <div className="space-y-4">
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Type</span>
                 <select
                   value={txModal.type_id}
-                  onChange={(e) => setTxModal((m) => ({ ...m, type_id: e.target.value }))}
+                  onChange={(event) => setTxModal((current) => ({ ...current, type_id: event.target.value }))}
                   className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
                 >
                   <option value="">Select Type</option>
-                  {transactionTypes.map((t) => (
-                    <option key={t.id} value={t.id}>{t.label}</option>
+                  {transactionTypes.map((type) => (
+                    <option key={type.id} value={type.id}>{type.label}</option>
                   ))}
                 </select>
               </label>
@@ -396,7 +316,7 @@ export default function SiteFEAssignmentSection({
                 <input
                   type="number"
                   value={txModal.amount}
-                  onChange={(e) => setTxModal((m) => ({ ...m, amount: e.target.value }))}
+                  onChange={(event) => setTxModal((current) => ({ ...current, amount: event.target.value }))}
                   placeholder="Amount"
                   className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
                 />
@@ -417,13 +337,13 @@ export default function SiteFEAssignmentSection({
       )}
 
       <div className="space-y-3">
-        {currentSite.fe_rows.length ? currentSite.fe_rows.map((row) => {
-          const rowTransactions = transactions.filter((t) => t.recipient_id === row.fe_id && t.bucket_key === row.bucket_key)
+        {currentSite.subcon_rows.length ? currentSite.subcon_rows.map((row) => {
+          const rowTransactions = transactions.filter((transaction) => transaction.recipient_id === row.subcon_id && transaction.bucket_key === row.bucket_key)
           return (
-            <div key={`${row.fe_id}-${row.bucket_key}`} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
+            <div key={`${row.assignment_id}-${row.bucket_key}`} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-jscolors-text">{row.fe_label} · {bucketLabel(jobBuckets, row.bucket_key)}</div>
+                  <div className="text-sm font-semibold text-jscolors-text">{row.subcon_label} · {bucketLabel(jobBuckets, row.bucket_key)}</div>
                   <div className="mt-1 text-sm text-jscolors-text/60">Cost {row.cost} • Paid {row.paid} • Balance {row.balance}</div>
                 </div>
                 <div className="flex gap-2">
@@ -431,30 +351,27 @@ export default function SiteFEAssignmentSection({
                     <button
                       type="button"
                       className="premium-button-secondary"
-                      onClick={() => setTxModal({ open: true, feId: row.fe_id, bucketKey: row.bucket_key, feLabel: `${row.fe_label} · ${bucketLabel(jobBuckets, row.bucket_key)}`, type_id: "", amount: "", err: "" })}
+                      onClick={() => setTxModal({ open: true, subconId: row.subcon_id, bucketKey: row.bucket_key, subconLabel: `${row.subcon_label} · ${bucketLabel(jobBuckets, row.bucket_key)}`, type_id: "", amount: "", err: "" })}
                     >
                       Request Transaction
                     </button>
                   )}
-                  {row.active && canSiteWrite && (
+                  {row.active && canSiteWrite && row.assignment_id ? (
                     <button
                       type="button"
-                      className="rounded-2xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition"
-                      onClick={() => {
-                        const bucket = jobBuckets.find((b) => b.key === row.bucket_key)
-                        setRemoveModal({ open: true, fe_id: row.fe_id, bucket_id: bucket?.id ?? 0, fe_label: row.fe_label, final_cost: "" })
-                      }}
+                      className="rounded-2xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100"
+                      onClick={() => setRemoveModal({ open: true, assignment_id: row.assignment_id, subcon_label: row.subcon_label, final_cost: "", err: "" })}
                     >
                       Remove
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </div>
               <div className="mt-4 space-y-3">
-                {rowTransactions.length ? rowTransactions.map((tx) => (
+                {rowTransactions.length ? rowTransactions.map((transaction) => (
                   <SiteTransactionCard
-                    key={tx.id}
-                    row={tx}
+                    key={transaction.id}
+                    row={transaction}
                     badges={badgeById}
                     reqTransitions={reqTransitions}
                     canRequestWrite={canRequestWrite}
@@ -462,18 +379,18 @@ export default function SiteFEAssignmentSection({
                     cancelBadgeId={cancelBadgeId}
                     onUpdate={onReload}
                   />
-                )) : <EmptyState text="No transactions for this FE yet" />}
+                )) : <EmptyState text="No transactions for this subcon yet" />}
               </div>
             </div>
           )
-        }) : <EmptyState text={foUsers.length ? "No FE assignments yet" : "No FO users available for this project"} />}
+        }) : <EmptyState text={subcons.length ? "No subcon assignments yet" : "No subcons available for this project"} />}
       </div>
-      {transactions.some((t) => !t.recipient_id || !t.bucket_key) ? (
+      {transactions.some((transaction) => !transaction.recipient_id || !transaction.bucket_key) ? (
         <div className="mt-4 space-y-3">
-          {transactions.filter((t) => !t.recipient_id || !t.bucket_key).map((tx) => (
+          {transactions.filter((transaction) => !transaction.recipient_id || !transaction.bucket_key).map((transaction) => (
             <SiteTransactionCard
-              key={tx.id}
-              row={tx}
+              key={transaction.id}
+              row={transaction}
               badges={badgeById}
               reqTransitions={reqTransitions}
               canRequestWrite={canRequestWrite}

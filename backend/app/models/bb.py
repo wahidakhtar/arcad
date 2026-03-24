@@ -42,7 +42,6 @@ class BBSite(Base):
     city: Optional[Mapped[str]] = mapped_column(String(255))
     lc: Optional[Mapped[str]] = mapped_column(String(255))
     status_id: Mapped[int] = mapped_column(ForeignKey("schema_core.badges.id"), nullable=False)
-    provider_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_bb.providers.id"))
     username: Optional[Mapped[str]] = mapped_column(String(255))
     password: Optional[Mapped[str]] = mapped_column(String(255))
     po_number: Optional[Mapped[str]] = mapped_column(String(128))

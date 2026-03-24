@@ -41,6 +41,11 @@ def project_job_buckets(project_key: str, user: UserContext = Depends(permission
     return project_service.list_project_buckets(db, user, project_key)
 
 
+@router.get("/{project_key}/subcons")
+def project_subcons(project_key: str, user: UserContext = Depends(permission_required("site", "read")), db: Session = Depends(get_db)):
+    return project_service.list_project_subcons(db, user, project_key)
+
+
 @router.get("/{project_key}/providers")
 def project_providers(project_key: str, user: UserContext = Depends(permission_required("site", "read")), db: Session = Depends(get_db)):
     if project_key != "bb":

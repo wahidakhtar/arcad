@@ -11,13 +11,11 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.api.auth import UserContext, ensure_permission
-from app.config.calculator import FEAssignmentRow, RateCardRow, TransactionRow, calculate_site_financials
+from app.config.calculator import SubconAssignmentRow, RateCardRow, TransactionRow, calculate_site_financials
 from app.models.acc import RateCard, Transaction
 from app.models.core import Badge, IndianState, Job, JobBucket
-from app.models.bb import Provider
-from app.models.hr import User
-from app.models.ops import FEAssignment
-from app.schemas.site import FEAssignmentRequest, SiteOut
+from app.models.ops import Subcon, SubconAssignment, SubconProject
+from app.schemas.site import SubconAssignmentRequest, SiteOut
 from app.services.common import badge_map, get_project, get_project_config, get_site_model, get_subproject_model, model_to_dict
 from app.services import acc_rules
 
@@ -39,7 +37,6 @@ FIELD_TYPE_OVERRIDES = {
     "arr": "bool",
     "ep": "bool",
     "ec": "number",
-    "provider_id": "number",
 }
 
 BADGE_TYPE_BY_FIELD = {
@@ -210,25 +207,12 @@ def _resolve_subproject_id(db: Session, project_key: str, requested_subproject_i
     return bucket.id
 
 
-def _site_accessible_to_fo(db: Session, project_id: int, site_id: int, fe_id: int) -> bool:
-    return (
-        db.execute(
-            select(FEAssignment).where(
-                FEAssignment.project_id == project_id,
-                FEAssignment.site_id == site_id,
-                FEAssignment.fe_id == fe_id,
-            )
-        ).scalar_one_or_none()
-        is not None
-    )
-
-
 def _build_financials(db: Session, project_id: int, project_key: str, site_id: int, site_data: dict) -> dict:
     badges = badge_map(db)
-    # Only include assignments that have a bucket (skip BB provider-only assignments)
+    # Only include assignments that have a bucket
     assignments = [
-        FEAssignmentRow(fe_id=row.fe_id, bucket_key=db.get(JobBucket, row.bucket_id).key, active=row.active, final_cost=row.final_cost)
-        for row in db.execute(select(FEAssignment).where(FEAssignment.project_id == project_id, FEAssignment.site_id == site_id)).scalars()
+        SubconAssignmentRow(id=row.id, subcon_id=row.subcon_id, bucket_key=db.get(JobBucket, row.bucket_id).key, active=row.active)
+        for row in db.execute(select(SubconAssignment).where(SubconAssignment.project_id == project_id, SubconAssignment.site_id == site_id)).scalars()
         if row.bucket_id is not None
     ]
     transactions = [
@@ -247,17 +231,18 @@ def _build_financials(db: Session, project_id: int, project_key: str, site_id: i
     return calculate_site_financials(site_data, assignments, transactions, rates, job_scales)
 
 
-def _serialize_fe_rows(db: Session, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _serialize_subcon_rows(db: Session, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if not rows:
         return []
-    users = {
-        user.id: user.label
-        for user in db.execute(select(User).where(User.id.in_([int(row["fe_id"]) for row in rows]))).scalars().all()
+    subcons = {
+        subcon.id: subcon.name
+        for subcon in db.execute(select(Subcon).where(Subcon.id.in_([int(row["subcon_id"]) for row in rows]))).scalars().all()
     }
     return [
         {
-            "fe_id": row["fe_id"],
-            "fe_label": users.get(int(row["fe_id"]), f"User {row['fe_id']}"),
+            "assignment_id": row["assignment_id"],
+            "subcon_id": row["subcon_id"],
+            "subcon_label": subcons.get(int(row["subcon_id"]), f"Subcon {row['subcon_id']}"),
             "bucket_key": row["bucket_key"],
             "active": row["active"],
             "cost": row["cost"],
@@ -280,8 +265,6 @@ def list_sites(db: Session, user: UserContext, project_key: str, exclude_staged:
     stage_badge_id = next((bid for bid, b in badges.items() if b.key == "stage"), None)
     items = []
     for row in rows:
-        if user.is_fo and not _site_accessible_to_fo(db, project.id, row.id, user.user_id):
-            continue
         if exclude_staged and stage_badge_id is not None and row.status_id == stage_badge_id:
             continue
         items.append({"id": row.id, "ckt_id": row.ckt_id, "status_key": badges[row.status_id].key, "receiving_date": row.receiving_date, "active_fe": getattr(row, "active_fe", None)})
@@ -315,30 +298,41 @@ def create_site(db: Session, user: UserContext, project_key: str, subproject_id:
         logger.exception("create_site db_error project=%s payload=%s", project_key, payload)
         raise HTTPException(status_code=400, detail="Unable to create site") from exc
 
+def _validate_subcon_for_project(db: Session, project_id: int, subcon_id: int) -> Subcon:
+    subcon = db.get(Subcon, subcon_id)
+    if subcon is None:
+        logger.warning("subcon assignment validation failed: subcon not found", extra={"project_id": project_id, "subcon_id": subcon_id})
+        raise HTTPException(status_code=404, detail="Subcon not found")
+    if not subcon.is_active:
+        logger.warning("subcon assignment validation failed: subcon inactive", extra={"project_id": project_id, "subcon_id": subcon_id})
+        raise HTTPException(status_code=400, detail="Subcon is inactive")
+    project_link = db.execute(
+        select(SubconProject).where(SubconProject.project_id == project_id, SubconProject.subcon_id == subcon_id)
+    ).scalar_one_or_none()
+    if project_link is None:
+        logger.warning("subcon assignment validation failed: subcon not linked to project", extra={"project_id": project_id, "subcon_id": subcon_id})
+        raise HTTPException(status_code=400, detail="Subcon is not assigned to this project")
+    return subcon
 
-def _get_bb_provider_rows(db: Session, project_id: int, site_id: int) -> list[dict]:
-    from app.models.bb import Provider
-    rows = db.execute(
-        select(FEAssignment).where(
-            FEAssignment.project_id == project_id,
-            FEAssignment.site_id == site_id,
-            FEAssignment.provider_id.isnot(None),
-        ).order_by(FEAssignment.created_at.desc())
-    ).scalars().all()
-    if not rows:
-        return []
-    provider_ids = [r.provider_id for r in rows]
-    providers = {p.id: p.label for p in db.execute(select(Provider).where(Provider.id.in_(provider_ids))).scalars().all()}
-    return [
-        {
-            "assignment_id": r.id,
-            "provider_id": r.provider_id,
-            "provider_label": providers.get(r.provider_id, f"Provider {r.provider_id}"),
-            "active": r.active,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
-        }
-        for r in rows
-    ]
+
+def _validate_bucket_for_project(db: Session, project_id: int, bucket_id: Optional[int]) -> Optional[JobBucket]:
+    if bucket_id is None:
+        return None
+    bucket = db.get(JobBucket, bucket_id)
+    if bucket is None:
+        logger.warning("subcon assignment validation failed: bucket not found", extra={"project_id": project_id, "bucket_id": bucket_id})
+        raise HTTPException(status_code=404, detail="Bucket not found")
+    if getattr(bucket, "project_id", None) != project_id:
+        logger.warning("subcon assignment validation failed: bucket outside project", extra={"project_id": project_id, "bucket_id": bucket_id, "bucket_project_id": getattr(bucket, "project_id", None)})
+        raise HTTPException(status_code=400, detail="Bucket does not belong to this project")
+    return bucket
+
+
+def _update_active_subcon_label(db: Session, project_key: str, site_id: int, label: Optional[str]) -> None:
+    db.execute(
+        text(f"UPDATE schema_{project_key}.sites SET active_fe = :label WHERE id = :site_id"),
+        {"label": label, "site_id": site_id},
+    )
 
 
 def get_site(db: Session, user: UserContext, project_key: str, site_id: int) -> SiteOut:
@@ -348,12 +342,9 @@ def get_site(db: Session, user: UserContext, project_key: str, site_id: int) -> 
     site = db.get(model, site_id)
     if site is None:
         raise HTTPException(status_code=404, detail="Site not found")
-    if user.is_fo and not _site_accessible_to_fo(db, project.id, site_id, user.user_id):
-        raise HTTPException(status_code=403, detail="Site not assigned")
     site_data = model_to_dict(site)
     financials = _build_financials(db, project.id, project_key, site_id, site_data)
     badges = badge_map(db)
-    provider_rows = _get_bb_provider_rows(db, project.id, site_id) if project_key == "bb" else []
     return SiteOut(
         id=site.id,
         project_key=project_key,
@@ -363,8 +354,7 @@ def get_site(db: Session, user: UserContext, project_key: str, site_id: int) -> 
         receiving_date=site.receiving_date,
         fields=site_data,
         financials={k: financials[k] for k in ["budget", "cost", "paid", "balance"]},
-        fe_rows=_serialize_fe_rows(db, financials.get("fe_rows", [])),
-        provider_rows=provider_rows,
+        subcon_rows=_serialize_subcon_rows(db, financials.get("subcon_rows", [])),
     )
 
 
@@ -426,226 +416,89 @@ def update_site(db: Session, user: UserContext, project_key: str, site_id: int, 
     return result
 
 
-def remove_fe_assignment(db: Session, user: UserContext, project_key: str, site_id: int, fe_id: int, bucket_id: int, final_cost: Optional[Decimal]) -> SiteOut:
-    project = get_project(db, project_key)
-    ensure_permission(user, db, project_key=project_key, tag="site", action="write")
-    assignment = db.execute(
-        select(FEAssignment).where(
-            FEAssignment.project_id == project.id,
-            FEAssignment.site_id == site_id,
-            FEAssignment.bucket_id == bucket_id,
-            FEAssignment.fe_id == fe_id,
-            FEAssignment.active.is_(True),
-        )
-    ).scalar_one_or_none()
-    if assignment is None:
-        raise HTTPException(status_code=404, detail="Active assignment not found")
-    assignment.active = False
-    if final_cost is not None:
-        assignment.final_cost = final_cost
-    db.flush()
-    db.execute(
-        text(
-            f"""
-            UPDATE schema_{project_key}.sites s
-            SET active_fe = (
-                SELECT u.label
-                FROM schema_hr.users u
-                JOIN schema_ops.fe_assignment fa ON fa.fe_id = u.id
-                WHERE fa.site_id = s.id
-                  AND fa.project_id = :project_id
-                  AND fa.active = TRUE
-                ORDER BY fa.created_at DESC
-                LIMIT 1
-            )
-            WHERE s.id = :site_id
-            """
-        ),
-        {"project_id": project.id, "site_id": site_id},
-    )
-    db.commit()
-    return get_site(db, user, project_key, site_id)
-
-
-def assign_fe(db: Session, user: UserContext, project_key: str, site_id: int, payload: FEAssignmentRequest) -> SiteOut:
+def assign_subcon(db: Session, user: UserContext, project_key: str, site_id: int, payload: SubconAssignmentRequest) -> SiteOut:
     project = get_project(db, project_key)
     ensure_permission(user, db, project_key=project_key, tag="site", action="write")
     model = get_site_model(project_key)
     site = db.get(model, site_id)
     if site is None:
         raise HTTPException(status_code=404, detail="Site not found")
-
-    # BB project: use provider_id, no bucket/FE
-    if project_key == "bb":
-        logger.info(
-            "bb assignment start",
-            extra={
-                "project_key": project_key,
-                "site_id": site_id,
-                "project_id": project.id,
-                "provider_id": payload.provider_id,
-                "fe_id": payload.fe_id,
-                "bucket_id": payload.bucket_id,
-            },
+    logger.info(
+        "subcon assignment payload",
+        extra={
+            "project_key": project_key,
+            "project_id": project.id,
+            "site_id": site_id,
+            "subcon_id": payload.subcon_id,
+            "bucket_id": payload.bucket_id,
+            "assigned_by": user.user_id,
+        },
+    )
+    subcon = _validate_subcon_for_project(db, project.id, payload.subcon_id)
+    _validate_bucket_for_project(db, project.id, payload.bucket_id)
+    existing_assignments = db.execute(
+        select(SubconAssignment).where(
+            SubconAssignment.project_id == project.id,
+            SubconAssignment.site_id == site_id,
+            SubconAssignment.active.is_(True),
         )
-        if not payload.provider_id:
-            logger.warning(
-                "bb assignment validation failed: missing provider_id",
-                extra={"project_key": project_key, "site_id": site_id},
-            )
-            raise HTTPException(status_code=400, detail="provider_id required for BB assignments")
-        provider = db.get(Provider, payload.provider_id)
-        logger.info(
-            "bb assignment provider lookup",
-            extra={
-                "project_key": project_key,
-                "site_id": site_id,
-                "provider_id": payload.provider_id,
-                "provider_found": provider is not None,
-                "provider_active": None if provider is None else provider.active,
-                "provider_label": None if provider is None else provider.label,
-            },
-        )
-        if provider is None:
-            logger.warning(
-                "bb assignment validation failed: provider not found",
-                extra={"project_key": project_key, "site_id": site_id, "provider_id": payload.provider_id},
-            )
-            raise HTTPException(status_code=404, detail=f"Provider {payload.provider_id} not found")
-        if not provider.active:
-            logger.warning(
-                "bb assignment validation failed: provider inactive",
-                extra={"project_key": project_key, "site_id": site_id, "provider_id": payload.provider_id},
-            )
-            raise HTTPException(status_code=400, detail=f"Provider {payload.provider_id} is inactive")
-        existing = db.execute(
-            select(FEAssignment).where(
-                FEAssignment.project_id == project.id,
-                FEAssignment.site_id == site_id,
-                FEAssignment.provider_id == payload.provider_id,
-                FEAssignment.active.is_(True),
-            )
-        ).scalar_one_or_none()
-        logger.info(
-            "bb assignment existing check",
-            extra={
-                "project_key": project_key,
-                "site_id": site_id,
-                "provider_id": payload.provider_id,
-                "existing_assignment": existing is not None,
-                "existing_assignment_id": None if existing is None else existing.id,
-            },
-        )
-        if existing is not None:
-            logger.warning(
-                "bb assignment validation failed: duplicate active assignment",
-                extra={
-                    "project_key": project_key,
-                    "site_id": site_id,
-                    "provider_id": payload.provider_id,
-                    "existing_assignment_id": existing.id,
-                },
-            )
-            raise HTTPException(status_code=400, detail="An active assignment already exists for this provider")
-        assignment = FEAssignment(
+    ).scalars().all()
+    for existing in existing_assignments:
+        existing.active = False
+        existing.removed_at = datetime.now()
+        existing.version = (existing.version or 0) + 1
+    db.add(
+        SubconAssignment(
             project_id=project.id,
             site_id=site_id,
-            bucket_id=None,
-            fe_id=None,
-            provider_id=payload.provider_id,
+            subcon_id=payload.subcon_id,
+            bucket_id=payload.bucket_id,
             active=True,
-            created_at=datetime.now(timezone.utc),
+            assigned_by=user.user_id,
+            assigned_at=datetime.now(),
+            removed_at=None,
+            version=1,
         )
-        logger.info(
-            "bb assignment insert attempt",
-            extra={
-                "project_key": project_key,
-                "site_id": site_id,
-                "provider_id": payload.provider_id,
-            },
-        )
-        db.add(assignment)
-    else:
-        if not payload.bucket_id or not payload.fe_id:
-            raise HTTPException(status_code=400, detail="bucket_id and fe_id required for FE assignments")
-        bucket = db.get(JobBucket, payload.bucket_id)
-        if bucket is None:
-            raise HTTPException(status_code=404, detail="Bucket not found")
-        fe_user = db.get(User, payload.fe_id)
-        if fe_user is None:
-            raise HTTPException(status_code=404, detail="FE user not found")
-        existing = db.execute(
-            select(FEAssignment).where(
-                FEAssignment.project_id == project.id,
-                FEAssignment.site_id == site_id,
-                FEAssignment.bucket_id == payload.bucket_id,
-                FEAssignment.active.is_(True),
-            )
-        ).scalar_one_or_none()
-        if existing is not None:
-            raise HTTPException(status_code=400, detail="An active FE assignment already exists for this bucket")
-        db.add(
-            FEAssignment(
-                project_id=project.id,
-                site_id=site_id,
-                bucket_id=payload.bucket_id,
-                fe_id=payload.fe_id,
-                provider_id=None,
-                active=True,
-                created_at=datetime.now(timezone.utc),
-            )
-        )
-        db.flush()
-        db.execute(
-            text(f"UPDATE schema_{project_key}.sites SET active_fe = :label WHERE id = :site_id"),
-            {"label": fe_user.label, "site_id": site_id},
-        )
+    )
+    _update_active_subcon_label(db, project_key, site_id, subcon.name)
 
     try:
         logger.info(
-            "assignment commit start",
+            "subcon assignment commit start",
             extra={
                 "project_key": project_key,
                 "site_id": site_id,
-                "is_bb": project_key == "bb",
-                "provider_id": payload.provider_id,
-                "fe_id": payload.fe_id,
+                "subcon_id": payload.subcon_id,
                 "bucket_id": payload.bucket_id,
             },
         )
         db.commit()
         logger.info(
-            "assignment commit success",
+            "subcon assignment commit success",
             extra={
                 "project_key": project_key,
                 "site_id": site_id,
-                "is_bb": project_key == "bb",
-                "provider_id": payload.provider_id,
-                "fe_id": payload.fe_id,
+                "subcon_id": payload.subcon_id,
                 "bucket_id": payload.bucket_id,
             },
         )
-    except Exception as exc:
+    except Exception:
         logger.exception(
-            "assignment commit failed",
+            "subcon assignment commit failed",
             extra={
                 "project_key": project_key,
                 "site_id": site_id,
-                "is_bb": project_key == "bb",
-                "provider_id": payload.provider_id,
-                "fe_id": payload.fe_id,
+                "subcon_id": payload.subcon_id,
                 "bucket_id": payload.bucket_id,
             },
         )
         raise
     logger.info(
-        "assignment success before return",
+        "subcon assignment success before return",
         extra={
             "project_key": project_key,
             "site_id": site_id,
-            "is_bb": project_key == "bb",
-            "provider_id": payload.provider_id,
-            "fe_id": payload.fe_id,
+            "subcon_id": payload.subcon_id,
             "bucket_id": payload.bucket_id,
         },
     )
@@ -700,37 +553,18 @@ def remove_assignment(db: Session, user: UserContext, project_key: str, site_id:
     project = get_project(db, project_key)
     ensure_permission(user, db, project_key=project_key, tag="site", action="write")
     assignment = db.execute(
-        select(FEAssignment).where(
-            FEAssignment.id == assignment_id,
-            FEAssignment.site_id == site_id,
-            FEAssignment.active.is_(True),
+        select(SubconAssignment).where(
+            SubconAssignment.id == assignment_id,
+            SubconAssignment.site_id == site_id,
+            SubconAssignment.active.is_(True),
         )
     ).scalar_one_or_none()
     if assignment is None:
         raise HTTPException(status_code=404, detail="Active assignment not found")
     assignment.active = False
-    if final_cost is not None:
-        assignment.final_cost = final_cost
-    db.flush()
-    db.execute(
-        text(
-            f"""
-            UPDATE schema_{project_key}.sites s
-            SET active_fe = (
-                SELECT u.label
-                FROM schema_hr.users u
-                JOIN schema_ops.fe_assignment fa ON fa.fe_id = u.id
-                WHERE fa.site_id = s.id
-                  AND fa.project_id = :project_id
-                  AND fa.active = TRUE
-                ORDER BY fa.created_at DESC
-                LIMIT 1
-            )
-            WHERE s.id = :site_id
-            """
-        ),
-        {"project_id": project.id, "site_id": site_id},
-    )
+    assignment.removed_at = datetime.now()
+    assignment.version = (assignment.version or 0) + 1
+    _update_active_subcon_label(db, project_key, site_id, None)
     db.commit()
     return get_site(db, user, project_key, site_id)
 

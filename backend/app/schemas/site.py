@@ -28,12 +28,9 @@ class SubprojectCreate(BaseModel):
     rows: list[dict[str, Any]]
 
 
-class FEAssignmentRequest(BaseModel):
-    # Non-BB: provide bucket_id + fe_id
+class SubconAssignmentRequest(BaseModel):
+    subcon_id: int
     bucket_id: Optional[int] = None
-    fe_id: Optional[int] = None
-    # BB: provide provider_id
-    provider_id: Optional[int] = None
 
 
 class FERemovalRequest(BaseModel):
@@ -47,9 +44,10 @@ class SiteFinancials(BaseModel):
     balance: Decimal
 
 
-class FESummary(BaseModel):
-    fe_id: int
-    fe_label: str
+class SubconSummary(BaseModel):
+    assignment_id: int
+    subcon_id: int
+    subcon_label: str
     bucket_key: str
     active: bool
     cost: Decimal
@@ -66,5 +64,4 @@ class SiteOut(BaseModel):
     receiving_date: date
     fields: dict[str, Any] = Field(default_factory=dict)
     financials: SiteFinancials
-    fe_rows: list[FESummary] = Field(default_factory=list)
-    provider_rows: list[dict] = Field(default_factory=list)
+    subcon_rows: list[SubconSummary] = Field(default_factory=list)

@@ -2,18 +2,46 @@ from __future__ import annotations
 
 from typing import Optional
 from datetime import date, datetime, time
-from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Time
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, String, Text, Time
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 
 
-class FEAssignment(Base):
-    __tablename__ = "fe_assignment"
+class SubconType(Base):
+    __tablename__ = "subcon_types"
+    __table_args__ = {"schema": "schema_ops"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key: Mapped[str] = mapped_column(Text, nullable=False)
+    label: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class Subcon(Base):
+    __tablename__ = "subcons"
+    __table_args__ = {"schema": "schema_ops"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    subcon_type_id: Mapped[int] = mapped_column(ForeignKey("schema_ops.subcon_types.id"), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class SubconProject(Base):
+    __tablename__ = "subcon_projects"
+    __table_args__ = {"schema": "schema_ops"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    subcon_id: Mapped[int] = mapped_column(ForeignKey("schema_ops.subcons.id"), nullable=False)
+    project_id: Mapped[int] = mapped_column(ForeignKey("schema_core.projects.id"), nullable=False)
+
+
+class SubconAssignment(Base):
+    __tablename__ = "subcon_assignments"
     __table_args__ = (
-        Index("ix_fe_assignment_site_id", "site_id"),
+        Index("ix_subcon_assignments_site_id", "site_id"),
         {"schema": "schema_ops"},
     )
 
@@ -21,11 +49,12 @@ class FEAssignment(Base):
     project_id: Mapped[int] = mapped_column(ForeignKey("schema_core.projects.id"), nullable=False)
     site_id: Mapped[int] = mapped_column(Integer, nullable=False)
     bucket_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_core.job_buckets.id"))
-    fe_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_hr.users.id"))
-    provider_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_bb.providers.id"))
+    subcon_id: Mapped[int] = mapped_column(ForeignKey("schema_ops.subcons.id"), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    final_cost: Optional[Mapped[Decimal]] = mapped_column(Numeric(12, 2))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    assigned_by: Optional[Mapped[int]] = mapped_column(Integer)
+    assigned_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    removed_at: Optional[Mapped[datetime]] = mapped_column(DateTime)
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
 
 class Ticket(Base):
@@ -54,4 +83,3 @@ class PunchPoint(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("schema_core.projects.id"), nullable=False)
     label: Mapped[str] = mapped_column(String(255), nullable=False)
-

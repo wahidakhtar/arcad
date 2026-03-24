@@ -7,8 +7,7 @@ export type SiteDetail = {
   status_key: string
   fields: Record<string, unknown>
   financials: { budget: string; cost: string; paid: string; balance: string }
-  fe_rows: Array<{ fe_id: number; fe_label: string; bucket_key: string; active: boolean; cost: string; paid: string; balance: string }>
-  provider_rows: Array<{ assignment_id: number; provider_id: number; provider_label: string; active: boolean; created_at: string | null }>
+  subcon_rows: Array<{ assignment_id: number; subcon_id: number; subcon_label: string; bucket_key: string; active: boolean; cost: string; paid: string; balance: string }>
 }
 
 export type UIField = {
@@ -64,7 +63,7 @@ export type JobBucket = {
   label: string
 }
 
-export type ProviderRow = {
+export type SubconRow = {
   id: number
   label: string
 }

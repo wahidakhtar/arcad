@@ -6,7 +6,7 @@ import FieldRenderer from "../../components/ui/FieldRenderer"
 import BadgeDropdown from "../../components/ui/BadgeDropdown"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
-import type { Badge, ProjectRow, SiteDetail, StateRow, TicketRow, TransactionRow, TransitionRow, UIField, UpdateRow, UserRow, JobBucket, ProviderRow } from "./siteDetailTypes"
+import type { Badge, ProjectRow, SiteDetail, StateRow, TicketRow, TransactionRow, TransitionRow, UIField, UpdateRow, JobBucket, SubconRow } from "./siteDetailTypes"
 import {
   DOC_BADGE_FIELDS,
   READ_ONLY_FIELDS,
@@ -31,12 +31,11 @@ export default function SiteDetailPage() {
   const [transitions, setTransitions] = useState<TransitionRow[]>([])
   const [states, setStates] = useState<StateRow[]>([])
   const [projects, setProjects] = useState<ProjectRow[]>([])
-  const [users, setUsers] = useState<UserRow[]>([])
   const [jobBuckets, setJobBuckets] = useState<JobBucket[]>([])
   const [updates, setUpdates] = useState<UpdateRow[]>([])
   const [tickets, setTickets] = useState<TicketRow[]>([])
   const [transactions, setTransactions] = useState<TransactionRow[]>([])
-  const [providers, setProviders] = useState<ProviderRow[]>([])
+  const [subcons, setSubcons] = useState<SubconRow[]>([])
   const [transactionTypes, setTransactionTypes] = useState<Badge[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -53,8 +52,8 @@ export default function SiteDetailPage() {
       const empty = { data: [] }
       const [
         siteResponse, uiFieldsResponse, badgesResponse, transitionResponse,
-        statesResponse, projectsResponse, usersResponse, bucketsResponse,
-        updatesResponse, ticketsResponse, transactionsResponse, providersResponse,
+        statesResponse, projectsResponse, bucketsResponse,
+        updatesResponse, ticketsResponse, transactionsResponse, subconsResponse,
         txTypesResponse,
       ] = await Promise.all([
         api.get(`/sites/${projectKey}/${siteId}`),
@@ -63,12 +62,11 @@ export default function SiteDetailPage() {
         api.get(`/projects/${projectKey}/badge-transitions`),
         api.get("/indian-states"),
         api.get("/projects"),
-        api.get("/users").catch(() => empty),
         api.get(`/projects/${projectKey}/job-buckets`),
         api.get("/updates", { params: { site_id: numericSiteId } }).catch(() => empty),
         api.get("/tickets").catch(() => empty),
         api.get("/transactions").catch(() => empty),
-        api.get(`/projects/${projectKey}/providers`),
+        api.get(`/projects/${projectKey}/subcons`).catch(() => empty),
         api.get(`/projects/${projectKey}/transaction-types`).catch(() => empty),
       ])
       const nextProjects = projectsResponse.data as ProjectRow[]
@@ -89,12 +87,11 @@ export default function SiteDetailPage() {
       setTransitions(transitionResponse.data)
       setStates(statesResponse.data)
       setProjects(nextProjects)
-      setUsers(usersResponse.data)
       setJobBuckets(bucketsResponse.data)
       setUpdates(updatesResponse.data)
       setTickets(nextTickets)
       setTransactions(nextTransactions)
-      setProviders((providersResponse.data as ProviderRow[]) ?? [])
+      setSubcons((subconsResponse.data as SubconRow[]) ?? [])
       setTransactionTypes(Array.isArray(txTypesResponse.data) ? txTypesResponse.data as Badge[] : [])
     } catch {
       setError("Unable to load site details.")
@@ -122,11 +119,6 @@ export default function SiteDetailPage() {
   )
   const badgeFields = useMemo(() => visibleFields.filter((f) => f.type === "badge"), [visibleFields])
   const regularFields = useMemo(() => visibleFields.filter((f) => f.type !== "badge"), [visibleFields])
-
-  const foUsers = useMemo(
-    () => users.filter((u) => u.roles.some((r) => r.dept_key === "fo" && (r.project_id == null || r.project_id === project?.id))),
-    [project?.id, users],
-  )
 
   if (loading) return <div className="p-6 text-jscolors-text/50">Loading site details...</div>
   if (!site) return <div className="p-6 text-jscolors-text/50">Site not found.</div>
@@ -297,7 +289,7 @@ export default function SiteDetailPage() {
             projectKey={projectKey}
             project={project}
             jobBuckets={jobBuckets}
-            foUsers={foUsers}
+            subcons={subcons}
             transactions={transactions}
             badgeById={badgeById}
             transactionTypes={transactionTypes}
@@ -307,7 +299,6 @@ export default function SiteDetailPage() {
             canRequestWrite={canRequestWrite}
             canTransactionWrite={canTransactionWrite}
             canSiteWrite={canSiteWrite}
-            providers={providers}
             onReload={loadPage}
           />
         </section>

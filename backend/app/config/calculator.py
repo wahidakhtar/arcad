@@ -40,11 +40,11 @@ class TransactionRow:
 
 
 @dataclass
-class FEAssignmentRow:
-    fe_id: int
+class SubconAssignmentRow:
+    id: int
+    subcon_id: int
     bucket_key: str
     active: bool
-    final_cost: Optional[Decimal]
 
 
 def _as_decimal(value: Any) -> Decimal:
@@ -113,9 +113,9 @@ def site_cost_for_bucket(
     return amount
 
 
-def fe_budget(
+def subcon_budget(
     site: dict[str, Any],
-    fe_id: int,
+    subcon_id: int,
     bucket_key: str,
     transactions: list[TransactionRow],
     rate_rows: list[RateCardRow],
@@ -129,36 +129,27 @@ def fe_budget(
         if qty == ZERO:
             continue
         amount += _select_rate(job_key, receiving_date, rate_rows) * qty
-    amount += _sum_transactions(transactions, type_keys={"b_sur"}, bucket_key=bucket_key, recipient_id=fe_id)
+    amount += _sum_transactions(transactions, type_keys={"b_sur"}, bucket_key=bucket_key, recipient_id=subcon_id)
     return amount
 
 
-def fe_cost(
+def subcon_cost(
     site: dict[str, Any],
-    assignment: FEAssignmentRow,
-    assignments: list[FEAssignmentRow],
+    assignment: SubconAssignmentRow,
+    assignments: list[SubconAssignmentRow],
     transactions: list[TransactionRow],
     rate_rows: list[RateCardRow],
     job_scales: dict[str, str],
 ) -> Decimal:
-    if not assignment.active and assignment.final_cost is not None:
-        return assignment.final_cost
-
     if assignment.active:
-        bucket_total = site_cost_for_bucket(site, assignment.bucket_key, transactions, rate_rows, job_scales)
-        inactive_total = sum(
-            assignment_row.final_cost or ZERO
-            for assignment_row in assignments
-            if assignment_row.bucket_key == assignment.bucket_key and not assignment_row.active
-        )
-        return max(bucket_total - inactive_total, ZERO)
+        return site_cost_for_bucket(site, assignment.bucket_key, transactions, rate_rows, job_scales)
 
     return ZERO
 
 
-def fe_paid(transactions: list[TransactionRow], fe_id: int) -> Decimal:
-    paid = _sum_transactions(transactions, type_keys={FE_PAYMENT_TYPE}, recipient_id=fe_id)
-    refunds = _sum_transactions(transactions, type_keys={REFUND_TYPE}, recipient_id=fe_id)
+def subcon_paid(transactions: list[TransactionRow], subcon_id: int) -> Decimal:
+    paid = _sum_transactions(transactions, type_keys={FE_PAYMENT_TYPE}, recipient_id=subcon_id)
+    refunds = _sum_transactions(transactions, type_keys={REFUND_TYPE}, recipient_id=subcon_id)
     return paid - refunds
 
 
@@ -168,41 +159,42 @@ def scrap_value(site: dict[str, Any], bucket_key: str) -> Decimal:
     return _as_decimal(site.get("scrap_value"))
 
 
-def fe_balance(
+def subcon_balance(
     site: dict[str, Any],
-    assignment: FEAssignmentRow,
-    assignments: list[FEAssignmentRow],
+    assignment: SubconAssignmentRow,
+    assignments: list[SubconAssignmentRow],
     transactions: list[TransactionRow],
     rate_rows: list[RateCardRow],
     job_scales: dict[str, str],
 ) -> Decimal:
     if assignment.active and site.get("status_key") != COMPLETED_STATUS:
         return ZERO
-    return fe_cost(site, assignment, assignments, transactions, rate_rows, job_scales) - fe_paid(transactions, assignment.fe_id) - scrap_value(site, assignment.bucket_key)
+    return subcon_cost(site, assignment, assignments, transactions, rate_rows, job_scales) - subcon_paid(transactions, assignment.subcon_id) - scrap_value(site, assignment.bucket_key)
 
 
 def calculate_site_financials(
     site: dict[str, Any],
-    assignments: list[FEAssignmentRow],
+    assignments: list[SubconAssignmentRow],
     transactions: list[TransactionRow],
     rate_rows: list[RateCardRow],
     job_scales: dict[str, str],
 ) -> dict[str, Any]:
-    by_fe: list[dict[str, Any]] = []
+    by_subcon: list[dict[str, Any]] = []
     budget = ZERO
     cost = ZERO
     paid = ZERO
     for assignment in assignments:
-        row_budget = fe_budget(site, assignment.fe_id, assignment.bucket_key, transactions, rate_rows, job_scales)
-        row_cost = fe_cost(site, assignment, assignments, transactions, rate_rows, job_scales)
-        row_paid = fe_paid(transactions, assignment.fe_id)
-        row_balance = fe_balance(site, assignment, assignments, transactions, rate_rows, job_scales)
+        row_budget = subcon_budget(site, assignment.subcon_id, assignment.bucket_key, transactions, rate_rows, job_scales)
+        row_cost = subcon_cost(site, assignment, assignments, transactions, rate_rows, job_scales)
+        row_paid = subcon_paid(transactions, assignment.subcon_id)
+        row_balance = subcon_balance(site, assignment, assignments, transactions, rate_rows, job_scales)
         budget += row_budget
         cost += row_cost
         paid += row_paid
-        by_fe.append(
+        by_subcon.append(
             {
-                "fe_id": assignment.fe_id,
+                "assignment_id": assignment.id,
+                "subcon_id": assignment.subcon_id,
                 "bucket_key": assignment.bucket_key,
                 "active": assignment.active,
                 "budget": row_budget,
@@ -213,23 +205,23 @@ def calculate_site_financials(
         )
 
     site_balance = ZERO if site.get("status_key") != COMPLETED_STATUS else cost - paid - scrap_value(site, "bmd")
-    return {"budget": budget, "cost": cost, "paid": paid, "balance": site_balance, "fe_rows": by_fe}
+    return {"budget": budget, "cost": cost, "paid": paid, "balance": site_balance, "subcon_rows": by_subcon}
 
 
-def calculate_fo_view(
+def calculate_subcon_view(
     site: dict[str, Any],
-    fe_id: int,
+    subcon_id: int,
     bucket_key: str,
-    assignments: list[FEAssignmentRow],
+    assignments: list[SubconAssignmentRow],
     transactions: list[TransactionRow],
     rate_rows: list[RateCardRow],
     job_scales: dict[str, str],
 ) -> dict[str, Decimal]:
-    target = next((row for row in assignments if row.fe_id == fe_id and row.bucket_key == bucket_key), None)
+    target = next((row for row in assignments if row.subcon_id == subcon_id and row.bucket_key == bucket_key), None)
     if target is None:
         return {"cost": ZERO, "paid": ZERO, "balance": ZERO}
     return {
-        "cost": fe_cost(site, target, assignments, transactions, rate_rows, job_scales),
-        "paid": fe_paid(transactions, fe_id),
-        "balance": fe_balance(site, target, assignments, transactions, rate_rows, job_scales),
+        "cost": subcon_cost(site, target, assignments, transactions, rate_rows, job_scales),
+        "paid": subcon_paid(transactions, subcon_id),
+        "balance": subcon_balance(site, target, assignments, transactions, rate_rows, job_scales),
     }

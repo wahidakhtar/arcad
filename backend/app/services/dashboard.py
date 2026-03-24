@@ -15,7 +15,6 @@ from app.models.ma import MASite
 from app.models.mc import MCSite
 from app.models.md import MDSite
 from app.models.ops import Ticket
-from app.models.ops import FEAssignment
 
 STATEFUL_SITE_MODELS = {
     "md": MDSite,
@@ -58,10 +57,6 @@ def _scoped_project_ids(db: Session, user: UserContext) -> set[int]:
         }
 
     project_ids = {role.project_id for role in user.roles if role.project_id is not None}
-    if user.is_fo:
-        project_ids.update(
-            db.execute(select(FEAssignment.project_id).where(FEAssignment.fe_id == user.user_id).distinct()).scalars().all()
-        )
     return {project_id for project_id in project_ids if project_id is not None}
 
 
@@ -82,15 +77,6 @@ def _requested_transaction_count(db: Session, user: UserContext, start_date: Opt
         Transaction.status_id == 38,
         *_date_filters(Transaction.request_date, start_date, end_date),
     )
-    if user.is_fo:
-        stmt = stmt.join(
-            FEAssignment,
-            (FEAssignment.project_id == Transaction.project_id)
-            & (FEAssignment.site_id == Transaction.site_id)
-            & (FEAssignment.fe_id == user.user_id),
-        )
-        return db.scalar(stmt) or 0
-
     project_ids = _scoped_project_ids(db, user)
     if not project_ids:
         return 0
@@ -102,15 +88,6 @@ def _open_ticket_count(db: Session, user: UserContext, start_date: Optional[date
         Ticket.closing_date.is_(None),
         *_date_filters(Ticket.ticket_date, start_date, end_date),
     )
-    if user.is_fo:
-        stmt = stmt.join(
-            FEAssignment,
-            (FEAssignment.project_id == Ticket.project_id)
-            & (FEAssignment.site_id == Ticket.site_id)
-            & (FEAssignment.fe_id == user.user_id),
-        )
-        return db.scalar(stmt) or 0
-
     project_ids = _scoped_project_ids(db, user)
     if not project_ids:
         return 0
@@ -142,20 +119,13 @@ def map_data(db: Session, user: UserContext, range_key: str, start_date: Optiona
         project_id = project_map.get(project_key)
         if project_id is None:
             continue
-        if not user.is_fo and project_id not in visible_project_ids:
+        if project_id not in visible_project_ids:
             continue
 
         stmt = select(model.state_id, func.count()).where(
             model.state_id.is_not(None),
             *_date_filters(model.receiving_date, resolved_start, resolved_end),
         )
-        if user.is_fo:
-            stmt = stmt.join(
-                FEAssignment,
-                (FEAssignment.project_id == project_id)
-                & (FEAssignment.site_id == model.id)
-                & (FEAssignment.fe_id == user.user_id),
-            )
         stmt = stmt.group_by(model.state_id)
 
         for state_id, count in db.execute(stmt).all():

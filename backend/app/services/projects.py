@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.api.auth import UserContext, ensure_permission, user_project_ids
 from app.models.acc import Transaction
 from app.models.core import Badge, IndianState, JobBucket, Project
-from app.models.ops import Ticket
+from app.models.ops import Subcon, SubconProject, Ticket
 from app.services.common import get_project_config, get_site_model, get_subproject_model
 
 FIELD_META: dict[str, dict[str, object]] = {
@@ -270,6 +270,20 @@ def list_bb_providers(db: Session, user: UserContext) -> list[dict]:
         select(Provider).where(Provider.active.is_(True)).order_by(Provider.label)
     ).scalars().all()
     return [{"id": p.id, "label": p.label} for p in providers]
+
+
+def list_project_subcons(db: Session, user: UserContext, project_key: str) -> list[dict]:
+    ensure_permission(user, db, project_key=project_key, tag="site", action="read")
+    project = db.execute(select(Project).where(Project.key == project_key)).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    rows = db.execute(
+        select(Subcon)
+        .join(SubconProject, SubconProject.subcon_id == Subcon.id)
+        .where(SubconProject.project_id == project.id, Subcon.is_active.is_(True))
+        .order_by(Subcon.name.asc())
+    ).scalars().all()
+    return [{"id": row.id, "label": row.name} for row in rows]
 
 
 _EXCLUDED_TX_TYPE_KEYS = {"sal", "oth"}

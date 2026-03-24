@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from app.api.auth import UserContext, get_current_user, permission_required
 from app.core.database import get_db
-from app.schemas.site import FEAssignmentRequest, FERemovalRequest, SiteCreate, SiteOut, SiteUpdate
+from app.schemas.site import SubconAssignmentRequest, FERemovalRequest, SiteCreate, SiteOut, SiteUpdate
 from app.services import sites as sites_service
 from app.services import sites as site_service
 
@@ -56,19 +56,13 @@ def update_site(project_key: str, site_id: int, payload: SiteUpdate, user: UserC
 
 
 @router.post("/{project_key}/{site_id}/assignments", response_model=SiteOut)
-def assign(project_key: str, site_id: int, payload: FEAssignmentRequest, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
-    return site_service.assign_fe(db, user, project_key, site_id, payload)
+def assign(project_key: str, site_id: int, payload: SubconAssignmentRequest, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
+    return site_service.assign_subcon(db, user, project_key, site_id, payload)
 
 
 @router.delete("/{project_key}/{site_id}/assignments/{assignment_id}", response_model=SiteOut)
 def remove_assignment(project_key: str, site_id: int, assignment_id: int, payload: FERemovalRequest, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
     return site_service.remove_assignment(db, user, project_key, site_id, assignment_id, payload.final_cost)
-
-
-# Legacy remove route — kept for backwards compatibility with existing frontend
-@router.patch("/{project_key}/{site_id}/assignments/{fe_id}/{bucket_id}/remove", response_model=SiteOut)
-def remove_fe(project_key: str, site_id: int, fe_id: int, bucket_id: int, payload: FERemovalRequest, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
-    return site_service.remove_fe_assignment(db, user, project_key, site_id, fe_id, bucket_id, payload.final_cost)
 
 
 @router.get("/bb/{site_id}/recharges", dependencies=[Depends(permission_required("site", "read"))])
