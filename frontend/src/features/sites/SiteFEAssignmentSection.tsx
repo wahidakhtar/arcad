@@ -114,7 +114,7 @@ export default function SiteFEAssignmentSection({
       <ActionPanel
         title="Provider Assignment"
         action={
-          canRequestWrite ? (
+          canSiteWrite ? (
             <button type="button" className="premium-button" onClick={() => { setProviderAssignId(""); setProviderModal(true) }}>
               Assign Provider
             </button>
@@ -170,7 +170,7 @@ export default function SiteFEAssignmentSection({
                   <div className="text-sm font-semibold text-jscolors-text">{row.provider_label}</div>
                   {row.created_at && <div className="mt-1 text-xs text-jscolors-text/60">{row.created_at.slice(0, 10)}</div>}
                 </div>
-                {row.active && canRequestWrite && (
+                {row.active && canSiteWrite && (
                   <button
                     type="button"
                     className="rounded-2xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition"
@@ -382,7 +382,7 @@ export default function SiteFEAssignmentSection({
                       Request Transaction
                     </button>
                   )}
-                  {row.active && canRequestWrite && (
+                  {row.active && canSiteWrite && (
                     <button
                       type="button"
                       className="rounded-2xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition"
