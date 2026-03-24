@@ -22,6 +22,7 @@ from app.api.routes.reports import router as reports_router
 from app.api.routes.setup import router as setup_router
 from app.api.routes.sites import router as sites_router
 from app.api.routes.states import router as states_router
+from app.api.routes.subcons import router as subcons_router
 from app.api.routes.tickets import router as tickets_router
 from app.api.routes.transactions import router as transactions_router
 from app.api.routes.updates import router as updates_router
@@ -106,6 +107,7 @@ app.include_router(setup_router, prefix=settings.api_prefix)
 app.include_router(users_router, prefix=settings.api_prefix)
 app.include_router(roles_router, prefix=settings.api_prefix)
 app.include_router(projects_router, prefix=settings.api_prefix)
+app.include_router(subcons_router, prefix=settings.api_prefix)
 app.include_router(sites_router, prefix=settings.api_prefix)
 app.include_router(states_router, prefix=settings.api_prefix)
 app.include_router(transactions_router, prefix=settings.api_prefix)

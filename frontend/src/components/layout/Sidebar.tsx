@@ -48,6 +48,7 @@ export default function Sidebar() {
         <SectionLink to="/dashboard" label="Dashboard" />
         {can("people", "read") && <SectionLink to="/people" label="People" />}
         {can("project", "read") && <SectionLink to="/projects-admin" label="Projects" />}
+        {can("subproject", "write") && <SectionLink to="/subcons" label="Subcons" />}
 
         {can("site", "read") && (
         <div className="space-y-3">
