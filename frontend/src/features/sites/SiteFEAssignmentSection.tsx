@@ -68,13 +68,23 @@ export default function SiteFEAssignmentSection({
   const [providerAssignId, setProviderAssignId] = useState("")
   const [providerModal, setProviderModal] = useState(false)
   const [savingProviderAssign, setSavingProviderAssign] = useState(false)
+  const [providerErr, setProviderErr] = useState("")
 
   const reqTransitions = transitionOptions(transitions, "transaction_status", reqBadgeId ?? 0)
+  const currentProviderIdRaw = currentSite.fields.provider_id
+  const currentProviderId = typeof currentProviderIdRaw === "number"
+    ? currentProviderIdRaw
+    : typeof currentProviderIdRaw === "string" && currentProviderIdRaw.trim()
+      ? Number(currentProviderIdRaw)
+      : null
+  const currentProvider = currentProviderId != null && Number.isFinite(currentProviderId)
+    ? providers.find((p) => p.id === currentProviderId) ?? null
+    : null
 
   async function assignProvider() {
     if (!providerAssignId) return
-    const payload = { provider_id: Number(providerAssignId) }
-    const endpoint = `/sites/${projectKey}/${currentSite.id}/assignments`
+    const payload = { data: { provider_id: Number(providerAssignId) } }
+    const endpoint = `/sites/${projectKey}/${currentSite.id}`
     console.log("[SiteFEAssignmentSection] assignProvider:start", {
       projectKey,
       isBB,
@@ -85,13 +95,15 @@ export default function SiteFEAssignmentSection({
       payload,
     })
     setSavingProviderAssign(true)
+    setProviderErr("")
     try {
-      const response = await api.post(endpoint, payload)
+      const response = await api.patch(endpoint, payload)
       console.log("[SiteFEAssignmentSection] assignProvider:success", {
         status: response.status,
         data: response.data,
       })
       setProviderAssignId("")
+      setProviderModal(false)
       await onReload()
     } catch (error: unknown) {
       const response = (error as { response?: { status?: number; data?: unknown } }).response
@@ -106,7 +118,8 @@ export default function SiteFEAssignmentSection({
         data: response?.data,
         error,
       })
-      throw error
+      const detail = (response?.data as { detail?: string } | undefined)?.detail
+      setProviderErr(detail ?? "Failed to assign provider.")
     } finally {
       setSavingProviderAssign(false)
     }
@@ -141,8 +154,8 @@ export default function SiteFEAssignmentSection({
         title="Provider Assignment"
         action={
           canSiteWrite ? (
-            <button type="button" className="premium-button" onClick={() => { setProviderAssignId(""); setProviderModal(true) }}>
-              Assign Provider
+            <button type="button" className="premium-button" onClick={() => { setProviderAssignId(currentProviderId != null ? String(currentProviderId) : ""); setProviderErr(""); setProviderModal(true) }}>
+              {currentProvider ? "Change Provider" : "Assign Provider"}
             </button>
           ) : undefined
         }
@@ -175,13 +188,12 @@ export default function SiteFEAssignmentSection({
                     ))}
                   </select>
                 </label>
+                {providerErr ? <p className="text-sm text-red-600">{providerErr}</p> : null}
                 <button
                   type="button"
                   className="premium-button w-full"
                   disabled={savingProviderAssign || !providerAssignId}
-                  onClick={() => {
-                    void assignProvider().then(() => setProviderModal(false))
-                  }}
+                  onClick={() => void assignProvider()}
                 >
                   {savingProviderAssign ? "Assigning..." : "Assign Provider"}
                 </button>
@@ -191,25 +203,12 @@ export default function SiteFEAssignmentSection({
           document.body,
         )}
         <div className="space-y-3">
-          {currentSite.provider_rows.length ? currentSite.provider_rows.map((row) => (
-            <div key={row.assignment_id} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-jscolors-text">{row.provider_label}</div>
-                  {row.created_at && <div className="mt-1 text-xs text-jscolors-text/60">{row.created_at.slice(0, 10)}</div>}
-                </div>
-                {row.active && canSiteWrite && (
-                  <button
-                    type="button"
-                    className="rounded-2xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition"
-                    onClick={() => void api.delete(`/sites/${projectKey}/${currentSite.id}/assignments/${row.assignment_id}`).then(() => onReload())}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
+          {currentProvider ? (
+            <div className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
+              <div className="text-sm font-semibold text-jscolors-text">{currentProvider.label}</div>
+              <div className="mt-1 text-xs text-jscolors-text/60">Current provider on this BB site</div>
             </div>
-          )) : <EmptyState text="No provider assignments yet" />}
+          ) : <EmptyState text="No provider selected yet" />}
         </div>
       </ActionPanel>
     )
