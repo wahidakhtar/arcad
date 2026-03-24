@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
+import logging
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import Depends, HTTPException
@@ -8,13 +11,16 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.cache import cache_delete, cache_get, cache_set, session_key
 from app.core.database import get_db
 from app.core.errors import PermissionDenied
-from app.core.security import decode_token
+from app.core.security import decode_token, hash_token
 from app.models.core import FieldPermission, Project, RoleTag, Tag
 from app.models.hr import Role, User, UserRole
 
 security = HTTPBearer(auto_error=False)
+
+_log = logging.getLogger("arcad.auth")
 
 LEVEL_ORDER: dict[str, int] = {"l1": 1, "l2": 2, "l3": 3}
 
@@ -47,6 +53,69 @@ class UserContext:
         return any(role.dept_key == "fo" for role in self.roles)
 
 
+# ─── Serialization for Redis session cache ────────────────────────────────────
+
+def _serialize_ctx(ctx: UserContext) -> dict:
+    return {
+        "user_id":    ctx.user_id,
+        "username":   ctx.username,
+        "label":      ctx.label,
+        "active":     ctx.active,
+        "roles": [
+            {
+                "role_id":     r.role_id,
+                "role_key":    r.role_key,
+                "role_label":  r.role_label,
+                "dept_key":    r.dept_key,
+                "level_key":   r.level_key,
+                "global_scope": r.global_scope,
+                "project_id":  r.project_id,
+            }
+            for r in ctx.roles
+        ],
+        # tuple keys → lists for JSON
+        "permission_map": [
+            [role_id, tag, r, w]
+            for (role_id, tag), (r, w) in ctx.permission_map.items()
+        ],
+        "field_write_map": [
+            [fk, dk, lk]
+            for (fk, dk), lk in ctx.field_write_map.items()
+        ],
+    }
+
+
+def _deserialize_ctx(data: dict) -> UserContext:
+    return UserContext(
+        user_id=data["user_id"],
+        username=data["username"],
+        label=data["label"],
+        active=data["active"],
+        roles=[
+            RoleContext(
+                role_id=r["role_id"],
+                role_key=r["role_key"],
+                role_label=r["role_label"],
+                dept_key=r["dept_key"],
+                level_key=r["level_key"],
+                global_scope=r["global_scope"],
+                project_id=r["project_id"],
+            )
+            for r in data["roles"]
+        ],
+        permission_map={
+            (int(row[0]), row[1]): (bool(row[2]), bool(row[3]))
+            for row in data["permission_map"]
+        },
+        field_write_map={
+            (row[0], row[1]): row[2]
+            for row in data["field_write_map"]
+        },
+    )
+
+
+# ─── DB loader ────────────────────────────────────────────────────────────────
+
 def _load_user_context(db: Session, user_id: int) -> UserContext:
     user = db.get(User, user_id)
     if user is None or not user.active:
@@ -68,7 +137,6 @@ def _load_user_context(db: Session, user_id: int) -> UserContext:
         for user_role, role in rows
     ]
 
-    # Load all permission tags for this user's roles — join role_tags → tags for tag string
     role_ids = [r.role_id for r in roles]
     perm_rows = db.execute(
         select(RoleTag, Tag).join(Tag, Tag.id == RoleTag.tag_id).where(RoleTag.role_id.in_(role_ids))
@@ -77,7 +145,6 @@ def _load_user_context(db: Session, user_id: int) -> UserContext:
         (rt.role_id, tg.tag): (rt.read, rt.write) for rt, tg in perm_rows
     }
 
-    # Load all field permissions for this user's dept_keys in one query
     dept_keys = list({r.dept_key for r in roles})
     fp_rows = db.execute(
         select(FieldPermission).where(FieldPermission.dept_key.in_(dept_keys))
@@ -97,19 +164,41 @@ def _load_user_context(db: Session, user_id: int) -> UserContext:
     )
 
 
+# ─── FastAPI dependency ───────────────────────────────────────────────────────
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ) -> UserContext:
     if credentials is None:
         raise HTTPException(status_code=401, detail="Missing token")
-    payload = decode_token(credentials.credentials)
+
+    token = credentials.credentials
+    payload = decode_token(token)
     try:
         user_id = int(payload["sub"])
     except (KeyError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=401, detail="Invalid token") from exc
-    return _load_user_context(db, user_id)
 
+    # ── Redis session cache ───────────────────────────────────────────────────
+    token_hash = hash_token(token)
+    key = session_key(token_hash)
+    cached = cache_get(key)
+    if cached is not None:
+        return _deserialize_ctx(cached)
+
+    # ── Cache miss: load from DB, populate cache ──────────────────────────────
+    ctx = _load_user_context(db, user_id)
+
+    exp = payload.get("exp")
+    if exp:
+        ttl = max(int(exp - datetime.now(timezone.utc).timestamp()), 1)
+        cache_set(key, _serialize_ctx(ctx), ttl)
+
+    return ctx
+
+
+# ─── Permission logic ─────────────────────────────────────────────────────────
 
 def _project_key_for_id(db: Session, project_id: Optional[int]) -> Optional[str]:
     if project_id is None:
@@ -138,7 +227,6 @@ def check_permission(user: UserContext, project_key: Optional[str], tag: str, ac
 
 def check_field_write_scope(user: UserContext, field_name: str) -> bool:
     for role in user.roles:
-        # Amendment 1: superuser bypass scoped to mgmtl3 only
         if role.role_key == "mgmtl3":
             return True
 
@@ -146,11 +234,11 @@ def check_field_write_scope(user: UserContext, field_name: str) -> bool:
         if map_key not in user.field_write_map:
             continue
 
-        required_level = user.field_write_map[map_key]  # None or 'l1'/'l2'/'l3'
+        required_level = user.field_write_map[map_key]
         if required_level is None:
-            return True  # All levels of this dept can write
+            return True
         if LEVEL_ORDER.get(role.level_key, 0) >= LEVEL_ORDER.get(required_level, 0):
-            return True  # User level meets or exceeds minimum requirement
+            return True
 
     return False
 
@@ -179,11 +267,22 @@ def permission_required(tag: str, action: str, project_key_getter=None, field_na
         try:
             ensure_permission(user, db, project_key=project_key, tag=tag, action=action, field_name=field_name)
         except PermissionDenied as exc:
+            _log.info(
+                "permission denied",
+                extra={
+                    "user_id": user.user_id,
+                    "action":  f"{tag}:{action}",
+                    "route":   "permission_check",
+                    "status":  "denied",
+                },
+            )
             raise HTTPException(status_code=403, detail=str(exc)) from exc
         return user
 
     return dependency
 
+
+# ─── Helpers used by routes ───────────────────────────────────────────────────
 
 def build_tag_map(user: UserContext) -> dict[str, dict[str, bool]]:
     """Compute union of permission tags across all user roles."""

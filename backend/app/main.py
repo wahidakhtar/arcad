@@ -31,6 +31,8 @@ from app.api.routes.users import router as users_router
 from app.core.config import get_settings
 from app.core.database import engine, get_db
 from app.core.errors import PermissionDenied
+from app.core.logging import configure_logging
+from app.core.rate_limit import rate_limit_middleware
 from app.models.hr import User
 from app.services import acc_rules
 
@@ -49,6 +51,7 @@ import app.models.ops  # noqa: F401
 import app.models.updates  # noqa: F401
 
 settings = get_settings()
+configure_logging()
 
 
 async def _daily_expiry_loop() -> None:
@@ -81,6 +84,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="ARCAD", lifespan=lifespan)
+app.middleware("http")(rate_limit_middleware)
 
 
 @app.exception_handler(PermissionDenied)

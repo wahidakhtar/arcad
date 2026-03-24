@@ -1,17 +1,22 @@
 from __future__ import annotations
 
-from typing import Optional
+import logging
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.api.auth import _load_user_context
+from app.core.cache import cache_delete, invalidate_user, me_key, projects_key, session_key
+from app.core.logging import log_event
 from app.core.security import create_access_token, create_refresh_token, decode_token, hash_password, hash_token, verify_password
 from app.models.auth import RefreshToken, Session as AuthSession
 from app.models.hr import User, UserRole, Role
 from app.schemas.auth import RoleEntry, TokenResponse
+
+_log = logging.getLogger("arcad.auth.service")
 
 
 def _build_role_entries(db: Session, user_id: int) -> list[RoleEntry]:
@@ -31,18 +36,38 @@ def _build_role_entries(db: Session, user_id: int) -> list[RoleEntry]:
 
 def login(db: Session, username: str, password: str, device_label: Optional[str] = None) -> TokenResponse:
     user = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
+
     if user is None or not verify_password(password, user.hash):
+        log_event(_log, user_id=None, action="login", route="/auth/login", status="denied",
+                  username=username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
     if not user.active:
+        log_event(_log, user_id=user.id, action="login", route="/auth/login", status="denied",
+                  reason="inactive")
         raise HTTPException(status_code=401, detail="Inactive user")
 
     access_token, access_expires_at = create_access_token(str(user.id), {"username": user.username})
-    auth_session = AuthSession(user_id=user.id, token_hash=hash_token(access_token), device_label=device_label, expires_at=access_expires_at, created_at=datetime.now(timezone.utc))
+    auth_session = AuthSession(
+        user_id=user.id,
+        token_hash=hash_token(access_token),
+        device_label=device_label,
+        expires_at=access_expires_at,
+        created_at=datetime.now(timezone.utc),
+    )
     db.add(auth_session)
     db.flush()
     refresh_token, refresh_expires_at = create_refresh_token(str(user.id), str(auth_session.id))
-    db.add(RefreshToken(session_id=auth_session.id, token_hash=hash_token(refresh_token), expires_at=refresh_expires_at, created_at=datetime.now(timezone.utc)))
+    db.add(RefreshToken(
+        session_id=auth_session.id,
+        token_hash=hash_token(refresh_token),
+        expires_at=refresh_expires_at,
+        created_at=datetime.now(timezone.utc),
+    ))
     db.commit()
+
+    log_event(_log, user_id=user.id, action="login", route="/auth/login", status="success")
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -65,6 +90,10 @@ def refresh(db: Session, refresh_token: str) -> TokenResponse:
     if session is None or token_row is None or token_row.revoked_at is not None or token_row.expires_at <= datetime.now(timezone.utc):
         raise HTTPException(status_code=401, detail="Refresh token expired")
 
+    # Evict old session from Redis
+    old_hash = session.token_hash
+    cache_delete(session_key(old_hash))
+
     token_row.revoked_at = datetime.now(timezone.utc)
     access_token, access_expires_at = create_access_token(str(session.user_id), {})
     session.token_hash = hash_token(access_token)
@@ -72,9 +101,11 @@ def refresh(db: Session, refresh_token: str) -> TokenResponse:
     new_refresh_token, refresh_expires_at = create_refresh_token(str(session.user_id), str(session.id))
     db.add(RefreshToken(session_id=session.id, token_hash=hash_token(new_refresh_token), expires_at=refresh_expires_at, created_at=datetime.now(timezone.utc)))
     db.commit()
+
     user = db.get(User, session.user_id)
     if user is None or not user.active:
         raise HTTPException(status_code=401, detail="Inactive user")
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=new_refresh_token,
@@ -89,7 +120,18 @@ def refresh(db: Session, refresh_token: str) -> TokenResponse:
 
 def logout(db: Session, access_token: str) -> None:
     token_hash_value = hash_token(access_token)
+
+    # Determine user_id before deleting (for cache invalidation)
     session = db.execute(select(AuthSession).where(AuthSession.token_hash == token_hash_value)).scalar_one_or_none()
+    user_id = session.user_id if session is not None else None
+
+    # Evict Redis session + response caches
+    cache_delete(session_key(token_hash_value))
+    if user_id is not None:
+        invalidate_user(user_id)
+        log_event(_log, user_id=user_id, action="logout", route="/auth/logout", status="success")
+
+    # Remove DB records
     if session is not None:
         db.execute(delete(RefreshToken).where(RefreshToken.session_id == session.id))
         db.delete(session)

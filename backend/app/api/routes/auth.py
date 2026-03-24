@@ -29,16 +29,16 @@ def me(user: UserContext = Depends(get_current_user), db: Session = Depends(get_
         "label": user.label,
         "roles": [
             {
-                "id": role.role_id,
-                "key": role.role_key,
-                "label": role.role_label,
-                "dept_key": role.dept_key,
-                "level_key": role.level_key,
+                "id":         role.role_id,
+                "key":        role.role_key,
+                "label":      role.role_label,
+                "dept_key":   role.dept_key,
+                "level_key":  role.level_key,
                 "project_id": role.project_id,
             }
             for role in user.roles
         ],
-        "tags": build_tag_map(user),
+        "tags":         build_tag_map(user),
         "project_keys": build_project_keys(user, db),
     }
 
