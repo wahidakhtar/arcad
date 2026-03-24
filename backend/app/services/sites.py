@@ -322,6 +322,7 @@ def _validate_bucket_for_project(db: Session, project_id: int, bucket_id: Option
     if bucket is None:
         logger.warning("subcon assignment validation failed: bucket not found", extra={"project_id": project_id, "bucket_id": bucket_id})
         raise HTTPException(status_code=404, detail="Bucket not found")
+    print("ASSIGN DEBUG", "project_id=", project_id, "bucket.project_id=", getattr(bucket, "project_id", None))
     if getattr(bucket, "project_id", None) != project_id:
         logger.warning("subcon assignment validation failed: bucket outside project", extra={"project_id": project_id, "bucket_id": bucket_id, "bucket_project_id": getattr(bucket, "project_id", None)})
         raise HTTPException(status_code=400, detail="Bucket does not belong to this project")
@@ -418,6 +419,7 @@ def update_site(db: Session, user: UserContext, project_key: str, site_id: int, 
 
 def assign_subcon(db: Session, user: UserContext, project_key: str, site_id: int, payload: SubconAssignmentRequest) -> SiteOut:
     project = get_project(db, project_key)
+    project_id = project.id
     ensure_permission(user, db, project_key=project_key, tag="site", action="write")
     model = get_site_model(project_key)
     site = db.get(model, site_id)
@@ -427,18 +429,18 @@ def assign_subcon(db: Session, user: UserContext, project_key: str, site_id: int
         "subcon assignment payload",
         extra={
             "project_key": project_key,
-            "project_id": project.id,
+            "project_id": project_id,
             "site_id": site_id,
             "subcon_id": payload.subcon_id,
             "bucket_id": payload.bucket_id,
             "assigned_by": user.user_id,
         },
     )
-    subcon = _validate_subcon_for_project(db, project.id, payload.subcon_id)
-    _validate_bucket_for_project(db, project.id, payload.bucket_id)
+    subcon = _validate_subcon_for_project(db, project_id, payload.subcon_id)
+    _validate_bucket_for_project(db, project_id, payload.bucket_id)
     existing_assignments = db.execute(
         select(SubconAssignment).where(
-            SubconAssignment.project_id == project.id,
+            SubconAssignment.project_id == project_id,
             SubconAssignment.site_id == site_id,
             SubconAssignment.active.is_(True),
         )
@@ -449,7 +451,7 @@ def assign_subcon(db: Session, user: UserContext, project_key: str, site_id: int
         existing.version = (existing.version or 0) + 1
     db.add(
         SubconAssignment(
-            project_id=project.id,
+            project_id=project_id,
             site_id=site_id,
             subcon_id=payload.subcon_id,
             bucket_id=payload.bucket_id,
