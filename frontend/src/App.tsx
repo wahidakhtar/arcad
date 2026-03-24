@@ -16,8 +16,8 @@ import SiteListPage from "./features/sites/SiteListPage"
 import SiteDetailPage from "./features/sites/SiteDetailPage"
 import TransactionsPage from "./features/transactions/TransactionsPage"
 import POsPage from "./features/billing/POsPage"
-import InvoicesPage from "./features/billing/InvoicesPage"
 import RateCardPage from "./features/billing/RateCardPage"
+import PoDetailPage from "./features/billing/po/PoDetailPage"
 import TicketsPage from "./features/tickets/TicketsPage"
 import TicketDetailPage from "./features/tickets/TicketDetailPage"
 import UpdatesPage from "./features/updates/UpdatesPage"
@@ -132,7 +132,7 @@ export default function App() {
         <Route path="/projects/:projectKey/site/:siteId" element={<SiteDetailPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
         <Route path="/billing/pos" element={<POsPage />} />
-        <Route path="/billing/invoices" element={<InvoicesPage />} />
+        <Route path="/billing/po/:poId" element={<PoDetailPage />} />
         <Route path="/billing/rate-card" element={<RateCardPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
         <Route path="/tickets/:ticketId" element={<TicketDetailPage />} />

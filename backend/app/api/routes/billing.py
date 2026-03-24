@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.auth import permission_required
@@ -32,6 +32,14 @@ def list_pos(db: Session = Depends(get_db)):
     return billing_service.list_pos(db)
 
 
+@router.get("/po/{po_id}", dependencies=[Depends(permission_required("billing", "read"))])
+def get_po(po_id: int, db: Session = Depends(get_db)):
+    po = billing_service.get_po(db, po_id)
+    if po is None:
+        raise HTTPException(status_code=404, detail="PO not found")
+    return po
+
+
 @router.post("/pos", dependencies=[Depends(permission_required("billing", "write"))])
 def create_po(payload: POCreate, db: Session = Depends(get_db)):
     return billing_service.create_po(db, payload)
@@ -50,8 +58,8 @@ def activate_po(po_id: int, payload: ActivatePORequest, db: Session = Depends(ge
 
 
 @router.get("/invoices", dependencies=[Depends(permission_required("billing", "read"))])
-def list_invoices(db: Session = Depends(get_db)):
-    return billing_service.list_invoices(db)
+def list_invoices(po_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+    return billing_service.list_invoices(db, po_id=po_id)
 
 
 @router.post("/invoices", dependencies=[Depends(permission_required("billing", "write"))])

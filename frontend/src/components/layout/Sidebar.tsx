@@ -79,13 +79,7 @@ export default function Sidebar() {
         {can("transaction", "read") && <SectionLink to="/transactions" label={`Transactions (${counts.transactions})`} />}
         {can("ticket", "read") && <SectionLink to="/tickets" label={`Tickets (${counts.tickets})`} />}
         {can("rate", "read") && <SectionLink to="/billing/rate-card" label="Rate Card" />}
-        {can("billing", "read") && (
-          <div className="space-y-2">
-            <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-jscolors-text/40">Billing</p>
-            <SectionLink to="/billing/pos" label="PO" />
-            <SectionLink to="/billing/invoices" label="Invoice" />
-          </div>
-        )}
+        {can("billing", "read") && <SectionLink to="/billing/pos" label="Billing" />}
         {can("admin", "read") && (
           <SectionLink to="/admin" label="Admin" />
         )}
