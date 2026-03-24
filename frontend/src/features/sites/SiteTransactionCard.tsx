@@ -1,4 +1,5 @@
 import { useState } from "react"
+import Button from "../../components/ui/Button"
 import BadgeDropdown, { type BadgeOption } from "../../components/ui/BadgeDropdown"
 import ExecutionDateModal from "../../components/ui/ExecutionDateModal"
 import Modal from "../../components/ui/Modal"
@@ -99,9 +100,8 @@ export default function SiteTransactionCard({
       <Modal open={showCancelModal} title="Cancel Transaction" onClose={() => setShowCancelModal(false)} size="sm">
         <p className="mb-4 text-sm text-jscolors-text/70">Cancel this transaction?</p>
         <div className="flex gap-2">
-          <button
+          <Button
             type="button"
-            className="premium-button"
             disabled={updating}
             onClick={() => {
               setShowCancelModal(false)
@@ -109,10 +109,10 @@ export default function SiteTransactionCard({
             }}
           >
             Confirm
-          </button>
-          <button type="button" className="premium-button-secondary" onClick={() => setShowCancelModal(false)}>
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => setShowCancelModal(false)}>
             Back
-          </button>
+          </Button>
         </div>
       </Modal>
 
@@ -136,16 +136,18 @@ export default function SiteTransactionCard({
             disabled={updating}
           />
           {isReq && canRequestWrite && (
-            <button
+            <Button
               type="button"
-              className="rounded-xl border border-red-200 bg-red-50 px-3 py-1 text-xs text-red-600 transition hover:bg-red-100"
+              variant="danger"
+              size="sm"
+              className="rounded-xl py-1"
               onClick={() => {
                 setPendingCancelId(cancelBadgeId ?? null)
                 setShowCancelModal(true)
               }}
             >
               Cancel
-            </button>
+            </Button>
           )}
         </div>
       </div>

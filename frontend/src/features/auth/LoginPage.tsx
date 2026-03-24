@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 
+import Button from "../../components/ui/Button"
 import { useAuth } from "../../context/AuthContext"
 
 export default function LoginPage() {
@@ -63,13 +64,13 @@ export default function LoginPage() {
               {error ? <p className="mt-4 text-sm font-medium text-red-700">{error}</p> : null}
 
               <div className="mt-8 flex items-center gap-3">
-                <button type="submit" className="premium-button" disabled={submitting}>
+                <Button type="submit" size="lg" disabled={submitting}>
                   {submitting ? "Entering..." : "Enter Workspace"}
-                </button>
+                </Button>
                 {setupRequired ? (
-                  <button type="button" className="premium-button-secondary" onClick={() => navigate("/setup")}>
+                  <Button type="button" variant="secondary" size="lg" onClick={() => navigate("/setup")}>
                     First Run Setup
-                  </button>
+                  </Button>
                 ) : null}
               </div>
             </form>

@@ -1,3 +1,5 @@
+import Button from "./Button"
+
 type FilterOption = {
   label: string
   value: string
@@ -97,11 +99,13 @@ export default function FilterBar({
               {filter.options.map((option) => {
                 const active = selected.includes(option.value)
                 return (
-                  <button
+                  <Button
                     key={option.value}
                     type="button"
                     onClick={() => onFilterChange(filter.key, option.value)}
-                    className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${
+                    variant="secondary"
+                    size="sm"
+                    className={`whitespace-nowrap py-1 hover:translate-y-0 ${
                       active ? "shadow-sm" : ""
                     }`}
                     style={{
@@ -111,7 +115,7 @@ export default function FilterBar({
                     }}
                   >
                     {option.label}
-                  </button>
+                  </Button>
                 )
               })}
             </div>

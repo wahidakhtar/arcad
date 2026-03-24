@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react"
-import { createPortal } from "react-dom"
 import { Link } from "react-router-dom"
 
+import Button from "../../components/ui/Button"
+import Modal from "../../components/ui/Modal"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
 
@@ -51,9 +52,9 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       {can("project", "write") && (
         <div className="flex justify-end">
-          <button type="button" className="premium-button shrink-0" onClick={() => setAddOpen(true)}>
+          <Button type="button" className="shrink-0" onClick={() => setAddOpen(true)}>
             Add Project
-          </button>
+          </Button>
         </div>
       )}
 
@@ -84,55 +85,39 @@ export default function ProjectsPage() {
         })}
       </div>
 
-      {addOpen && createPortal(
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 9999 }}
-          className="flex items-center justify-center bg-jscolors-text/35 px-4 backdrop-blur-sm"
-          onMouseDown={(e) => { if (e.target === e.currentTarget) { setAddOpen(false); setSaveError("") } }}
-        >
-          <div
-            style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 10000 }}
-            className="glass-panel w-full max-w-md p-6"
+      <Modal open={addOpen} title="Add Project" onClose={() => { setAddOpen(false); setSaveError("") }} size="md">
+        <div className="space-y-4">
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Project Name</span>
+            <input
+              type="text"
+              value={form.label}
+              onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+              className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
+              placeholder="e.g. Maharashtra Circle"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Project Key (short code)</span>
+            <input
+              type="text"
+              value={form.key}
+              onChange={(e) => setForm((f) => ({ ...f, key: e.target.value }))}
+              className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
+              placeholder="e.g. mh"
+            />
+          </label>
+          {saveError && <p className="text-sm text-red-600">{saveError}</p>}
+          <Button
+            type="button"
+            className="w-full"
+            disabled={saving || !form.label.trim() || !form.key.trim()}
+            onClick={() => void handleAddProject()}
           >
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-syne text-2xl font-semibold text-jscolors-crimson">Add Project</h2>
-              <button type="button" onClick={() => { setAddOpen(false); setSaveError("") }} className="premium-button-secondary">Close</button>
-            </div>
-            <div className="space-y-4">
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Project Name</span>
-                <input
-                  type="text"
-                  value={form.label}
-                  onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
-                  className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
-                  placeholder="e.g. Maharashtra Circle"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Project Key (short code)</span>
-                <input
-                  type="text"
-                  value={form.key}
-                  onChange={(e) => setForm((f) => ({ ...f, key: e.target.value }))}
-                  className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
-                  placeholder="e.g. mh"
-                />
-              </label>
-              {saveError && <p className="text-sm text-red-600">{saveError}</p>}
-              <button
-                type="button"
-                className="premium-button w-full"
-                disabled={saving || !form.label.trim() || !form.key.trim()}
-                onClick={() => void handleAddProject()}
-              >
-                {saving ? "Creating..." : "Create Project"}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
+            {saving ? "Creating..." : "Create Project"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

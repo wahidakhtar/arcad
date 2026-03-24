@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react"
-import { createPortal } from "react-dom"
 import { useParams } from "react-router-dom"
 
+import Button from "../../components/ui/Button"
+import DetailFieldCard from "../../components/ui/DetailFieldCard"
 import FieldRenderer from "../../components/ui/FieldRenderer"
 import BadgeDropdown from "../../components/ui/BadgeDropdown"
+import Modal from "../../components/ui/Modal"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
 import type { Badge, ProjectRow, SiteDetail, StateRow, TicketRow, TransactionRow, TransitionRow, UIField, UpdateRow, JobBucket, SubconRow } from "./siteDetailTypes"
@@ -106,13 +108,6 @@ export default function SiteDetailPage() {
   const stateById = useMemo(() => new Map(states.map((s) => [s.id, s])), [states])
   const project = useMemo(() => projectByKey(projects, projectKey), [projectKey, projects])
 
-  console.log("[SiteDetailPage] assignment context", {
-    projectKey,
-    routeSiteId: siteId,
-    resolvedProjectId: project?.id ?? null,
-    resolvedProjectLabel: project?.label ?? null,
-  })
-
   const visibleFields = useMemo(
     () => uiFields.filter((f) => canPermTag(f.perm_tag)),
     [uiFields, canPermTag],
@@ -205,66 +200,45 @@ export default function SiteDetailPage() {
               const rawVal = draftValueForField(currentSite, field)
               const isEmpty = field.type !== "bool" && (rawVal === "" || rawVal === null || rawVal === undefined)
               return (
-                <div key={field.key} className="rounded-[22px] border border-jscolors-crimson/10 bg-white px-4 py-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">{field.label}</div>
-                    {canSiteWrite && !isReadOnly && (
-                      <button
-                        type="button"
-                        className="shrink-0 rounded-full border border-jscolors-crimson/20 px-2.5 py-0.5 text-[10px] font-semibold text-jscolors-crimson transition hover:border-jscolors-crimson/40"
-                        onClick={() => {
-                          setEditingField({ field, draft: typeof rawVal === "boolean" ? rawVal : String(rawVal ?? "") })
-                          setEditError("")
-                        }}
-                      >
-                        {isEmpty ? "Add" : "Edit"}
-                      </button>
-                    )}
-                  </div>
-                  <div className="mt-3 text-sm text-jscolors-text">
-                    <FieldRenderer field={field} value={displayValue} />
-                  </div>
-                </div>
+                <DetailFieldCard
+                  key={field.key}
+                  label={field.label}
+                  value={<FieldRenderer field={field} value={displayValue} />}
+                  onAdd={canSiteWrite && !isReadOnly && isEmpty ? () => {
+                    setEditingField({ field, draft: typeof rawVal === "boolean" ? rawVal : String(rawVal ?? "") })
+                    setEditError("")
+                  } : undefined}
+                  onEdit={canSiteWrite && !isReadOnly && !isEmpty ? () => {
+                    setEditingField({ field, draft: typeof rawVal === "boolean" ? rawVal : String(rawVal ?? "") })
+                    setEditError("")
+                  } : undefined}
+                />
               )
             })}
           </div>
         </section>
 
-        {editingField && createPortal(
-          <div
-            style={{ position: "fixed", inset: 0, zIndex: 9999 }}
-            className="flex items-center justify-center bg-jscolors-text/35 px-4 backdrop-blur-sm"
-            onMouseDown={(e) => { if (e.target === e.currentTarget) setEditingField(null) }}
-          >
-            <div
-              style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 10000 }}
-              className="glass-panel w-full max-w-sm p-6"
-            >
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="font-syne text-xl font-semibold text-jscolors-crimson">{editingField.field.label}</h2>
-                <button type="button" onClick={() => setEditingField(null)} className="premium-button-secondary">Close</button>
-              </div>
-              <div className="space-y-4">
-                <FieldRenderer
-                  mode="input"
-                  field={{ ...editingField.field, options: optionsForField(editingField.field, states) }}
-                  value={editingField.draft}
-                  onChange={(value) => setEditingField((c) => c ? { ...c, draft: value } : null)}
-                />
-                {editError ? <p className="text-sm text-red-600">{editError}</p> : null}
-                <button
-                  type="button"
-                  className="premium-button w-full"
-                  disabled={editSaving}
-                  onClick={() => void saveFieldEdit()}
-                >
-                  {editSaving ? "Saving..." : "Save"}
-                </button>
-              </div>
+        <Modal open={editingField !== null} title={editingField?.field.label ?? "Edit"} onClose={() => setEditingField(null)} size="sm">
+          {editingField ? (
+            <div className="space-y-4">
+              <FieldRenderer
+                mode="input"
+                field={{ ...editingField.field, options: optionsForField(editingField.field, states) }}
+                value={editingField.draft}
+                onChange={(value) => setEditingField((c) => c ? { ...c, draft: value } : null)}
+              />
+              {editError ? <p className="text-sm text-red-600">{editError}</p> : null}
+              <Button
+                type="button"
+                className="w-full"
+                disabled={editSaving}
+                onClick={() => void saveFieldEdit()}
+              >
+                {editSaving ? "Saving..." : "Save"}
+              </Button>
             </div>
-          </div>,
-          document.body,
-        )}
+          ) : null}
+        </Modal>
 
         <section className="grid gap-6">
           <SiteUpdatesSection

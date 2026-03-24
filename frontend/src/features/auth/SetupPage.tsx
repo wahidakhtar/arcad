@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 
+import Button from "../../components/ui/Button"
 import { api } from "../../lib/api"
 import { useAuth } from "../../context/AuthContext"
 
@@ -69,12 +70,12 @@ export default function SetupPage() {
           <Input label="Confirm Password" value={confirmPassword} onChange={setConfirmPassword} type="password" />
           {error ? <p className="text-sm font-medium text-red-700">{error}</p> : null}
           <div className="flex gap-3">
-            <button className="premium-button" type="submit" disabled={submitting || !setupRequired}>
+            <Button type="submit" size="lg" disabled={submitting || !setupRequired}>
               {submitting ? "Initializing..." : "Initialize ARCAD"}
-            </button>
-            <button className="premium-button-secondary" type="button" onClick={() => navigate("/login")}>
+            </Button>
+            <Button variant="secondary" size="lg" type="button" onClick={() => navigate("/login")}>
               Back to Login
-            </button>
+            </Button>
           </div>
         </form>
       </div>

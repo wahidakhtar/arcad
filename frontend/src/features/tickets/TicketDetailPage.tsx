@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 
+import Button from "../../components/ui/Button"
+import DetailFieldCard from "../../components/ui/DetailFieldCard"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
 
@@ -95,17 +97,17 @@ export default function TicketDetailPage() {
             {ticket.ticket_number ?? `TKT-${ticket.id}`}
           </h1>
         </div>
-        <button type="button" className="premium-button-secondary" onClick={() => navigate("/tickets")}>
+        <Button type="button" variant="secondary" onClick={() => navigate("/tickets")}>
           ← Back
-        </button>
+        </Button>
       </div>
 
       <section className="glass-panel p-6 space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
-          <InfoField label="Project" value={projectLabel} />
-          <InfoField label="Site" value={cktId} />
-          <InfoField label="Date" value={ticket.ticket_date} />
-          <InfoField
+          <DetailFieldCard label="Project" value={projectLabel} />
+          <DetailFieldCard label="Site" value={cktId} />
+          <DetailFieldCard label="Date" value={ticket.ticket_date} />
+          <DetailFieldCard
             label="Status"
             value={
               <span className={`rounded-full px-3 py-1 text-xs font-medium ${isOpen ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"}`}>
@@ -113,31 +115,17 @@ export default function TicketDetailPage() {
               </span>
             }
           />
-          {ticket.rfo ? <InfoField label="Note / RFO" value={ticket.rfo} /> : null}
+          {ticket.rfo ? <DetailFieldCard label="Note / RFO" value={ticket.rfo} /> : null}
         </div>
 
         {isOpen && can("ticket", "write") && (
           <div className="pt-2">
-            <button
-              type="button"
-              className="premium-button"
-              disabled={closing}
-              onClick={() => void closeTicket()}
-            >
+            <Button type="button" disabled={closing} onClick={() => void closeTicket()}>
               {closing ? "Closing..." : "Close Ticket"}
-            </button>
+            </Button>
           </div>
         )}
       </section>
-    </div>
-  )
-}
-
-function InfoField({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="rounded-[22px] border border-jscolors-crimson/10 bg-white px-4 py-4">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">{label}</div>
-      <div className="mt-2 text-sm text-jscolors-text">{value}</div>
     </div>
   )
 }

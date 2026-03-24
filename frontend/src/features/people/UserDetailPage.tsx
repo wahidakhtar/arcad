@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
 
+import Button from "../../components/ui/Button"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
 import Modal from "../../components/ui/Modal"
@@ -196,9 +197,9 @@ export default function UserDetailPage() {
             <input type="text" value={editForm.ctc} onChange={(e) => setEditForm((f) => ({ ...f, ctc: e.target.value }))} className={fieldCls} />
           </div>
           {editError && <p className="text-sm text-red-600">{editError}</p>}
-          <button type="button" className="premium-button w-full" disabled={editSaving} onClick={() => void saveEdit()}>
+          <Button type="button" className="w-full" disabled={editSaving} onClick={() => void saveEdit()}>
             {editSaving ? "Saving…" : "Save"}
-          </button>
+          </Button>
         </div>
       </Modal>
 
@@ -214,9 +215,9 @@ export default function UserDetailPage() {
             <input type="password" value={pwForm.confirm_password} onChange={(e) => setPwForm((f) => ({ ...f, confirm_password: e.target.value }))} className={fieldCls} />
           </div>
           {pwError && <p className="text-sm text-red-600">{pwError}</p>}
-          <button type="button" className="premium-button w-full" onClick={() => void savePassword()}>
+          <Button type="button" className="w-full" onClick={() => void savePassword()}>
             Update Password
-          </button>
+          </Button>
         </div>
       </Modal>
 
@@ -268,9 +269,9 @@ export default function UserDetailPage() {
               ))}
             </select>
           </div>
-          <button type="button" className="premium-button w-full" onClick={() => void handleAssignRole()}>
+          <Button type="button" className="w-full" onClick={() => void handleAssignRole()}>
             Assign
-          </button>
+          </Button>
         </div>
       </Modal>
 
@@ -279,23 +280,25 @@ export default function UserDetailPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Identity</p>
           <div className="flex gap-2">
             {canWriteUser && (
-              <button type="button" className="premium-button-secondary py-1 px-3 text-xs" onClick={openEdit}>
+              <Button type="button" variant="secondary" size="sm" className="py-1 px-3" onClick={openEdit}>
                 Edit
-              </button>
+              </Button>
             )}
             {canWriteUser && (
-              <button type="button" className="premium-button-secondary py-1 px-3 text-xs" onClick={() => { setPwOpen(true); setPwError("") }}>
+              <Button type="button" variant="secondary" size="sm" className="py-1 px-3" onClick={() => { setPwOpen(true); setPwError("") }}>
                 Password
-              </button>
+              </Button>
             )}
             {canWriteUser && (
-              <button
+              <Button
                 type="button"
-                className="premium-button-secondary py-1 px-3 text-xs"
+                variant="secondary"
+                size="sm"
+                className="py-1 px-3"
                 onClick={() => { void api.patch(`/users/${user.id}`, { active: !user.active }).then(() => reloadUser()) }}
               >
                 {user.active ? "Deactivate" : "Activate"}
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -319,9 +322,9 @@ export default function UserDetailPage() {
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Assigned Roles</p>
           {canWriteAssignRole && availableDepts.length > 0 && (
-            <button type="button" className="premium-button-secondary py-1 px-3 text-xs" onClick={openAssignRole}>
+            <Button type="button" variant="secondary" size="sm" className="py-1 px-3" onClick={openAssignRole}>
               Assign Role
-            </button>
+            </Button>
           )}
         </div>
         <div className="mt-5 space-y-3">
@@ -336,13 +339,13 @@ export default function UserDetailPage() {
                 </div>
               </div>
               {canWriteAssignRole && (
-                <button
+                <Button
                   type="button"
-                  className="premium-button-secondary"
+                  variant="secondary"
                   onClick={() => { void api.delete(`/users/${user.id}/roles/${role.id}`).then(() => reloadUser()) }}
                 >
                   Remove
-                </button>
+                </Button>
               )}
             </div>
           )) : (

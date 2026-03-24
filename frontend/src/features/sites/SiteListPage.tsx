@@ -1,11 +1,12 @@
 import { useDeferredValue, useEffect, useState } from "react"
-import { createPortal } from "react-dom"
 import { useParams } from "react-router-dom"
 
 import DataTable from "../../components/ui/DataTable"
 import AddForm from "../../components/ui/AddForm"
 import BulkTable from "../../components/ui/BulkTable"
+import Button from "../../components/ui/Button"
 import FilterBar, { type FilterBarConfig } from "../../components/ui/FilterBar"
+import Modal from "../../components/ui/Modal"
 import { useListPage } from "../../hooks/useListPage"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
@@ -206,9 +207,9 @@ export default function SiteListPage() {
               className="rounded-full border border-jscolors-crimson/15 bg-white px-5 py-3 outline-none"
             />
             {showAddButton && (
-              <button type="button" className="premium-button shrink-0" onClick={openAddHandler}>
+              <Button type="button" className="shrink-0" onClick={openAddHandler}>
                 Add
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -225,59 +226,48 @@ export default function SiteListPage() {
         />
       )}
 
-      {openAddModal && createPortal(
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 9999 }}
-          className="flex items-center justify-center bg-jscolors-text/35 px-4 backdrop-blur-sm"
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setOpenAddModal(false) }}
-        >
-          <div
-            style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 10000 }}
-            className="glass-panel w-full max-w-2xl p-6"
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-syne text-2xl font-semibold text-jscolors-crimson">
-                {showModalTabs ? (addModalTab === "site" ? "Add Site" : "Add Subproject") : showSiteAdd ? "Add Site" : "Add Subproject"}
-              </h2>
-              <button type="button" onClick={() => setOpenAddModal(false)} className="premium-button-secondary">Close</button>
+      <Modal
+        open={openAddModal}
+        title={showModalTabs ? (addModalTab === "site" ? "Add Site" : "Add Subproject") : showSiteAdd ? "Add Site" : "Add Subproject"}
+        onClose={() => setOpenAddModal(false)}
+        size="lg"
+      >
+        <>
+          {showModalTabs && (
+            <div className="mb-5 flex gap-2">
+              <TabPill active={addModalTab === "site"} onClick={() => setAddModalTab("site")}>
+                Add Site
+              </TabPill>
+              <TabPill active={addModalTab === "subproject"} onClick={() => setAddModalTab("subproject")}>
+                Add Subproject
+              </TabPill>
             </div>
-            {showModalTabs && (
-              <div className="mb-5 flex gap-2">
-                <TabPill active={addModalTab === "site"} onClick={() => setAddModalTab("site")}>
-                  Add Site
-                </TabPill>
-                <TabPill active={addModalTab === "subproject"} onClick={() => setAddModalTab("subproject")}>
-                  Add Subproject
-                </TabPill>
-              </div>
-            )}
-            {(!showModalTabs || addModalTab === "site") && (
-              <AddForm
-                fields={formFields}
-                states={states}
-                onSubmit={async (data) => {
-                  const subId = typeof activeTab === "number" ? activeTab : 1
-                  await api.post(`/sites/${projectKey}`, { project_key: projectKey, subproject_id: subId, data })
-                  setOpenAddModal(false)
-                  refetch()
-                }}
-              />
-            )}
-            {showModalTabs && addModalTab === "subproject" && (
-              <BulkTable
-                columns={bulkFields}
-                states={states}
-                onSubmit={async ({ batchDate, rows: bulkRows }) => {
-                  await api.post("/projects/subprojects", { project_key: projectKey, batch_date: batchDate, rows: bulkRows })
-                  setOpenAddModal(false)
-                  refetch()
-                }}
-              />
-            )}
-          </div>
-        </div>,
-        document.body,
-      )}
+          )}
+          {(!showModalTabs || addModalTab === "site") && (
+            <AddForm
+              fields={formFields}
+              states={states}
+              onSubmit={async (data) => {
+                const subId = typeof activeTab === "number" ? activeTab : 1
+                await api.post(`/sites/${projectKey}`, { project_key: projectKey, subproject_id: subId, data })
+                setOpenAddModal(false)
+                refetch()
+              }}
+            />
+          )}
+          {showModalTabs && addModalTab === "subproject" && (
+            <BulkTable
+              columns={bulkFields}
+              states={states}
+              onSubmit={async ({ batchDate, rows: bulkRows }) => {
+                await api.post("/projects/subprojects", { project_key: projectKey, batch_date: batchDate, rows: bulkRows })
+                setOpenAddModal(false)
+                refetch()
+              }}
+            />
+          )}
+        </>
+      </Modal>
     </div>
   )
 }
@@ -292,16 +282,17 @@ function TabPill({
   children: React.ReactNode
 }) {
   return (
-    <button
+    <Button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-5 py-2 text-sm font-semibold transition hover:-translate-y-0.5 ${
+      variant="secondary"
+      className={`px-5 py-2 ${
         active
           ? "border-jscolors-crimson bg-jscolors-crimson text-white shadow-glow"
           : "border-jscolors-crimson/20 bg-white text-jscolors-crimson hover:border-jscolors-crimson/40 hover:bg-white/90"
       }`}
     >
       {children}
-    </button>
+    </Button>
   )
 }

@@ -2,23 +2,10 @@ import { useEffect, useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
 
 import DataTable from "../../../components/ui/DataTable"
+import DetailFieldCard from "../../../components/ui/DetailFieldCard"
 import FieldRenderer from "../../../components/ui/FieldRenderer"
 import { api } from "../../../lib/api"
 import type { Invoice, PO } from "../types"
-
-type DetailFieldProps = {
-  label: string
-  value: React.ReactNode
-}
-
-function DetailField({ label, value }: DetailFieldProps) {
-  return (
-    <div className="rounded-[22px] border border-jscolors-crimson/10 bg-white px-4 py-4">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">{label}</div>
-      <div className="mt-3 text-sm text-jscolors-text">{value}</div>
-    </div>
-  )
-}
 
 export default function PoDetailPage() {
   const { poId = "0" } = useParams()
@@ -97,10 +84,10 @@ export default function PoDetailPage() {
           <section className="glass-panel p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">PO Information</p>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <DetailField label="PO Number" value={<FieldRenderer value={po.po_no} />} />
-              <DetailField label="PO Date" value={<FieldRenderer value={po.po_date} />} />
-              <DetailField label="Project" value={<FieldRenderer value={po.project_label} />} />
-              <DetailField label="Status" value={<FieldRenderer type="badge" value={po.po_status} />} />
+              <DetailFieldCard label="PO Number" value={<FieldRenderer value={po.po_no} />} />
+              <DetailFieldCard label="PO Date" value={<FieldRenderer value={po.po_date} />} />
+              <DetailFieldCard label="Project" value={<FieldRenderer value={po.project_label} />} />
+              <DetailFieldCard label="Status" value={<FieldRenderer type="badge" value={po.po_status} />} />
             </div>
           </section>
 

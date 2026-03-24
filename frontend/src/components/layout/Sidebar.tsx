@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Link, NavLink } from "react-router-dom"
 
+import Button from "../ui/Button"
 import { api } from "../../lib/api"
 import { useAuth } from "../../context/AuthContext"
 
@@ -90,9 +91,9 @@ export default function Sidebar() {
           <div className="text-xs uppercase tracking-[0.24em] text-jscolors-text/40">Signed In</div>
           <div className="mt-1 font-syne text-base font-semibold text-jscolors-crimson">{user?.label ?? "Guest"}</div>
         </div>
-        <button type="button" onClick={() => void logout()} className="premium-button-secondary w-full">
+        <Button type="button" variant="secondary" className="w-full" onClick={() => void logout()}>
           Logout
-        </button>
+        </Button>
       </div>
     </aside>
   )

@@ -1,5 +1,6 @@
 import { useState } from "react"
 
+import Button from "./Button"
 import FieldRenderer, { type FieldDefinition } from "./FieldRenderer"
 
 export default function AddForm({
@@ -37,9 +38,9 @@ export default function AddForm({
         </label>
       ))}
       <div className="md:col-span-2">
-        <button className="premium-button" type="submit">
+        <Button type="submit">
           Submit
-        </button>
+        </Button>
       </div>
     </form>
   )

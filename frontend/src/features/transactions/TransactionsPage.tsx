@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 
 import BadgeDropdown from "../../components/ui/BadgeDropdown"
 import type { BadgeOption } from "../../components/ui/BadgeDropdown"
+import Button from "../../components/ui/Button"
 import DataTable from "../../components/ui/DataTable"
 import ExecutionDateModal from "../../components/ui/ExecutionDateModal"
 import Modal from "../../components/ui/Modal"
@@ -243,20 +244,17 @@ export default function TransactionsPage() {
           <p className="text-sm text-jscolors-text/70">Cancel this transaction?</p>
           {cancelError ? <p className="text-sm text-red-600">{cancelError}</p> : null}
           <div className="flex gap-3">
-            <button
-              type="button"
-              className="premium-button flex-1"
-              onClick={() => void doCancel(confirmCancel.txId, confirmCancel.version)}
-            >
+            <Button type="button" className="flex-1" onClick={() => void doCancel(confirmCancel.txId, confirmCancel.version)}>
               Confirm
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="premium-button-secondary flex-1"
+              variant="secondary"
+              className="flex-1"
               onClick={() => { setConfirmCancel({ open: false, txId: 0, version: 0 }); setCancelError("") }}
             >
               Back
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>
@@ -321,13 +319,15 @@ export default function TransactionsPage() {
                     disabled={transitioning === txRow.id}
                   />
                   {isReq && canRequestWrite && (
-                    <button
+                    <Button
                       type="button"
-                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-1 text-xs text-red-600 transition hover:bg-red-100"
+                      variant="danger"
+                      size="sm"
+                      className="rounded-xl py-1"
                       onClick={() => setConfirmCancel({ open: true, txId: txRow.id, version: txRow.version })}
                     >
                       Cancel
-                    </button>
+                    </Button>
                   )}
                 </div>
               )

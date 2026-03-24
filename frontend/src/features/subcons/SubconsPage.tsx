@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 
+import Button from "../../components/ui/Button"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
 
@@ -143,14 +144,9 @@ export default function SubconsPage() {
             </select>
           </label>
           <div className="flex items-end">
-            <button
-              type="button"
-              className="premium-button w-full"
-              disabled={createSaving || !createForm.name.trim()}
-              onClick={() => void createSubcon()}
-            >
+            <Button type="button" className="w-full" disabled={createSaving || !createForm.name.trim()} onClick={() => void createSubcon()}>
               {createSaving ? "Creating..." : "Create Subcon"}
-            </button>
+            </Button>
           </div>
         </div>
         {createError ? <p className="mt-4 text-sm text-red-600">{createError}</p> : null}
@@ -198,14 +194,14 @@ export default function SubconsPage() {
                   </select>
                 </label>
                 <div className="flex items-end">
-                  <button
+                  <Button
                     type="button"
-                    className="premium-button w-full"
+                    className="w-full"
                     disabled={assigningId === subcon.id || !assignBySubcon[subcon.id] || availableProjects.length === 0}
                     onClick={() => void assignProject(subcon.id)}
                   >
                     {assigningId === subcon.id ? "Assigning..." : "Assign Project"}
-                  </button>
+                  </Button>
                 </div>
               </div>
               {assignErrorBySubcon[subcon.id] ? <p className="mt-3 text-sm text-red-600">{assignErrorBySubcon[subcon.id]}</p> : null}

@@ -1,5 +1,6 @@
 import { useState } from "react"
 
+import Button from "../../components/ui/Button"
 import { useAuth } from "../../context/AuthContext"
 import { useListPage } from "../../hooks/useListPage"
 import Modal from "../../components/ui/Modal"
@@ -67,13 +68,13 @@ export default function RateCardPage() {
     <div className="space-y-6">
       <div className="flex justify-end">
         {can("billing", "write") && (
-          <button type="button" className="premium-button shrink-0" onClick={openModal}>
+          <Button type="button" className="shrink-0" onClick={openModal}>
             Add Rate
-          </button>
+          </Button>
         )}
       </div>
 
-      <Modal open={openAdd} title="Add Rate" onClose={() => setOpenAdd(false)}>
+      <Modal open={openAdd} title="Add Rate" onClose={() => setOpenAdd(false)} size="lg">
         <form className="space-y-4" onSubmit={handleSubmit}>
           <label className="block">
             <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Job</span>
@@ -108,9 +109,9 @@ export default function RateCardPage() {
             />
           </label>
           {addError ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{addError}</div> : null}
-          <button type="submit" className="premium-button w-full" disabled={submitting}>
+          <Button type="submit" className="w-full" disabled={submitting}>
             {submitting ? "Adding..." : "Add Rate"}
-          </button>
+          </Button>
         </form>
       </Modal>
 

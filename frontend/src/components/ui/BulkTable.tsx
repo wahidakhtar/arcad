@@ -1,5 +1,6 @@
 import { useState } from "react"
 
+import Button from "./Button"
 import FieldRenderer, { type FieldDefinition } from "./FieldRenderer"
 
 export default function BulkTable({
@@ -93,9 +94,9 @@ export default function BulkTable({
           </table>
         </div>
       </div>
-      <button type="button" className="premium-button" onClick={() => void onSubmit({ batchDate, rows: rows.filter((row) => Object.values(row).some((value) => value !== "" && value !== false)) })}>
+      <Button type="button" onClick={() => void onSubmit({ batchDate, rows: rows.filter((row) => Object.values(row).some((value) => value !== "" && value !== false)) })}>
         Create Subproject
-      </button>
+      </Button>
     </div>
   )
 }

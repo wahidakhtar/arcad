@@ -1,21 +1,25 @@
 import { createPortal } from "react-dom"
 
+import Button from "./Button"
+
 export default function Modal({
   open,
   title,
   onClose,
   children,
-  size = "md",
+  footer,
+  size = "lg",
 }: {
   open: boolean
   title: string
   onClose: () => void
   children: React.ReactNode
-  size?: "sm" | "md"
+  footer?: React.ReactNode
+  size?: "sm" | "md" | "lg"
 }) {
   if (!open) return null
 
-  const maxW = size === "sm" ? "max-w-sm" : "max-w-2xl"
+  const maxW = size === "sm" ? "max-w-sm" : size === "md" ? "max-w-md" : "max-w-2xl"
 
   return createPortal(
     <div
@@ -29,11 +33,12 @@ export default function Modal({
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-syne text-2xl font-semibold text-jscolors-crimson">{title}</h2>
-          <button type="button" onClick={onClose} className="premium-button-secondary">
+          <Button type="button" variant="secondary" onClick={onClose}>
             Close
-          </button>
+          </Button>
         </div>
         {children}
+        {footer ? <div className="mt-4">{footer}</div> : null}
       </div>
     </div>,
     document.body,

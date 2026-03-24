@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router-dom"
 
+import Button from "../../components/ui/Button"
 import { api } from "../../lib/api"
 import { useAuth } from "../../context/AuthContext"
 import Modal from "../../components/ui/Modal"
@@ -152,9 +153,9 @@ function BadgesTab() {
             </div>
           </div>
           {modalError && <p className="text-sm text-red-600">{modalError}</p>}
-          <button className="premium-button w-full" onClick={handleSave} disabled={saving}>
+          <Button className="w-full" onClick={handleSave} disabled={saving}>
             {saving ? "Saving…" : "Save"}
-          </button>
+          </Button>
         </div>
       </Modal>
 
@@ -190,12 +191,9 @@ function BadgesTab() {
                 </td>
                 {canWrite && (
                   <td className={tdCls}>
-                    <button
-                      className="rounded-full border border-jscolors-crimson/20 px-3 py-1.5 text-xs font-semibold text-jscolors-crimson hover:border-jscolors-crimson/40 transition"
-                      onClick={() => openEdit(badge)}
-                    >
+                    <Button variant="ghost" size="sm" className="py-1.5" onClick={() => openEdit(badge)}>
                       Edit
-                    </button>
+                    </Button>
                   </td>
                 )}
               </tr>
@@ -337,17 +335,17 @@ function BadgeTransitionsTab() {
             </select>
           </div>
           {modalError && <p className="text-sm text-red-600">{modalError}</p>}
-          <button className="premium-button w-full" onClick={handleAdd} disabled={adding}>
+          <Button className="w-full" onClick={handleAdd} disabled={adding}>
             {adding ? "Adding…" : "Add"}
-          </button>
+          </Button>
         </div>
       </Modal>
 
       {canWrite && (
         <div className="flex justify-end">
-          <button className="premium-button py-1.5 px-4 text-sm" onClick={openAdd}>
+          <Button className="py-1.5 px-4" onClick={openAdd}>
             Add Transition
-          </button>
+          </Button>
         </div>
       )}
 
@@ -378,12 +376,9 @@ function BadgeTransitionsTab() {
                         <td className={tdCls}>{typLabel}</td>
                         {canWrite && (
                           <td className={tdCls}>
-                            <button
-                              className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition"
-                              onClick={() => handleRemove(proj, t.id)}
-                            >
+                            <Button variant="danger" size="sm" className="bg-white py-1.5 font-semibold hover:bg-red-50" onClick={() => handleRemove(proj, t.id)}>
                               Remove
-                            </button>
+                            </Button>
                           </td>
                         )}
                       </tr>
@@ -548,9 +543,9 @@ function UIFieldsTab() {
             ))}
           </div>
           {modalError && <p className="text-sm text-red-600">{modalError}</p>}
-          <button className="premium-button w-full" onClick={handleSave} disabled={saving}>
+          <Button className="w-full" onClick={handleSave} disabled={saving}>
             {saving ? "Saving…" : "Save"}
-          </button>
+          </Button>
         </div>
       </Modal>
 
@@ -600,12 +595,9 @@ function UIFieldsTab() {
                     <td className={tdCls}>{field.perm_tag ?? "—"}</td>
                     {canWrite && (
                       <td className={tdCls}>
-                        <button
-                          className="rounded-full border border-jscolors-crimson/20 px-3 py-1.5 text-xs font-semibold text-jscolors-crimson hover:border-jscolors-crimson/40 transition"
-                          onClick={() => openEdit(project, field)}
-                        >
+                        <Button variant="ghost" size="sm" className="py-1.5" onClick={() => openEdit(project, field)}>
                           Edit
-                        </button>
+                        </Button>
                       </td>
                     )}
                   </tr>
@@ -701,9 +693,9 @@ function JobsTab() {
             </select>
           </div>
           {modalError && <p className="text-sm text-red-600">{modalError}</p>}
-          <button className="premium-button w-full" onClick={handleSave} disabled={saving}>
+          <Button className="w-full" onClick={handleSave} disabled={saving}>
             {saving ? "Saving…" : "Save"}
-          </button>
+          </Button>
         </div>
       </Modal>
 
@@ -727,12 +719,9 @@ function JobsTab() {
                 <td className={tdCls}>{job.scale_by}</td>
                 {canWrite && (
                   <td className={tdCls}>
-                    <button
-                      className="rounded-full border border-jscolors-crimson/20 px-3 py-1.5 text-xs font-semibold text-jscolors-crimson hover:border-jscolors-crimson/40 transition"
-                      onClick={() => openEdit(job)}
-                    >
+                    <Button variant="ghost" size="sm" className="py-1.5" onClick={() => openEdit(job)}>
                       Edit
-                    </button>
+                    </Button>
                   </td>
                 )}
               </tr>
@@ -885,17 +874,18 @@ export default function AdminPage() {
     <div className="space-y-6">
       <div className="glass-panel p-4 flex gap-2 flex-wrap">
         {TABS.map((tab) => (
-          <button
+          <Button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`rounded-full border px-5 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5 ${
+            variant="secondary"
+            className={`${
               activeTab === tab
                 ? "border-jscolors-crimson bg-jscolors-crimson text-white shadow-glow"
                 : "border-jscolors-crimson/20 bg-white text-jscolors-crimson hover:border-jscolors-crimson/40"
             }`}
           >
             {tab}
-          </button>
+          </Button>
         ))}
       </div>
 

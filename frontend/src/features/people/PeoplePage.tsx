@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
-import { createPortal } from "react-dom"
 import { useNavigate } from "react-router-dom"
 
+import Button from "../../components/ui/Button"
 import FieldRenderer from "../../components/ui/FieldRenderer"
+import Modal from "../../components/ui/Modal"
 import { getPageConfig } from "../../config"
 import { useAuth } from "../../context/AuthContext"
 import { useListPage } from "../../hooks/useListPage"
@@ -96,69 +97,53 @@ export default function PeoplePage() {
 
   return (
     <div className="space-y-6">
-      {canWriteUser && openAddUser && createPortal(
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 9999 }}
-          className="flex items-center justify-center bg-jscolors-text/35 px-4 backdrop-blur-sm"
-          onMouseDown={(e) => { if (e.target === e.currentTarget) { setOpenAddUser(false); setError("") } }}
+      <Modal open={canWriteUser && openAddUser} title="Add User" onClose={() => { setOpenAddUser(false); setError("") }} size="md">
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (form.password !== form.confirm_password) {
+              setError("Passwords do not match.")
+              return
+            }
+            setSubmitting(true)
+            setError("")
+            void api
+              .post("/users", { label: form.label, username: form.username, password: form.password })
+              .then(() => {
+                setForm({ label: "", username: "", password: "", confirm_password: "" })
+                setOpenAddUser(false)
+                refetch()
+              })
+              .catch((requestError: { response?: { data?: { detail?: string } } }) => {
+                setError(requestError.response?.data?.detail ?? "Unable to create user.")
+              })
+              .finally(() => setSubmitting(false))
+          }}
         >
-          <div
-            style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 10000 }}
-            className="glass-panel w-full max-w-md p-6"
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-syne text-2xl font-semibold text-jscolors-crimson">Add User</h2>
-              <button type="button" onClick={() => { setOpenAddUser(false); setError("") }} className="premium-button-secondary">Close</button>
-            </div>
-            <form
-              className="space-y-4"
-              onSubmit={(event) => {
-                event.preventDefault()
-                if (form.password !== form.confirm_password) {
-                  setError("Passwords do not match.")
-                  return
-                }
-                setSubmitting(true)
-                setError("")
-                void api
-                  .post("/users", { label: form.label, username: form.username, password: form.password })
-                  .then(() => {
-                    setForm({ label: "", username: "", password: "", confirm_password: "" })
-                    setOpenAddUser(false)
-                    refetch()
-                  })
-                  .catch((requestError: { response?: { data?: { detail?: string } } }) => {
-                    setError(requestError.response?.data?.detail ?? "Unable to create user.")
-                  })
-                  .finally(() => setSubmitting(false))
-              }}
-            >
-              {config.addUserFields.map((field) => (
-                <label key={field.key} className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">{field.label}</span>
-                  <FieldRenderer
-                    mode="input"
-                    field={field}
-                    value={form[field.key] ?? ""}
-                    onChange={(value) => setForm((current) => ({ ...current, [field.key]: value }))}
-                  />
-                </label>
-              ))}
-              {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
-              <button type="submit" className="premium-button w-full" disabled={submitting}>
-                {submitting ? "Creating User..." : "Create User"}
-              </button>
-            </form>
-          </div>
-        </div>,
-        document.body,
-      )}
+          {config.addUserFields.map((field) => (
+            <label key={field.key} className="block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">{field.label}</span>
+              <FieldRenderer
+                mode="input"
+                field={field}
+                value={form[field.key] ?? ""}
+                onChange={(value) => setForm((current) => ({ ...current, [field.key]: value }))}
+              />
+            </label>
+          ))}
+          {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+          <Button type="submit" className="w-full" disabled={submitting}>
+            {submitting ? "Creating User..." : "Create User"}
+          </Button>
+        </form>
+      </Modal>
 
       {canWriteUser && (
         <div className="flex justify-end">
-          <button type="button" className="premium-button shrink-0" onClick={() => setOpenAddUser(true)}>
+          <Button type="button" className="shrink-0" onClick={() => setOpenAddUser(true)}>
             Add User
-          </button>
+          </Button>
         </div>
       )}
 
@@ -205,4 +190,3 @@ export default function PeoplePage() {
     </div>
   )
 }
-
