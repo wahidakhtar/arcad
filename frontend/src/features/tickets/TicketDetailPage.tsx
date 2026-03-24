@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams } from "react-router-dom"
 
+import DetailPageLayout from "../../components/layout/DetailPageLayout"
 import Button from "../../components/ui/Button"
 import DetailFieldCard from "../../components/ui/DetailFieldCard"
 import { useAuth } from "../../context/AuthContext"
@@ -30,7 +31,6 @@ type SiteEntry = {
 export default function TicketDetailPage() {
   const { can } = useAuth()
   const { ticketId } = useParams()
-  const navigate = useNavigate()
   const [ticket, setTicket] = useState<TicketRaw | null>(null)
   const [projectLabel, setProjectLabel] = useState("")
   const [cktId, setCktId] = useState("")
@@ -89,19 +89,18 @@ export default function TicketDetailPage() {
   const isOpen = !ticket.closing_date
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/42">Ticket</p>
-          <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">
-            {ticket.ticket_number ?? `TKT-${ticket.id}`}
-          </h1>
-        </div>
-        <Button type="button" variant="secondary" onClick={() => navigate("/tickets")}>
-          ← Back
-        </Button>
-      </div>
-
+    <DetailPageLayout
+      backHref="/tickets"
+      title={ticket.ticket_number ?? `TKT-${ticket.id}`}
+      subtitle="Ticket"
+      actions={
+        isOpen && can("ticket", "write") ? (
+          <Button type="button" disabled={closing} onClick={() => void closeTicket()}>
+            {closing ? "Closing..." : "Close Ticket"}
+          </Button>
+        ) : null
+      }
+    >
       <section className="glass-panel p-6 space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <DetailFieldCard label="Project" value={projectLabel} />
@@ -117,15 +116,7 @@ export default function TicketDetailPage() {
           />
           {ticket.rfo ? <DetailFieldCard label="Note / RFO" value={ticket.rfo} /> : null}
         </div>
-
-        {isOpen && can("ticket", "write") && (
-          <div className="pt-2">
-            <Button type="button" disabled={closing} onClick={() => void closeTicket()}>
-              {closing ? "Closing..." : "Close Ticket"}
-            </Button>
-          </div>
-        )}
       </section>
-    </div>
+    </DetailPageLayout>
   )
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
 
+import DetailPageLayout from "../../components/layout/DetailPageLayout"
 import Button from "../../components/ui/Button"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
@@ -172,7 +173,7 @@ export default function UserDetailPage() {
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+    <DetailPageLayout backHref="/people">
       {/* Edit Details modal */}
       <Modal open={editOpen} title="Edit Details" onClose={() => setEditOpen(false)}>
         <div className="space-y-4">
@@ -275,91 +276,93 @@ export default function UserDetailPage() {
         </div>
       </Modal>
 
-      <section className="glass-panel p-6">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Identity</p>
-          <div className="flex gap-2">
-            {canWriteUser && (
-              <Button type="button" variant="secondary" size="sm" className="py-1 px-3" onClick={openEdit}>
-                Edit
-              </Button>
-            )}
-            {canWriteUser && (
-              <Button type="button" variant="secondary" size="sm" className="py-1 px-3" onClick={() => { setPwOpen(true); setPwError("") }}>
-                Password
-              </Button>
-            )}
-            {canWriteUser && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="py-1 px-3"
-                onClick={() => { void api.patch(`/users/${user.id}`, { active: !user.active }).then(() => reloadUser()) }}
-              >
-                {user.active ? "Deactivate" : "Activate"}
-              </Button>
-            )}
-          </div>
-        </div>
-        <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">{user.label}</h1>
-        <div className="mt-6 space-y-3 text-sm">
-          {[
-            { label: "Username", value: user.username },
-            { label: "Aadhaar", value: user.aadhaar ?? "" },
-            { label: "UPI", value: user.upi ?? "" },
-            { label: "CTC", value: user.ctc ?? "" },
-          ].map(({ label, value }) => (
-            <div key={label} className="rounded-[18px] border border-jscolors-crimson/10 bg-white px-4 py-3">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-jscolors-text/40">{label}</div>
-              <div className="mt-1 text-sm text-jscolors-text">{value || "—"}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="glass-panel p-6">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Assigned Roles</p>
-          {canWriteAssignRole && availableDepts.length > 0 && (
-            <Button type="button" variant="secondary" size="sm" className="py-1 px-3" onClick={openAssignRole}>
-              Assign Role
-            </Button>
-          )}
-        </div>
-        <div className="mt-5 space-y-3">
-          {user.roles.length ? user.roles.map((role) => (
-            <div key={role.id} className="flex items-center justify-between rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
-              <div>
-                <div className="font-medium text-jscolors-text">
-                  {deptLabels[role.dept_key] ?? role.dept_key} · {levelLabels[role.level_key] ?? role.level_key}
-                </div>
-                <div className="text-xs uppercase tracking-[0.22em] text-jscolors-text/45">
-                  {projectById.get(role.project_id ?? -1)?.label ?? "Global"}
-                </div>
-              </div>
-              {canWriteAssignRole && (
+      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <section className="glass-panel p-6">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Identity</p>
+            <div className="flex gap-2">
+              {canWriteUser ? (
+                <Button type="button" variant="secondary" size="sm" className="py-1 px-3" onClick={openEdit}>
+                  Edit
+                </Button>
+              ) : null}
+              {canWriteUser ? (
+                <Button type="button" variant="secondary" size="sm" className="py-1 px-3" onClick={() => { setPwOpen(true); setPwError("") }}>
+                  Password
+                </Button>
+              ) : null}
+              {canWriteUser ? (
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() => { void api.delete(`/users/${user.id}/roles/${role.id}`).then(() => reloadUser()) }}
+                  size="sm"
+                  className="py-1 px-3"
+                  onClick={() => { void api.patch(`/users/${user.id}`, { active: !user.active }).then(() => reloadUser()) }}
                 >
-                  Remove
+                  {user.active ? "Deactivate" : "Activate"}
                 </Button>
-              )}
+              ) : null}
             </div>
-          )) : (
-            <div className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4 text-sm text-jscolors-text/60">
-              No roles assigned
-            </div>
-          )}
-        </div>
-        {canReadAssignRole && !canWriteAssignRole && (
-          <div className="mt-6 rounded-[24px] border border-dashed border-jscolors-crimson/20 bg-jscolors-crimson/[0.03] p-5 text-sm text-jscolors-text/60">
-            Role assignment is read-only for your account.
           </div>
-        )}
-      </section>
-    </div>
+          <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">{user.label}</h1>
+          <div className="mt-6 space-y-3 text-sm">
+            {[
+              { label: "Username", value: user.username },
+              { label: "Aadhaar", value: user.aadhaar ?? "" },
+              { label: "UPI", value: user.upi ?? "" },
+              { label: "CTC", value: user.ctc ?? "" },
+            ].map(({ label, value }) => (
+              <div key={label} className="rounded-[18px] border border-jscolors-crimson/10 bg-white px-4 py-3">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-jscolors-text/40">{label}</div>
+                <div className="mt-1 text-sm text-jscolors-text">{value || "—"}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="glass-panel p-6">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Assigned Roles</p>
+            {canWriteAssignRole && availableDepts.length > 0 ? (
+              <Button type="button" variant="secondary" size="sm" className="py-1 px-3" onClick={openAssignRole}>
+                Assign Role
+              </Button>
+            ) : null}
+          </div>
+          <div className="mt-5 space-y-3">
+            {user.roles.length ? user.roles.map((role) => (
+              <div key={role.id} className="flex items-center justify-between rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
+                <div>
+                  <div className="font-medium text-jscolors-text">
+                    {deptLabels[role.dept_key] ?? role.dept_key} · {levelLabels[role.level_key] ?? role.level_key}
+                  </div>
+                  <div className="text-xs uppercase tracking-[0.22em] text-jscolors-text/45">
+                    {projectById.get(role.project_id ?? -1)?.label ?? "Global"}
+                  </div>
+                </div>
+                {canWriteAssignRole ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => { void api.delete(`/users/${user.id}/roles/${role.id}`).then(() => reloadUser()) }}
+                  >
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
+            )) : (
+              <div className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4 text-sm text-jscolors-text/60">
+                No roles assigned
+              </div>
+            )}
+          </div>
+          {canReadAssignRole && !canWriteAssignRole ? (
+            <div className="mt-6 rounded-[24px] border border-dashed border-jscolors-crimson/20 bg-jscolors-crimson/[0.03] p-5 text-sm text-jscolors-text/60">
+              Role assignment is read-only for your account.
+            </div>
+          ) : null}
+        </section>
+      </div>
+    </DetailPageLayout>
   )
 }
