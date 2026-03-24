@@ -59,6 +59,7 @@ export default function SiteFEAssignmentSection({
   providers: ProviderRow[]
   onReload: () => Promise<void>
 }) {
+  const isBB = projectKey === "bb"
   const [assignmentForm, setAssignmentForm] = useState({ bucket_id: "", fe_id: "" })
   const [assignModal, setAssignModal] = useState(false)
   const [removeModal, setRemoveModal] = useState<{ open: boolean; fe_id: number; bucket_id: number; fe_label: string; final_cost: string }>({ open: false, fe_id: 0, bucket_id: 0, fe_label: "", final_cost: "" })
@@ -72,9 +73,12 @@ export default function SiteFEAssignmentSection({
 
   async function assignProvider() {
     if (!providerAssignId) return
+    const payload = { provider_id: Number(providerAssignId) }
+    console.log("ASSIGN TYPE:", isBB ? "provider" : "fe")
+    console.log("ASSIGN PAYLOAD:", payload)
     setSavingProviderAssign(true)
     try {
-      await api.post(`/sites/${projectKey}/${currentSite.id}/assignments`, { provider_id: Number(providerAssignId) })
+      await api.post(`/sites/${projectKey}/${currentSite.id}/assignments`, payload)
       setProviderAssignId("")
       await onReload()
     } finally {
@@ -105,7 +109,7 @@ export default function SiteFEAssignmentSection({
     }
   }
 
-  if (projectKey === "bb") {
+  if (isBB) {
     return (
       <ActionPanel
         title="Provider Assignment"
@@ -284,8 +288,11 @@ export default function SiteFEAssignmentSection({
                 disabled={alreadyAssigned || !assignmentForm.bucket_id || !assignmentForm.fe_id}
                 onClick={() => {
                   if (!assignmentForm.bucket_id || !assignmentForm.fe_id) return
+                  const payload = { bucket_id: Number(assignmentForm.bucket_id), fe_id: Number(assignmentForm.fe_id) }
+                  console.log("ASSIGN TYPE:", isBB ? "provider" : "fe")
+                  console.log("ASSIGN PAYLOAD:", payload)
                   void api
-                    .post(`/sites/${projectKey}/${currentSite.id}/assignments`, { bucket_id: Number(assignmentForm.bucket_id), fe_id: Number(assignmentForm.fe_id) })
+                    .post(`/sites/${projectKey}/${currentSite.id}/assignments`, payload)
                     .then(() => {
                       setAssignmentForm({ bucket_id: "", fe_id: "" })
                       setAssignModal(false)
