@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { api } from "../../../lib/api"
 
@@ -66,7 +66,7 @@ export default function useTransactionsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
-  async function loadData() {
+  const loadData = useCallback(async function loadData() {
     try {
       const [txResponse, projectsResponse, badgesResponse] = await Promise.all([
         api.get<TxRaw[]>("/transactions"),
@@ -139,7 +139,7 @@ export default function useTransactionsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     void loadData()

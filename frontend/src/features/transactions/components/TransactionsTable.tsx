@@ -1,4 +1,7 @@
+import { useMemo } from "react"
+
 import DataTable from "../../../components/ui/DataTable"
+import { formatCurrency } from "../../../utils/format"
 import type { BadgeEntry, TransitionEntry, TxRow } from "../hooks/useTransactionsPage"
 import TransactionStatusCell from "./TransactionStatusCell"
 
@@ -25,39 +28,41 @@ export default function TransactionsTable({
   onOpenExecutionModal,
   onOpenCancel,
 }: TransactionsTableProps) {
+  const columns = useMemo(() => [
+    { key: "recipient_label", label: "Recipient", minWidth: 120 },
+    { key: "project_label", label: "Project", minWidth: 120 },
+    { key: "ckt_id", label: "Site", minWidth: 100 },
+    { key: "type_label", label: "Type", minWidth: 140 },
+    {
+      key: "amount",
+      label: "Amount",
+      align: "right" as const,
+      minWidth: 100,
+      render: (value: unknown) => <div className="text-right">{formatCurrency(value as number)}</div>,
+    },
+    {
+      key: "status_label",
+      label: "Status",
+      minWidth: 180,
+      render: (_value: unknown, row: Record<string, unknown>) => (
+        <TransactionStatusCell
+          row={row as unknown as TxRow}
+          badgeById={badgeById}
+          transitions={transitions}
+          canRequestWrite={canRequestWrite}
+          canTransactionWrite={canTransactionWrite}
+          transitioning={transitioning}
+          onApplyTransition={onApplyTransition}
+          onOpenExecutionModal={onOpenExecutionModal}
+          onOpenCancel={onOpenCancel}
+        />
+      ),
+    },
+  ], [badgeById, transitions, canRequestWrite, canTransactionWrite, transitioning, onApplyTransition, onOpenExecutionModal, onOpenCancel])
+
   return (
     <DataTable
-      columns={[
-        { key: "recipient_label", label: "Recipient", minWidth: 120 },
-        { key: "project_label", label: "Project", minWidth: 120 },
-        { key: "ckt_id", label: "Site", minWidth: 100 },
-        { key: "type_label", label: "Type", minWidth: 140 },
-        {
-          key: "amount",
-          label: "Amount",
-          align: "right",
-          minWidth: 100,
-          render: (value) => <div className="text-right">₹ {Number(value).toLocaleString("en-IN")}</div>,
-        },
-        {
-          key: "status_label",
-          label: "Status",
-          minWidth: 180,
-          render: (_value, row) => (
-            <TransactionStatusCell
-              row={row as unknown as TxRow}
-              badgeById={badgeById}
-              transitions={transitions}
-              canRequestWrite={canRequestWrite}
-              canTransactionWrite={canTransactionWrite}
-              transitioning={transitioning}
-              onApplyTransition={onApplyTransition}
-              onOpenExecutionModal={onOpenExecutionModal}
-              onOpenCancel={onOpenCancel}
-            />
-          ),
-        },
-      ]}
+      columns={columns}
       rows={rows as unknown as Record<string, unknown>[]}
     />
   )

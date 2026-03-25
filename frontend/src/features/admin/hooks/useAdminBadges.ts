@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-import { api } from "../../../lib/api"
+import { getAdminBadges, updateAdminBadge } from "../../../services/adminService"
 import type { Badge } from "../types"
 
 export default function useAdminBadges() {
@@ -12,8 +12,7 @@ export default function useAdminBadges() {
   const [modalError, setModalError] = useState("")
 
   useEffect(() => {
-    void api
-      .get<Badge[]>("/admin/badges")
+    void getAdminBadges()
       .then((response) => setBadges(response.data))
       .catch((err: { response?: { data?: { detail?: string } } }) =>
         setError(err.response?.data?.detail ?? "Failed to load badges"),
@@ -34,8 +33,7 @@ export default function useAdminBadges() {
     if (!editingBadge) return
     setSaving(true)
     setModalError("")
-    void api
-      .patch(`/admin/badges/${editingBadge.id}`, { label: editDraft.label, color: editDraft.color || null })
+    void updateAdminBadge(editingBadge.id, { label: editDraft.label, color: editDraft.color || null })
       .then(() => {
         setBadges((prev) =>
           prev.map((badge) =>

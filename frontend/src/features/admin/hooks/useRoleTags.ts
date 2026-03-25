@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-import { api } from "../../../lib/api"
+import { getRoleTags, updateRoleTag } from "../../../services/adminService"
 import type { RoleTagsResponse } from "../types"
 
 export default function useRoleTags() {
@@ -10,8 +10,7 @@ export default function useRoleTags() {
   const [error, setError] = useState("")
 
   useEffect(() => {
-    void api
-      .get<RoleTagsResponse>("/admin/role-tags")
+    void getRoleTags()
       .then((response) => {
         setData(response.data)
         setMatrix(response.data.matrix)
@@ -29,8 +28,7 @@ export default function useRoleTags() {
     setMatrix((current) => ({ ...current, [key]: updated }))
     setSaving((current) => new Set(current).add(key))
 
-    void api
-      .patch("/admin/role-tags", { role_id: roleId, tag_id: tagId, read: updated.read, write: updated.write })
+    void updateRoleTag({ role_id: roleId, tag_id: tagId, read: updated.read, write: updated.write })
       .catch((err: { response?: { data?: { detail?: string } } }) => {
         setError(err.response?.data?.detail ?? "Failed to save permission")
         setMatrix((current) => ({ ...current, [key]: previous }))

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-import { api } from "../../../lib/api"
+import { getAdminJobs, updateAdminJob } from "../../../services/adminService"
 import type { Job } from "../types"
 
 export default function useAdminJobs() {
@@ -12,8 +12,7 @@ export default function useAdminJobs() {
   const [modalError, setModalError] = useState("")
 
   useEffect(() => {
-    void api
-      .get<Job[]>("/admin/jobs")
+    void getAdminJobs()
       .then((response) => setJobs(response.data))
       .catch((err: { response?: { data?: { detail?: string } } }) =>
         setError(err.response?.data?.detail ?? "Failed to load jobs"),
@@ -34,8 +33,7 @@ export default function useAdminJobs() {
     if (!editingJob) return
     setSaving(true)
     setModalError("")
-    void api
-      .patch(`/admin/jobs/${editingJob.id}`, { label: editDraft.label, scale_by: editDraft.scale_by })
+    void updateAdminJob(editingJob.id, { label: editDraft.label, scale_by: editDraft.scale_by })
       .then(() => {
         setJobs((prev) => prev.map((job) => (job.id === editingJob.id ? { ...job, label: editDraft.label, scale_by: editDraft.scale_by } : job)))
         setEditingJob(null)

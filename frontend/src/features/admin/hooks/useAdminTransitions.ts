@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-import { api } from "../../../lib/api"
+import { getBadgeTransitions, addBadgeTransition, deleteBadgeTransition } from "../../../services/adminService"
 import type { BadgeTransitionsResponse } from "../types"
 
 export default function useAdminTransitions() {
@@ -12,8 +12,7 @@ export default function useAdminTransitions() {
   const [modalError, setModalError] = useState("")
 
   function fetchData() {
-    void api
-      .get<BadgeTransitionsResponse>("/admin/badge-transitions")
+    void getBadgeTransitions()
       .then((response) => setData(response.data))
       .catch((err: { response?: { data?: { detail?: string } } }) =>
         setError(err.response?.data?.detail ?? "Failed to load badge transitions"),
@@ -40,7 +39,7 @@ export default function useAdminTransitions() {
       return { ...prev, [project]: prev[project as keyof BadgeTransitionsResponse].filter((transition) => transition.id !== id) }
     })
 
-    void api.delete(`/admin/badge-transitions/${project}/${id}`).catch((err: { response?: { data?: { detail?: string } } }) => {
+    void deleteBadgeTransition(project, id).catch((err: { response?: { data?: { detail?: string } } }) => {
       setError(err.response?.data?.detail ?? "Failed to remove transition")
       fetchData()
     })
@@ -53,8 +52,7 @@ export default function useAdminTransitions() {
     }
     setAdding(true)
     setModalError("")
-    void api
-      .post("/admin/badge-transitions", {
+    void addBadgeTransition({
         project: newRow.project,
         type_id: Number(newRow.type_id),
         from_id: Number(newRow.from_id),

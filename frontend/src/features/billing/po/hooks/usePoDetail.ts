@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
 
-import { api } from "../../../../lib/api"
+import { getPoById, getInvoicesByPoId } from "../../../../services/billingService"
 import type { Invoice, PO } from "../../types"
 
 export default function usePoDetail() {
@@ -19,8 +19,8 @@ export default function usePoDetail() {
       setError("")
       try {
         const [poResponse, invoicesResponse] = await Promise.all([
-          api.get<PO>(`/billing/po/${poId}`),
-          api.get<Invoice[]>("/billing/invoices", { params: { po_id: Number(poId) } }),
+          getPoById(Number(poId)),
+          getInvoicesByPoId(Number(poId)),
         ])
         if (cancelled) return
         setPo(poResponse.data)

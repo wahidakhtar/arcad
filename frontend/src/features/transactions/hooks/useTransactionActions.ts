@@ -1,6 +1,6 @@
 import { useState } from "react"
 
-import { api } from "../../../lib/api"
+import { updateTransactionStatus } from "../../../services/transactionService"
 
 type ExecModal = {
   open: boolean
@@ -39,11 +39,7 @@ export default function useTransactionActions({
     setTransitioning(txId)
     setTransitionError("")
     try {
-      await api.patch(`/transactions/${txId}/status`, {
-        status_id: toId,
-        version,
-        execution_date: executionDate ?? null,
-      })
+      await updateTransactionStatus(txId, { status_id: toId, version, execution_date: executionDate ?? null })
       await onReload()
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status
@@ -61,7 +57,7 @@ export default function useTransactionActions({
     if (!cancelBadgeId) return
     setCancelError("")
     try {
-      await api.patch(`/transactions/${txId}/status`, { status_id: cancelBadgeId, version })
+      await updateTransactionStatus(txId, { status_id: cancelBadgeId, version })
       setConfirmCancel({ open: false, txId: 0, version: 0 })
       await onReload()
     } catch (err: unknown) {
