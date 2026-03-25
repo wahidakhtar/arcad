@@ -1,53 +1,15 @@
-import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 
 import Button from "../../../components/ui/Button"
 import Modal from "../../../components/ui/Modal"
 import { useAuth } from "../../../context/AuthContext"
-import { api } from "../../../lib/api"
 import { SCALE_BY_OPTIONS, fieldCls, labelCls, tableCls, tableWrapCls, tbodyRowCls, tdCls, thCls, theadRowCls } from "../constants"
-import type { Job } from "../types"
+import useAdminJobs from "../hooks/useAdminJobs"
 
 export default function JobsPanel() {
   const { can } = useAuth()
   const canWrite = can("admin", "write")
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [editingJob, setEditingJob] = useState<Job | null>(null)
-  const [editDraft, setEditDraft] = useState({ label: "", scale_by: "" })
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState("")
-  const [modalError, setModalError] = useState("")
-
-  useEffect(() => {
-    void api
-      .get<Job[]>("/admin/jobs")
-      .then((response) => setJobs(response.data))
-      .catch((err: { response?: { data?: { detail?: string } } }) =>
-        setError(err.response?.data?.detail ?? "Failed to load jobs"),
-      )
-  }, [])
-
-  function openEdit(job: Job) {
-    setEditingJob(job)
-    setEditDraft({ label: job.label, scale_by: job.scale_by })
-    setModalError("")
-  }
-
-  function handleSave() {
-    if (!editingJob) return
-    setSaving(true)
-    setModalError("")
-    void api
-      .patch(`/admin/jobs/${editingJob.id}`, { label: editDraft.label, scale_by: editDraft.scale_by })
-      .then(() => {
-        setJobs((prev) => prev.map((job) => (job.id === editingJob.id ? { ...job, label: editDraft.label, scale_by: editDraft.scale_by } : job)))
-        setEditingJob(null)
-      })
-      .catch((err: { response?: { data?: { detail?: string } } }) =>
-        setModalError(err.response?.data?.detail ?? "Failed to save job"),
-      )
-      .finally(() => setSaving(false))
-  }
+  const { jobs, editingJob, editDraft, setEditDraft, saving, error, modalError, openEdit, closeEdit, handleSave } = useAdminJobs()
 
   return (
     <div className="space-y-4">
@@ -55,7 +17,7 @@ export default function JobsPanel() {
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       ) : null}
 
-      <Modal open={editingJob !== null} title="Edit Job" onClose={() => setEditingJob(null)} size="sm">
+      <Modal open={editingJob !== null} title="Edit Job" onClose={closeEdit} size="sm">
         <div className="space-y-4">
           <div>
             <label className={labelCls}>Label</label>

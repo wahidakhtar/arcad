@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 
 import Button from "../../components/ui/Button"
+import ListPageLayout from "../../components/layout/ListPageLayout"
 import Modal from "../../components/ui/Modal"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
@@ -49,15 +50,13 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {can("project", "write") && (
-        <div className="flex justify-end">
-          <Button type="button" className="shrink-0" onClick={() => setAddOpen(true)}>
-            Add Project
-          </Button>
-        </div>
-      )}
-
+    <ListPageLayout
+      actions={can("project", "write") ? (
+        <Button type="button" className="shrink-0" onClick={() => setAddOpen(true)}>
+          Add Project
+        </Button>
+      ) : undefined}
+    >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {projects.map((project) => {
           const href = project.recurring
@@ -118,6 +117,6 @@ export default function ProjectsPage() {
           </Button>
         </div>
       </Modal>
-    </div>
+    </ListPageLayout>
   )
 }

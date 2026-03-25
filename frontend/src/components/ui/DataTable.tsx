@@ -17,9 +17,11 @@ type DataTableProps<T extends Record<string, unknown>> = {
   rowHref?: (row: T) => string
   getRowClassName?: (row: T) => string
   gridTemplateColumns?: string
+  loading?: boolean
+  emptyState?: React.ReactNode
 }
 
-export default function DataTable<T extends Record<string, unknown>>({ columns, rows, rowHref, getRowClassName, gridTemplateColumns: gridTemplateColumnsProp }: DataTableProps<T>) {
+export default function DataTable<T extends Record<string, unknown>>({ columns, rows, rowHref, getRowClassName, gridTemplateColumns: gridTemplateColumnsProp, loading, emptyState }: DataTableProps<T>) {
   const gridTemplateColumns = gridTemplateColumnsProp ?? columns.map(col => `minmax(${col.minWidth ?? 180}px, 1fr)`).join(' ')
   const minTableWidth = columns.length
     ? columns.reduce((sum, col) => sum + (col.minWidth ?? 180), 0) + (columns.length - 1) * 16 + 40
@@ -32,7 +34,15 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
             <div key={column.key} className={column.align === "right" ? "text-right" : ""} style={column.minWidth ? { minWidth: column.minWidth } : undefined}>{column.label}</div>
           ))}
         </div>
-        {rows.map((row, index) => {
+        {loading && (
+          <div className="px-5 py-8 text-center text-sm text-jscolors-text/50">Loading...</div>
+        )}
+        {!loading && rows.length === 0 && (
+          emptyState ? <div className="px-5 py-8">{emptyState}</div> : (
+            <div className="px-5 py-8 text-center text-sm text-jscolors-text/50">No results.</div>
+          )
+        )}
+        {!loading && rows.map((row, index) => {
           const content = (
             <div className="grid gap-4 border-b border-jscolors-crimson/8 px-5 py-4 transition hover:bg-jscolors-gold/10" style={{ gridTemplateColumns }}>
               {columns.map((column) => (

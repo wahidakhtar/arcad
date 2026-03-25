@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 
 import Button from "../../components/ui/Button"
 import FieldRenderer from "../../components/ui/FieldRenderer"
+import ListPageLayout from "../../components/layout/ListPageLayout"
 import Modal from "../../components/ui/Modal"
 import { getPageConfig } from "../../config"
 import { useAuth } from "../../context/AuthContext"
@@ -96,7 +97,13 @@ export default function PeoplePage() {
   if (loadError) return <div className="p-6 text-red-600">{loadError}</div>
 
   return (
-    <div className="space-y-6">
+    <ListPageLayout
+      actions={canWriteUser ? (
+        <Button type="button" className="shrink-0" onClick={() => setOpenAddUser(true)}>
+          Add User
+        </Button>
+      ) : undefined}
+    >
       <Modal open={canWriteUser && openAddUser} title="Add User" onClose={() => { setOpenAddUser(false); setError("") }} size="md">
         <form
           className="space-y-4"
@@ -139,14 +146,6 @@ export default function PeoplePage() {
         </form>
       </Modal>
 
-      {canWriteUser && (
-        <div className="flex justify-end">
-          <Button type="button" className="shrink-0" onClick={() => setOpenAddUser(true)}>
-            Add User
-          </Button>
-        </div>
-      )}
-
       <div className="overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
         <table className="min-w-full border-collapse">
           <thead>
@@ -186,7 +185,6 @@ export default function PeoplePage() {
           </tbody>
         </table>
       </div>
-
-    </div>
+    </ListPageLayout>
   )
 }

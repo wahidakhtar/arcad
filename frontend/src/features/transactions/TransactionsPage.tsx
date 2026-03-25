@@ -1,5 +1,6 @@
 import Button from "../../components/ui/Button"
 import ExecutionDateModal from "../../components/ui/ExecutionDateModal"
+import ListPageLayout from "../../components/layout/ListPageLayout"
 import Modal from "../../components/ui/Modal"
 import { useAuth } from "../../context/AuthContext"
 import TransactionsTable from "./components/TransactionsTable"
@@ -33,7 +34,7 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <ListPageLayout>
       {transitionError ? (
         <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{transitionError}</p>
       ) : null}
@@ -95,6 +96,6 @@ export default function TransactionsPage() {
         }}
         onOpenCancel={(row) => setConfirmCancel({ open: true, txId: row.id, version: row.version })}
       />
-    </div>
+    </ListPageLayout>
   )
 }

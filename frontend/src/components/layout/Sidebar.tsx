@@ -80,7 +80,7 @@ export default function Sidebar() {
         {can("transaction", "read") && <SectionLink to="/transactions" label={`Transactions (${counts.transactions})`} />}
         {can("ticket", "read") && <SectionLink to="/tickets" label={`Tickets (${counts.tickets})`} />}
         {can("rate", "read") && <SectionLink to="/billing/rate-card" label="Rate Card" />}
-        {can("billing", "read") && <SectionLink to="/billing/pos" label="Billing" />}
+        {can("billing", "read") && <SectionLink to="/billing/po" label="Billing" />}
         {can("admin", "read") && (
           <SectionLink to="/admin" label="Admin" />
         )}
