@@ -3,7 +3,7 @@ import ListPageLayout from "../../components/layout/ListPageLayout"
 import useTicketsPage from "./hooks/useTicketsPage"
 
 export default function TicketsPage() {
-  const { rows, loading, error, page, setPage, pagination } = useTicketsPage()
+  const { rows, loading, error, page: _page, setPage, pagination } = useTicketsPage()
 
   if (loading && rows.length === 0) {
     return <div className="p-6 text-jscolors-text/50">Loading tickets...</div>

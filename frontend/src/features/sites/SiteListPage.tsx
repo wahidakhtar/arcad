@@ -79,7 +79,7 @@ export default function SiteListPage() {
 
   const buildParams = useCallback(() => ({ search: search.trim() || undefined }), [search])
 
-  const { data: siteData, loading, error, refetch, pagination, page, setPage } = useListPage<SiteRow[]>({
+  const { data: siteData, loading, error, refetch, pagination, page: _page, setPage } = useListPage<SiteRow[]>({
     endpoint: baseEndpoint,
     pageSize: 50,
     buildParams,
