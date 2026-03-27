@@ -11,6 +11,7 @@ from decimal import Decimal
 
 from app.api.auth import UserContext, get_current_user, permission_required
 from app.core.database import get_db
+from app.core.ws_manager import manager as ws_manager
 from app.schemas.site import SubconAssignmentRequest, FERemovalRequest, SiteCreate, SiteOut, SiteUpdate
 from app.services import sites as sites_service
 from app.services import sites as site_service
@@ -29,6 +30,18 @@ class RechargeCreate(BaseModel):
 router = APIRouter(prefix="/sites", tags=["sites"])
 
 
+@router.get("/lookup")
+def lookup_site(
+    project_key: str = Query(...),
+    site_id: int = Query(...),
+    user: UserContext = Depends(permission_required("site", "read")),
+    db: Session = Depends(get_db),
+):
+    """Return a single site by project_key + site_id (lightweight lookup to avoid full-list fetches)."""
+    result = site_service.get_site(db, user, project_key, site_id)
+    return {"id": result.id, "ckt_id": result.ckt_id}
+
+
 @router.get("/{project_key}")
 def list_sites(
     project_key: str,
@@ -41,8 +54,10 @@ def list_sites(
 
 
 @router.post("/{project_key}")
-def create_site(project_key: str, payload: SiteCreate, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
-    return site_service.create_site(db, user, project_key, payload.subproject_id, payload.data)
+async def create_site(project_key: str, payload: SiteCreate, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
+    result = site_service.create_site(db, user, project_key, payload.subproject_id, payload.data)
+    await ws_manager.broadcast({"type": "SITE_CREATED", "site_id": result.id, "project_key": project_key})
+    return result
 
 
 @router.get("/{project_key}/{site_id}", response_model=SiteOut)
@@ -51,18 +66,24 @@ def get_site(project_key: str, site_id: int, user: UserContext = Depends(permiss
 
 
 @router.patch("/{project_key}/{site_id}")
-def update_site(project_key: str, site_id: int, payload: SiteUpdate, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
-    return site_service.update_site(db, user, project_key, site_id, payload.data)
+async def update_site(project_key: str, site_id: int, payload: SiteUpdate, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
+    result = site_service.update_site(db, user, project_key, site_id, payload.data)
+    await ws_manager.broadcast({"type": "SITE_UPDATED", "site_id": site_id, "project_key": project_key})
+    return result
 
 
 @router.post("/{project_key}/{site_id}/assignments", response_model=SiteOut)
-def assign(project_key: str, site_id: int, payload: SubconAssignmentRequest, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
-    return site_service.assign_subcon(db, user, project_key, site_id, payload)
+async def assign(project_key: str, site_id: int, payload: SubconAssignmentRequest, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
+    result = site_service.assign_subcon(db, user, project_key, site_id, payload)
+    await ws_manager.broadcast({"type": "SITE_UPDATED", "site_id": site_id, "project_key": project_key})
+    return result
 
 
 @router.delete("/{project_key}/{site_id}/assignments/{assignment_id}", response_model=SiteOut)
-def remove_assignment(project_key: str, site_id: int, assignment_id: int, payload: FERemovalRequest, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
-    return site_service.remove_assignment(db, user, project_key, site_id, assignment_id, payload.final_cost)
+async def remove_assignment(project_key: str, site_id: int, assignment_id: int, payload: FERemovalRequest, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
+    result = site_service.remove_assignment(db, user, project_key, site_id, assignment_id, payload.final_cost)
+    await ws_manager.broadcast({"type": "SITE_UPDATED", "site_id": site_id, "project_key": project_key})
+    return result
 
 
 @router.get("/bb/{site_id}/recharges", dependencies=[Depends(permission_required("site", "read"))])

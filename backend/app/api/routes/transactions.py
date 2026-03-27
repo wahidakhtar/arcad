@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.auth import UserContext, get_current_user, permission_required
 from app.core.database import get_db
+from app.core.ws_manager import manager as ws_manager
 from app.schemas.transaction import StatusUpdate, TransactionCreate
 from app.services import transactions as transaction_service
 
@@ -22,17 +23,21 @@ def list_transactions(user: UserContext = Depends(permission_required("transacti
 
 
 @router.post("", dependencies=[Depends(permission_required("request", "write"))])
-def create_transaction(payload: TransactionCreate, db: Session = Depends(get_db)):
-    return transaction_service.create_transaction(db, payload)
+async def create_transaction(payload: TransactionCreate, db: Session = Depends(get_db)):
+    result = transaction_service.create_transaction(db, payload)
+    await ws_manager.broadcast({"type": "TRANSACTION_CREATED"})
+    return result
 
 
 @router.patch("/{transaction_id}/status")
-def update_status(
+async def update_status(
     transaction_id: int,
     payload: StatusUpdate,
     user: UserContext = Depends(permission_required("transaction", "write")),
     db: Session = Depends(get_db),
 ):
-    return transaction_service.update_status(
+    result = transaction_service.update_status(
         db, user, transaction_id, payload.status_id, payload.version, payload.execution_date
     )
+    await ws_manager.broadcast({"type": "TRANSACTION_UPDATED", "transaction_id": transaction_id})
+    return result

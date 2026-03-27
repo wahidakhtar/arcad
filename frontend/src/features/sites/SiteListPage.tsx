@@ -1,6 +1,8 @@
 import { useDeferredValue, useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 
+import { subscribe } from "../../hooks/useWebSocket"
+
 import DataTable from "../../components/ui/DataTable"
 import AddForm from "../../components/ui/AddForm"
 import BulkTable from "../../components/ui/BulkTable"
@@ -78,6 +80,20 @@ export default function SiteListPage() {
   const { data: siteData, loading, error, refetch } = useListPage<SiteRow[]>({
     endpoint: siteEndpoint,
   })
+
+  // WS subscription — refetch site list when a site in this project is created or updated
+  useEffect(() => {
+    const unsub1 = subscribe("SITE_CREATED", (e) => {
+      if ((e as { project_key: string }).project_key === projectKey) refetch()
+    })
+    const unsub2 = subscribe("SITE_UPDATED", (e) => {
+      if ((e as { project_key: string }).project_key === projectKey) refetch()
+    })
+    return () => {
+      unsub1()
+      unsub2()
+    }
+  }, [projectKey, refetch])
 
   useEffect(() => {
     setActiveTab("deployed")

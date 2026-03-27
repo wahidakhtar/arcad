@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { Link, NavLink } from "react-router-dom"
 
 import Button from "../ui/Button"
@@ -17,19 +17,21 @@ export default function Sidebar() {
   const { user, can, projectKeys, logout } = useAuth()
   const [projects, setProjects] = useState<SidebarProject[]>([])
   const [counts, setCounts] = useState({ transactions: 0, tickets: 0 })
-  const countsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
 
   useEffect(() => {
     void api.get("/me/projects").then((r) => setProjects(r.data)).catch(() => {})
 
-    const fetchCounts = () => {
+    function fetchCounts() {
       void api.get("/projects/counts").then((r) => setCounts(r.data)).catch(() => {})
     }
+
+    // Initial fetch
     fetchCounts()
-    countsTimerRef.current = setInterval(fetchCounts, 60_000)
+
+    // Listen for WebSocket-triggered refresh events instead of polling
+    window.addEventListener("refresh-counts", fetchCounts)
     return () => {
-      if (countsTimerRef.current) clearInterval(countsTimerRef.current)
+      window.removeEventListener("refresh-counts", fetchCounts)
     }
   }, [])
 

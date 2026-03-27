@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom"
 
 import { useAuth } from "./context/AuthContext"
+import { useWebSocket } from "./hooks/useWebSocket"
 import { squirclePath } from "./lib/squircle"
 import PageLayout from "./components/layout/PageLayout"
 import DashboardPage from "./features/dashboard/DashboardPage"
@@ -37,6 +38,8 @@ function PublicOnly({ children }: { children: React.ReactNode }) {
 function ProtectedApp() {
   const { user, loading, setupRequired } = useAuth()
   const hasStoredToken = Boolean(localStorage.getItem("access_token"))
+  // Establish WS connection for authenticated sessions
+  useWebSocket()
   if (loading) {
     return <div className="page-shell flex items-center justify-center font-syne text-2xl text-jscolors-crimson">ARCAD</div>
   }

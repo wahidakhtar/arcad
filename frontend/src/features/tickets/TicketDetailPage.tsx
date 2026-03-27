@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams } from "react-router-dom"
 
 import DetailPageLayout from "../../components/layout/DetailPageLayout"
 import Button from "../../components/ui/Button"
 import DetailFieldCard from "../../components/ui/DetailFieldCard"
+import { subscribe } from "../../hooks/useWebSocket"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
 
@@ -23,7 +24,7 @@ type ProjectEntry = {
   label: string
 }
 
-type SiteEntry = {
+type SiteLookup = {
   id: number
   ckt_id: string
 }
@@ -38,7 +39,7 @@ export default function TicketDetailPage() {
   const [error, setError] = useState("")
   const [closing, setClosing] = useState(false)
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const [ticketRes, projectsRes] = await Promise.all([
         api.get<TicketRaw>(`/tickets/${ticketId}`),
@@ -53,10 +54,11 @@ export default function TicketDetailPage() {
 
       if (proj) {
         try {
-          const sitesRes = await api.get<SiteEntry[]>(`/sites/${proj.key}`)
-          const sites: SiteEntry[] = Array.isArray(sitesRes.data) ? sitesRes.data : []
-          const site = sites.find((s) => s.id === t.site_id)
-          setCktId(site?.ckt_id ?? String(t.site_id))
+          // Use targeted lookup instead of full site list
+          const siteRes = await api.get<SiteLookup>("/sites/lookup", {
+            params: { project_key: proj.key, site_id: t.site_id },
+          })
+          setCktId(siteRes.data.ckt_id ?? String(t.site_id))
         } catch {
           setCktId(String(t.site_id))
         }
@@ -66,17 +68,35 @@ export default function TicketDetailPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [ticketId])
 
   useEffect(() => {
     void load()
-  }, [ticketId])
+  }, [load])
+
+  // Dedup guard — prevents double-refetch when user closes ticket and WS fires together
+  const lastRefetchRef = useRef(0)
+  const safeLoad = useCallback(() => {
+    const now = Date.now()
+    if (now - lastRefetchRef.current < 300) return
+    lastRefetchRef.current = now
+    void load()
+  }, [load])
+
+  // WS subscription — update when this ticket changes
+  useEffect(() => {
+    const numericTicketId = Number(ticketId)
+    const unsub = subscribe("TICKET_CLOSED", (e) => {
+      if ((e as { ticket_id: number }).ticket_id === numericTicketId) safeLoad()
+    })
+    return unsub
+  }, [ticketId, safeLoad])
 
   async function closeTicket() {
     setClosing(true)
     try {
       await api.patch(`/tickets/${ticketId}/close`)
-      await load()
+      safeLoad()
     } finally {
       setClosing(false)
     }

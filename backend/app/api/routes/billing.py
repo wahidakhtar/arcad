@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.auth import permission_required
 from app.core.database import get_db
+from app.core.ws_manager import manager as ws_manager
 from app.schemas.billing import ActivatePORequest, InvoiceCreate, POCreate, RateCardCreate, StatusUpdate
 from app.services import billing as billing_service
 from app.services import acc_rules
@@ -41,19 +42,24 @@ def get_po(po_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/pos", dependencies=[Depends(permission_required("billing", "write"))])
-def create_po(payload: POCreate, db: Session = Depends(get_db)):
-    return billing_service.create_po(db, payload)
+async def create_po(payload: POCreate, db: Session = Depends(get_db)):
+    result = billing_service.create_po(db, payload)
+    await ws_manager.broadcast({"type": "PO_CREATED"})
+    return result
 
 
 @router.patch("/pos/{po_id}/status", dependencies=[Depends(permission_required("billing", "write"))])
-def update_po_status(po_id: int, payload: StatusUpdate, db: Session = Depends(get_db)):
-    return billing_service.update_po_status(db, po_id, payload.status_id)
+async def update_po_status(po_id: int, payload: StatusUpdate, db: Session = Depends(get_db)):
+    result = billing_service.update_po_status(db, po_id, payload.status_id)
+    await ws_manager.broadcast({"type": "PO_UPDATED", "po_id": po_id})
+    return result
 
 
 @router.patch("/pos/{po_id}/activate", dependencies=[Depends(permission_required("billing", "write"))])
-def activate_po(po_id: int, payload: ActivatePORequest, db: Session = Depends(get_db)):
+async def activate_po(po_id: int, payload: ActivatePORequest, db: Session = Depends(get_db)):
     po = acc_rules.activate_bb_po(db, po_id, payload.valid_from, payload.valid_to)
     db.commit()
+    await ws_manager.broadcast({"type": "PO_UPDATED", "po_id": po_id})
     return {"id": po.id, "valid_from": po.valid_from, "valid_to": po.valid_to, "po_status_id": po.po_status_id}
 
 
@@ -63,10 +69,16 @@ def list_invoices(po_id: int | None = Query(default=None), db: Session = Depends
 
 
 @router.post("/invoices", dependencies=[Depends(permission_required("billing", "write"))])
-def create_invoice(payload: InvoiceCreate, db: Session = Depends(get_db)):
-    return billing_service.create_invoice(db, payload)
+async def create_invoice(payload: InvoiceCreate, db: Session = Depends(get_db)):
+    result = billing_service.create_invoice(db, payload)
+    po_id = result.get("po_id") if isinstance(result, dict) else getattr(result, "po_id", None)
+    await ws_manager.broadcast({"type": "INVOICE_CREATED", "po_id": po_id})
+    return result
 
 
 @router.patch("/invoices/{invoice_id}/status", dependencies=[Depends(permission_required("billing", "write"))])
-def update_invoice_status(invoice_id: int, payload: StatusUpdate, db: Session = Depends(get_db)):
-    return billing_service.update_invoice_status(db, invoice_id, payload.status_id)
+async def update_invoice_status(invoice_id: int, payload: StatusUpdate, db: Session = Depends(get_db)):
+    result = billing_service.update_invoice_status(db, invoice_id, payload.status_id)
+    po_id = result.get("po_id") if isinstance(result, dict) else getattr(result, "po_id", None)
+    await ws_manager.broadcast({"type": "INVOICE_UPDATED", "po_id": po_id})
+    return result

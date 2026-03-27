@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams } from "react-router-dom"
 
 import { useAuth } from "../../../../context/AuthContext"
 import { api } from "../../../../lib/api"
+import { subscribe } from "../../../../hooks/useWebSocket"
 import {
   draftValueForField,
   projectByKey,
@@ -125,6 +126,26 @@ export default function useSiteDetail() {
   useEffect(() => {
     void loadPage()
   }, [loadPage])
+
+  // WS subscription — refetch only when this specific site is updated
+  const lastRefetchRef = useRef(0)
+  const safeLoadPage = useCallback(() => {
+    const now = Date.now()
+    if (now - lastRefetchRef.current < 300) return
+    lastRefetchRef.current = now
+    void loadPage()
+  }, [loadPage])
+
+  useEffect(() => {
+    const numericSiteId = Number(siteId)
+    const unsub = subscribe("SITE_UPDATED", (e) => {
+      const ev = e as { site_id: number; project_key: string }
+      if (ev.site_id === numericSiteId && ev.project_key === projectKey) {
+        safeLoadPage()
+      }
+    })
+    return unsub
+  }, [siteId, projectKey, safeLoadPage])
 
   const badgeById = useMemo(() => new Map(badges.map((badge) => [badge.id, badge])), [badges])
   const stateById = useMemo(() => new Map(states.map((state) => [state.id, state])), [states])

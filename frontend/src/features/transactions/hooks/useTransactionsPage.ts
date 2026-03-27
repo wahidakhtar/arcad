@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { api } from "../../../lib/api"
+import { subscribe } from "../../../hooks/useWebSocket"
 
 export type TxRaw = {
   id: number
@@ -87,24 +88,30 @@ export default function useTransactionsPage() {
 
       const projectById = new Map(projects.map((project) => [project.id, project]))
       const badgeById = new Map(fetchedBadges.map((badge) => [badge.id, badge]))
-      const projectKeysNeeded = new Set<string>()
+      // Only show "requested" transactions — others disappear naturally after WS refetch
+      const requestedTransactions = transactions.filter((tx) => {
+        const badge = badgeById.get(tx.status_id)
+        return badge?.key === "requested"
+      })
 
-      for (const tx of transactions) {
+      // Deduplicate (projectKey, siteId) pairs → individual lookups instead of full list per project
+      const sitePairs = new Map<string, { projectKey: string; siteId: number }>()
+      for (const tx of requestedTransactions) {
         const project = projectById.get(tx.project_id)
-        if (project) {
-          projectKeysNeeded.add(project.key)
+        if (project && tx.site_id) {
+          const key = `${project.key}:${tx.site_id}`
+          if (!sitePairs.has(key)) sitePairs.set(key, { projectKey: project.key, siteId: tx.site_id })
         }
       }
 
       const siteMap = new Map<string, string>()
       await Promise.all(
-        [...projectKeysNeeded].map(async (projectKey) => {
+        [...sitePairs.entries()].map(async ([key, { projectKey, siteId }]) => {
           try {
-            const response = await api.get<SiteEntry[]>(`/sites/${projectKey}`)
-            const sites: SiteEntry[] = Array.isArray(response.data) ? response.data : []
-            for (const site of sites) {
-              siteMap.set(`${projectKey}:${site.id}`, site.ckt_id ?? String(site.id))
-            }
+            const response = await api.get<SiteEntry>(`/sites/lookup`, {
+              params: { project_key: projectKey, site_id: siteId },
+            })
+            siteMap.set(key, response.data.ckt_id ?? String(siteId))
           } catch {
             // fall back to raw site_id
           }
@@ -112,7 +119,7 @@ export default function useTransactionsPage() {
       )
 
       setRows(
-        transactions.map((tx) => {
+        requestedTransactions.map((tx) => {
           const project = projectById.get(tx.project_id)
           const cktKey = project && tx.site_id ? `${project.key}:${tx.site_id}` : ""
           const statusBadge = badgeById.get(tx.status_id)
@@ -144,6 +151,20 @@ export default function useTransactionsPage() {
   useEffect(() => {
     void loadData()
   }, [])
+
+  // WS subscriptions — refetch on any transaction change + ping sidebar counts
+  useEffect(() => {
+    function handleTxEvent() {
+      void loadData()
+      window.dispatchEvent(new Event("refresh-counts"))
+    }
+    const unsub1 = subscribe("TRANSACTION_CREATED", handleTxEvent)
+    const unsub2 = subscribe("TRANSACTION_UPDATED", handleTxEvent)
+    return () => {
+      unsub1()
+      unsub2()
+    }
+  }, [loadData])
 
   const badgeById = useMemo(() => new Map(allBadges.map((badge) => [badge.id, badge])), [allBadges])
 

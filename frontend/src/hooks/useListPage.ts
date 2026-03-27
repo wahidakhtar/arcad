@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { api } from "../lib/api"
 
@@ -53,9 +53,9 @@ export function useListPage<TData = Array<Record<string, unknown>>, TFilters ext
     setFilters((current) => ({ ...current, [key]: value }))
   }
 
-  function refetch() {
+  const refetch = useCallback(() => {
     setReloadToken((current) => current + 1)
-  }
+  }, [])
 
   return { data, loading, error, filters, setFilter, refetch }
 }
