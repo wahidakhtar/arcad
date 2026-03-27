@@ -1,5 +1,6 @@
 import axios from "axios"
 
+// Force frontend rebuild: align with paginated backend responses (f50d5fc)
 const baseURL = import.meta.env.VITE_API_URL || "https://arcad-production.up.railway.app/api/v1"
 
 export const api = axios.create({
