@@ -166,7 +166,7 @@ def sidebar_counts(db: Session, user: UserContext) -> dict[str, int]:
 
 
 def list_ui_fields(db: Session, user: UserContext, project_key: str) -> list[dict]:
-    ensure_permission(user, db, project_key=project_key, tag="field", action="read")
+    ensure_permission(user, db, project_key=project_key, tag="site", action="read")
     if project_key not in {"mi", "md", "ma", "mc", "bb"}:
         return []
     rows = db.execute(
@@ -189,7 +189,7 @@ def list_ui_fields(db: Session, user: UserContext, project_key: str) -> list[dic
 
 
 def list_badge_transitions(db: Session, user: UserContext, project_key: str) -> list[dict]:
-    ensure_permission(user, db, project_key=project_key, tag="field", action="read")
+    ensure_permission(user, db, project_key=project_key, tag="site", action="read")
     try:
         rows = db.execute(
             text(

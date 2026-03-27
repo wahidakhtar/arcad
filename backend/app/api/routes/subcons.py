@@ -21,6 +21,11 @@ def create_subcon(payload: SubconCreate, user: UserContext = Depends(permission_
     return subcon_service.create_subcon(db, user, payload)
 
 
+@router.get("/{subcon_id}", response_model=SubconOut)
+def get_subcon(subcon_id: int, user: UserContext = Depends(permission_required("subproject", "write")), db: Session = Depends(get_db)):
+    return subcon_service.get_subcon(db, user, subcon_id)
+
+
 @router.get("/{subcon_id}/projects", response_model=list[SubconProjectOut])
 def list_subcon_projects(subcon_id: int, user: UserContext = Depends(permission_required("subproject", "write")), db: Session = Depends(get_db)):
     return subcon_service.list_subcon_projects(db, user, subcon_id)

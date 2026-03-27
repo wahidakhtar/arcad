@@ -66,12 +66,16 @@ export default function SiteFEAssignmentSection({
   const [txSubmitting, setTxSubmitting] = useState(false)
 
   const reqTransitions = transitionOptions(transitions, "transaction_status", reqBadgeId ?? 0)
-  const selectedBucket = jobBuckets.find((bucket) => String(bucket.id) === assignmentForm.bucket_id) ?? null
+  const selectedBucket = jobBuckets.length === 1
+    ? jobBuckets[0]
+    : (jobBuckets.find((bucket) => String(bucket.id) === assignmentForm.bucket_id) ?? null)
   const alreadyAssigned = !!selectedBucket && currentSite.subcon_rows.some((row) => row.active && row.bucket_key === selectedBucket.key)
 
   async function assignSubcon() {
-    if (!assignmentForm.bucket_id || !assignmentForm.subcon_id) return
-    const payload = { bucket_id: Number(assignmentForm.bucket_id), subcon_id: Number(assignmentForm.subcon_id) }
+    if (!assignmentForm.subcon_id) return
+    const bucketId = assignmentForm.bucket_id ? Number(assignmentForm.bucket_id) : (jobBuckets.length === 1 ? jobBuckets[0].id : null)
+    if (!bucketId && jobBuckets.length > 1) return
+    const payload = { bucket_id: bucketId, subcon_id: Number(assignmentForm.subcon_id) }
     const endpoint = `/sites/${projectKey}/${currentSite.id}/assignments`
     setAssigning(true)
     setAssignErr("")
@@ -138,7 +142,7 @@ export default function SiteFEAssignmentSection({
         <Button
           type="button"
           onClick={() => {
-            setAssignmentForm({ bucket_id: "", subcon_id: "" })
+            setAssignmentForm({ bucket_id: jobBuckets.length === 1 ? String(jobBuckets[0].id) : "", subcon_id: "" })
             setAssignErr("")
             setAssignModal(true)
           }}
@@ -205,7 +209,7 @@ export default function SiteFEAssignmentSection({
           <Button
             type="button"
             className="w-full"
-            disabled={assigning || alreadyAssigned || !assignmentForm.bucket_id || !assignmentForm.subcon_id}
+            disabled={assigning || alreadyAssigned || (jobBuckets.length > 1 && !assignmentForm.bucket_id) || !assignmentForm.subcon_id}
             onClick={() => void assignSubcon()}
           >
             {assigning ? "Assigning..." : "Assign Subcon"}

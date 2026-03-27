@@ -324,7 +324,7 @@ export default function UserDetailPage() {
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Assigned Roles</p>
             {canWriteAssignRole && availableDepts.length > 0 ? (
-              <Button type="button" variant="secondary" size="sm" className="py-1 px-3" onClick={openAssignRole}>
+              <Button type="button" variant="primary" size="sm" className="py-1 px-3" onClick={openAssignRole}>
                 Assign Role
               </Button>
             ) : null}
@@ -344,6 +344,7 @@ export default function UserDetailPage() {
                   <Button
                     type="button"
                     variant="secondary"
+                    size="sm"
                     onClick={() => { void api.delete(`/users/${user.id}/roles/${role.id}`).then(() => reloadUser()) }}
                   >
                     Remove

@@ -322,10 +322,6 @@ def _validate_bucket_for_project(db: Session, project_id: int, bucket_id: Option
     if bucket is None:
         logger.warning("subcon assignment validation failed: bucket not found", extra={"project_id": project_id, "bucket_id": bucket_id})
         raise HTTPException(status_code=404, detail="Bucket not found")
-    print("ASSIGN DEBUG", "project_id=", project_id, "bucket.project_id=", getattr(bucket, "project_id", None))
-    if getattr(bucket, "project_id", None) != project_id:
-        logger.warning("subcon assignment validation failed: bucket outside project", extra={"project_id": project_id, "bucket_id": bucket_id, "bucket_project_id": getattr(bucket, "project_id", None)})
-        raise HTTPException(status_code=400, detail="Bucket does not belong to this project")
     return bucket
 
 

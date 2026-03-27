@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import date
 
 from fastapi import HTTPException
@@ -10,6 +11,8 @@ from app.api.auth import UserContext, user_project_ids
 from app.models.core import Project
 from app.models.ops import Ticket
 from app.services.common import badge_map, get_site_model
+
+logger = logging.getLogger("arcad.tickets")
 
 
 def _apply_ticket_site_rules(db: Session, ticket: Ticket, closing: bool) -> None:
@@ -91,11 +94,16 @@ def get_ticket(db: Session, ticket_id: int) -> Ticket:
 
 
 def create_ticket(db: Session, data: dict) -> Ticket:
+    if not data.get("project_id") or not data.get("site_id") or not data.get("ticket_date"):
+        raise HTTPException(status_code=400, detail="project_id, site_id, and ticket_date are required")
     ticket = Ticket(**data)
     db.add(ticket)
     db.commit()
     db.refresh(ticket)
-    _apply_ticket_site_rules(db, ticket, closing=False)
+    try:
+        _apply_ticket_site_rules(db, ticket, closing=False)
+    except Exception:
+        logger.exception("ticket_site_rules failed for ticket_id=%s", ticket.id)
     return ticket
 
 

@@ -37,6 +37,14 @@ def _serialize_subcon(db: Session, subcon: Subcon) -> dict:
     }
 
 
+def get_subcon(db: Session, user: UserContext, subcon_id: int) -> dict:
+    ensure_permission(user, db, project_key=None, tag="subproject", action="write")
+    subcon = db.get(Subcon, subcon_id)
+    if subcon is None:
+        raise HTTPException(status_code=404, detail="Subcon not found")
+    return _serialize_subcon(db, subcon)
+
+
 def list_subcons(db: Session, user: UserContext) -> list[dict]:
     ensure_permission(user, db, project_key=None, tag="subproject", action="write")
     rows = db.execute(select(Subcon).order_by(Subcon.name.asc(), Subcon.id.asc())).scalars().all()

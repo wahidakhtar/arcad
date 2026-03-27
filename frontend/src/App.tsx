@@ -24,6 +24,7 @@ import TicketDetailPage from "./features/tickets/TicketDetailPage"
 import UpdatesPage from "./features/updates/UpdatesPage"
 import AdminPage from "./features/admin/AdminPage"
 import SubconsPage from "./features/subcons/SubconsPage"
+import SubconDetailPage from "./features/subcons/SubconDetailPage"
 
 function PublicOnly({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -142,6 +143,7 @@ export default function App() {
         <Route path="/updates/:siteId" element={<UpdatesPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/subcons" element={<SubconsPage />} />
+        <Route path="/subcons/:subconId" element={<SubconDetailPage />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Route>
 

@@ -50,13 +50,6 @@ export type ProjectRow = {
   label: string
 }
 
-export type UserRow = {
-  id: number
-  label: string
-  username: string
-  roles: Array<{ dept_key: string; project_id: number | null }>
-}
-
 export type JobBucket = {
   id: number
   key: string
