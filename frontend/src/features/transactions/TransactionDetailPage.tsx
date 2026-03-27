@@ -148,7 +148,7 @@ export default function TransactionDetailPage() {
           ) : null}
           <div className="mt-5 flex flex-wrap gap-3">
             {canTransactionWrite && availableTransitions.map((t) => {
-              const _toBadge = badgeById.get(t.to_id)
+
               const label = t.to_key === "exct"
                 ? txStatusLabel(typeBadge?.key ?? "", "exct", t.to_label)
                 : t.to_label
