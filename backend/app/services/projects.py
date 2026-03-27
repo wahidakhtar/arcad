@@ -170,19 +170,23 @@ def list_ui_fields(db: Session, user: UserContext, project_key: str) -> list[dic
     if project_key not in {"mi", "md", "ma", "mc", "bb"}:
         return []
     rows = db.execute(
-        text(f"SELECT id, label, tag, list_view, type, form_view, bulk_view, section, perm_tag FROM schema_{project_key}.ui_fields ORDER BY id")
+        text(
+            f"SELECT uf.id, uf.key, uf.label, uf.list_view, uf.type, uf.form_view, uf.bulk_view, t.tag "
+            f"FROM schema_{project_key}.ui_fields uf "
+            f"JOIN schema_core.tags t ON t.id = uf.tag_id "
+            f"ORDER BY uf.id"
+        )
     ).mappings().all()
     return [
         {
             "id": row["id"],
-            "key": row["tag"],
+            "key": row["key"],
             "label": row["label"],
             "list_view": row["list_view"],
             "type": row["type"],
             "form_view": row["form_view"],
             "bulk_view": row["bulk_view"],
-            "section": row["section"],
-            "perm_tag": row["perm_tag"],
+            "tag": row["tag"],
         }
         for row in rows
     ]

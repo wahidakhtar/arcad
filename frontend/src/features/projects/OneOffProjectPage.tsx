@@ -17,7 +17,7 @@ export default function OneOffProjectPage() {
   }, [projectKey])
 
   return (
-    <div className="space-y-6">
+    <div className="h-full overflow-y-auto space-y-6">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.26em] text-jscolors-text/40">{projectKey}</p>
         <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">{label || projectKey}</h1>

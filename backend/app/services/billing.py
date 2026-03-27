@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.acc import Invoice, PO, RateCard
 from app.models.core import Badge, Job, Project
+from app.models.updates import Update
 from app.schemas.billing import InvoiceCreate, POCreate, RateCardCreate
 
 
@@ -189,3 +190,31 @@ def update_invoice_status(db: Session, invoice_id: int, status_id: int) -> Invoi
     db.commit()
     db.refresh(row)
     return row
+
+
+def list_po_updates(db: Session, po_id: int) -> list[dict]:
+    rows = db.execute(select(Update).where(Update.po_id == po_id).order_by(Update.date.desc())).scalars().all()
+    return [
+        {
+            "id": r.id,
+            "date": r.date,
+            "update": r.update,
+            "followup_date": r.followup_date,
+        }
+        for r in rows
+    ]
+
+
+def create_po_update(db: Session, po_id: int, data: dict) -> dict:
+    row = Update(
+        po_id=po_id,
+        project_id=data["project_id"],
+        date=data["date"],
+        update=data["update"],
+        followup_date=data.get("followup_date"),
+        update_type="finance",
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {"id": row.id, "date": row.date, "update": row.update, "followup_date": row.followup_date}

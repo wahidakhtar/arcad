@@ -23,7 +23,7 @@ export default function DetailPageLayout({
   const isPrimitiveSubtitle = typeof subtitle === "string" || typeof subtitle === "number"
 
   return (
-    <div className="space-y-6">
+    <div className="h-full overflow-y-auto space-y-6">
       {backHref ? (
         <div>
           <Link to={backHref}>

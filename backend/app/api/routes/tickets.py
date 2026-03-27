@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.auth import UserContext, permission_required
@@ -12,8 +12,13 @@ router = APIRouter(prefix="/tickets", tags=["tickets"])
 
 
 @router.get("")
-def list_tickets(user: UserContext = Depends(permission_required("ticket", "read")), db: Session = Depends(get_db)):
-    return ticket_service.list_all_tickets(db, user)
+def list_tickets(
+    user: UserContext = Depends(permission_required("ticket", "read")),
+    db: Session = Depends(get_db),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=500),
+):
+    return ticket_service.list_all_tickets(db, user, page=page, page_size=page_size)
 
 
 @router.get("/{ticket_id}", dependencies=[Depends(permission_required("ticket", "read"))])

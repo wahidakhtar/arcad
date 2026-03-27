@@ -58,10 +58,41 @@ def _is_ops_l1_only(user: UserContext) -> bool:
     )
 
 
-def list_transactions(db: Session, user: UserContext) -> list[dict]:
+def get_transaction(db: Session, user: UserContext, transaction_id: int) -> dict | None:
+    if _is_ops_l1_only(user):
+        return None
+
+    conditions = ["t.id = :tx_id"]
+    params: dict = {"tx_id": transaction_id}
+
+    if user.is_fo:
+        conditions.append("t.recipient_id = :user_id")
+        params["user_id"] = user.user_id
+    else:
+        project_ids = user_project_ids(user)
+        if project_ids is not None:
+            conditions.append("t.project_id = ANY(:project_ids)")
+            params["project_ids"] = project_ids
+
+    where_clause = " AND ".join(conditions)
+    row = db.execute(
+        text(f"""
+            SELECT t.id, t.request_date, t.recipient_id, t.type_id, t.project_id,
+                   t.site_id, t.bucket_key, t.amount, t.status_id, t.execution_date,
+                   t.remarks, t.version, u.label AS recipient_label
+            FROM schema_acc.transactions t
+            LEFT JOIN schema_hr.users u ON u.id = t.recipient_id
+            WHERE {where_clause}
+        """),
+        params,
+    ).mappings().one_or_none()
+    return dict(row) if row else None
+
+
+def list_transactions(db: Session, user: UserContext, page: int = 1, page_size: int = 50) -> dict:
     # ops l1 users see no transactions at all
     if _is_ops_l1_only(user):
-        return []
+        return {"items": [], "total": 0, "page": 1, "page_size": page_size, "pages": 1}
 
     conditions = ["1=1"]
     params: dict = {}
@@ -76,6 +107,16 @@ def list_transactions(db: Session, user: UserContext) -> list[dict]:
             params["project_ids"] = project_ids
 
     where_clause = " AND ".join(conditions)
+    count_row = db.execute(
+        text(f"SELECT COUNT(*) FROM schema_acc.transactions t WHERE {where_clause}"),
+        params,
+    ).scalar_one()
+    total = int(count_row)
+    page_size = max(1, page_size)
+    pages = max(1, (total + page_size - 1) // page_size)
+    page = max(1, min(page, pages))
+    offset = (page - 1) * page_size
+    params_paged = {**params, "limit": page_size, "offset": offset}
     rows = db.execute(
         text(f"""
             SELECT t.id, t.request_date, t.recipient_id, t.type_id, t.project_id,
@@ -85,10 +126,11 @@ def list_transactions(db: Session, user: UserContext) -> list[dict]:
             LEFT JOIN schema_hr.users u ON u.id = t.recipient_id
             WHERE {where_clause}
             ORDER BY t.request_date DESC
+            LIMIT :limit OFFSET :offset
         """),
-        params,
+        params_paged,
     ).mappings().all()
-    return [dict(row) for row in rows]
+    return {"items": [dict(r) for r in rows], "total": total, "page": page, "page_size": page_size, "pages": pages}
 
 
 def create_transaction(db: Session, payload: TransactionCreate) -> Transaction:

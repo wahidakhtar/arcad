@@ -4,7 +4,7 @@ export type Tab = (typeof TABS)[number]
 export const PROJECTS = ["mi", "md", "ma", "mc"] as const
 export type ProjectKey = (typeof PROJECTS)[number]
 
-export const PERM_TAG_OPTIONS = ["", "billing", "doc_badge", "site:write"]
+export const TAG_OPTIONS = ["", "site", "billing", "doc_badge", "site:write"]
 export const SCALE_BY_OPTIONS = ["height", "height_if_true", "numeric", "visit_date", "unit"]
 
 export const tableWrapCls = "overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white"

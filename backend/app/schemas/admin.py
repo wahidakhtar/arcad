@@ -21,8 +21,7 @@ class UIFieldUpdate(BaseModel):
     list_view: Optional[bool] = None
     form_view: Optional[bool] = None
     bulk_view: Optional[bool] = None
-    section: Optional[str] = None
-    perm_tag: Optional[str] = None
+    tag: Optional[str] = None
 
 
 class UIFieldReorder(BaseModel):

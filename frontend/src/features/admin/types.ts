@@ -21,14 +21,13 @@ export type BadgeTransitionsResponse = {
 }
 export type UIField = {
   id: number
-  tag: string
+  key: string
   label: string
   type: string
   list_view: boolean
   form_view: boolean
   bulk_view: boolean
-  section: string
-  perm_tag: string | null
+  tag: string
   order: number | null
 }
 export type UIFieldsResponse = Record<string, UIField[]>

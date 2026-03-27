@@ -4,7 +4,7 @@ import Button from "../../../components/ui/Button"
 import Modal from "../../../components/ui/Modal"
 import { useAuth } from "../../../context/AuthContext"
 import { api } from "../../../lib/api"
-import { PERM_TAG_OPTIONS, fieldCls, labelCls, tableCls, tableWrapCls, tbodyRowCls, tdCls, thCls, theadRowCls } from "../constants"
+import { TAG_OPTIONS, fieldCls, labelCls, tableCls, tableWrapCls, tbodyRowCls, tdCls, thCls, theadRowCls } from "../constants"
 import type { UIField, UIFieldsResponse } from "../types"
 
 export default function UiFieldsPanel() {
@@ -35,8 +35,7 @@ export default function UiFieldsPanel() {
       list_view: field.list_view,
       form_view: field.form_view,
       bulk_view: field.bulk_view,
-      section: field.section,
-      perm_tag: field.perm_tag,
+      tag: field.tag,
     })
     setModalError("")
   }
@@ -52,8 +51,7 @@ export default function UiFieldsPanel() {
         list_view: editDraft.list_view,
         form_view: editDraft.form_view,
         bulk_view: editDraft.bulk_view,
-        section: editDraft.section,
-        perm_tag: editDraft.perm_tag ?? null,
+        tag: editDraft.tag,
       })
       .then(() => {
         setFields((prev) => ({
@@ -105,17 +103,13 @@ export default function UiFieldsPanel() {
             <input type="text" value={String(editDraft.label ?? "")} onChange={(e) => setEditDraft((draft) => ({ ...draft, label: e.target.value }))} className={fieldCls} />
           </div>
           <div>
-            <label className={labelCls}>Section</label>
-            <input type="text" value={String(editDraft.section ?? "")} onChange={(e) => setEditDraft((draft) => ({ ...draft, section: e.target.value }))} className={fieldCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Perm Tag</label>
+            <label className={labelCls}>Tag</label>
             <select
-              value={editDraft.perm_tag ?? ""}
-              onChange={(e) => setEditDraft((draft) => ({ ...draft, perm_tag: e.target.value === "" ? null : e.target.value }))}
+              value={editDraft.tag ?? ""}
+              onChange={(e) => setEditDraft((draft) => ({ ...draft, tag: e.target.value === "" ? "" : e.target.value }))}
               className={fieldCls}
             >
-              {PERM_TAG_OPTIONS.map((option) => (
+              {TAG_OPTIONS.map((option) => (
                 <option key={option} value={option}>{option === "" ? "—" : option}</option>
               ))}
             </select>
@@ -147,8 +141,7 @@ export default function UiFieldsPanel() {
                   <th className={thCls}>List</th>
                   <th className={thCls}>Form</th>
                   <th className={thCls}>Bulk</th>
-                  <th className={thCls}>Section</th>
-                  <th className={thCls}>Perm Tag</th>
+                  <th className={thCls}>Tag</th>
                   {canWrite ? <th className={thCls}></th> : null}
                 </tr>
               </thead>
@@ -177,8 +170,7 @@ export default function UiFieldsPanel() {
                     <td className={tdCls}>{field.list_view ? "✓" : "—"}</td>
                     <td className={tdCls}>{field.form_view ? "✓" : "—"}</td>
                     <td className={tdCls}>{field.bulk_view ? "✓" : "—"}</td>
-                    <td className={tdCls}>{field.section || "—"}</td>
-                    <td className={tdCls}>{field.perm_tag ?? "—"}</td>
+                    <td className={tdCls}>{field.tag || "—"}</td>
                     {canWrite ? (
                       <td className={tdCls}>
                         <Button variant="ghost" size="sm" className="py-1.5" onClick={() => openEdit(project, field)}>
@@ -190,7 +182,7 @@ export default function UiFieldsPanel() {
                 ))}
                 {(fields[project] ?? []).length === 0 ? (
                   <tr>
-                    <td colSpan={canWrite ? 8 : 7} className="px-5 py-4 text-center text-sm text-jscolors-text/50">
+                    <td colSpan={canWrite ? 7 : 6} className="px-5 py-4 text-center text-sm text-jscolors-text/50">
                       No fields for {project.toUpperCase()}.
                     </td>
                   </tr>

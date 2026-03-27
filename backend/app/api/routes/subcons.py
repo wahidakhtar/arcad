@@ -12,7 +12,7 @@ router = APIRouter(prefix="/subcons", tags=["subcons"])
 
 
 @router.get("", response_model=list[SubconOut])
-def list_subcons(user: UserContext = Depends(permission_required("subproject", "write")), db: Session = Depends(get_db)):
+def list_subcons(user: UserContext = Depends(permission_required("subproject", "read")), db: Session = Depends(get_db)):
     return subcon_service.list_subcons(db, user)
 
 
@@ -22,12 +22,12 @@ def create_subcon(payload: SubconCreate, user: UserContext = Depends(permission_
 
 
 @router.get("/{subcon_id}", response_model=SubconOut)
-def get_subcon(subcon_id: int, user: UserContext = Depends(permission_required("subproject", "write")), db: Session = Depends(get_db)):
+def get_subcon(subcon_id: int, user: UserContext = Depends(permission_required("subproject", "read")), db: Session = Depends(get_db)):
     return subcon_service.get_subcon(db, user, subcon_id)
 
 
 @router.get("/{subcon_id}/projects", response_model=list[SubconProjectOut])
-def list_subcon_projects(subcon_id: int, user: UserContext = Depends(permission_required("subproject", "write")), db: Session = Depends(get_db)):
+def list_subcon_projects(subcon_id: int, user: UserContext = Depends(permission_required("subproject", "read")), db: Session = Depends(get_db)):
     return subcon_service.list_subcon_projects(db, user, subcon_id)
 
 

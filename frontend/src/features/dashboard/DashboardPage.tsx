@@ -80,7 +80,7 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="h-full overflow-y-auto space-y-6">
       <section className="glass-panel p-5">
         <FilterBar
           filters={filterConfig}

@@ -13,11 +13,11 @@ export type SiteDetail = {
 export type UIField = {
   key: string
   label: string
+  tag?: string
   id?: number
   list_view?: boolean
   type?: string
   options?: Array<{ label: string; value: string | number }>
-  perm_tag?: string | null
 }
 
 export type Badge = {

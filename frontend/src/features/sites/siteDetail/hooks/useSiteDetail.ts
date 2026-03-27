@@ -87,13 +87,13 @@ export default function useSiteDetail() {
       const nextProjects = projectsResponse.data as ProjectRow[]
       const project = projectByKey(nextProjects, projectKey)
       const nextUiFields = (
-        uiFieldsResponse.data as Array<{ key: string; label: string; type?: string; list_view?: boolean; perm_tag?: string | null }>
+        uiFieldsResponse.data as Array<{ key: string; label: string; type?: string; list_view?: boolean; tag?: string }>
       ).map((field) => ({
         key: field.key,
         label: field.label,
         type: field.type,
         list_view: field.list_view,
-        perm_tag: field.perm_tag,
+        tag: field.tag,
       }))
 
       setSite(siteResponse.data as SiteDetail)
@@ -150,7 +150,7 @@ export default function useSiteDetail() {
   const badgeById = useMemo(() => new Map(badges.map((badge) => [badge.id, badge])), [badges])
   const stateById = useMemo(() => new Map(states.map((state) => [state.id, state])), [states])
   const project = useMemo(() => projectByKey(projects, projectKey), [projectKey, projects])
-  const visibleFields = useMemo(() => uiFields.filter((field) => canPermTag(field.perm_tag)), [uiFields, canPermTag])
+  const visibleFields = useMemo(() => uiFields.filter((field) => canPermTag(field.tag)), [uiFields, canPermTag])
   const badgeFields = useMemo(() => visibleFields.filter((field) => field.type === "badge"), [visibleFields])
   const regularFields = useMemo(() => visibleFields.filter((field) => field.type !== "badge"), [visibleFields])
 

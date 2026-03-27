@@ -29,7 +29,7 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
   return (
     <div className="w-full overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
       <div className="grid min-w-full grid-cols-1" style={minTableWidth ? { minWidth: minTableWidth } : undefined}>
-        <div className="grid gap-4 border-b border-jscolors-crimson/10 bg-jscolors-crimson/[0.03] px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50" style={{ gridTemplateColumns }}>
+        <div className="sticky top-0 z-10 grid gap-4 border-b border-jscolors-crimson/10 bg-jscolors-crimson/[0.03] px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50" style={{ gridTemplateColumns }}>
           {columns.map((column) => (
             <div key={column.key} className={column.align === "right" ? "text-right" : ""} style={column.minWidth ? { minWidth: column.minWidth } : undefined}>{column.label}</div>
           ))}

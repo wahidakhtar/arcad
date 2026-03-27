@@ -3,6 +3,7 @@ import FieldRenderer from "../../../components/ui/FieldRenderer"
 import InvoiceTable from "./components/InvoiceTable"
 import PoHeader from "./components/PoHeader"
 import PoInfoSection from "./components/PoInfoSection"
+import PoUpdatesSection from "./components/PoUpdatesSection"
 import usePoDetail from "./hooks/usePoDetail"
 
 export default function PoDetailPage() {
@@ -28,6 +29,7 @@ export default function PoDetailPage() {
         <PoInfoSection po={po} />
         <InvoiceTable invoices={invoices} />
       </div>
+      <PoUpdatesSection poId={po.id} />
     </DetailPageLayout>
   )
 }

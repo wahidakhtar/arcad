@@ -44,16 +44,11 @@ BADGE_TYPE_BY_FIELD = {
     "po_status": "doc_status",
     "invoice_status": "doc_status",
     "wcc_status": "doc_status",
-    "doc_status": "doc_status",
-    "fsr_status": "doc_status",
-    "report_status": "doc_status",
 }
 
 TRANSITION_TYPE_BY_FIELD = {
     "status": "site",
     "wcc_status": "wcc",
-    "fsr_status": "fsr",
-    "report_status": "report",
     "invoice_status": "invoice",
 }
 
@@ -253,22 +248,38 @@ def _serialize_subcon_rows(db: Session, rows: list[dict[str, Any]]) -> list[dict
     ]
 
 
-def list_sites(db: Session, user: UserContext, project_key: str, exclude_staged: bool = False, subproject_id: Optional[int] = None) -> list[dict]:
-    project = get_project(db, project_key)
+def list_sites(
+    db: Session,
+    user: UserContext,
+    project_key: str,
+    exclude_staged: bool = False,
+    subproject_id: Optional[int] = None,
+    page: int = 1,
+    page_size: int = 50,
+    search: Optional[str] = None,
+) -> dict:
+    get_project(db, project_key)
     ensure_permission(user, db, project_key=project_key, tag="site", action="read")
     model = get_site_model(project_key)
     query = select(model).order_by(model.receiving_date.desc())
     if subproject_id is not None:
         query = query.where(model.subproject_id == subproject_id)
+    if search:
+        query = query.where(model.ckt_id.ilike(f"%{search}%"))
     rows = db.execute(query).scalars().all()
     badges = badge_map(db)
     stage_badge_id = next((bid for bid, b in badges.items() if b.key == "stage"), None)
-    items = []
+    all_items = []
     for row in rows:
         if exclude_staged and stage_badge_id is not None and row.status_id == stage_badge_id:
             continue
-        items.append({"id": row.id, "ckt_id": row.ckt_id, "status_key": badges[row.status_id].key, "receiving_date": row.receiving_date, "active_fe": getattr(row, "active_fe", None)})
-    return items
+        all_items.append({"id": row.id, "ckt_id": row.ckt_id, "status_key": badges[row.status_id].key, "receiving_date": row.receiving_date, "active_fe": getattr(row, "active_fe", None)})
+    total = len(all_items)
+    page_size = max(1, page_size)
+    pages = max(1, (total + page_size - 1) // page_size)
+    page = max(1, min(page, pages))
+    offset = (page - 1) * page_size
+    return {"items": all_items[offset: offset + page_size], "total": total, "page": page, "page_size": page_size, "pages": pages}
 
 
 def create_site(db: Session, user: UserContext, project_key: str, subproject_id: int, data: dict) -> dict:

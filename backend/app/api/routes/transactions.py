@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.auth import UserContext, get_current_user, permission_required
@@ -18,8 +18,26 @@ def list_transitions(db: Session = Depends(get_db)):
 
 
 @router.get("")
-def list_transactions(user: UserContext = Depends(permission_required("transaction", "read")), db: Session = Depends(get_db)):
-    return transaction_service.list_transactions(db, user)
+def list_transactions(
+    user: UserContext = Depends(permission_required("transaction", "read")),
+    db: Session = Depends(get_db),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=500),
+):
+    return transaction_service.list_transactions(db, user, page=page, page_size=page_size)
+
+
+@router.get("/{transaction_id}")
+def get_transaction(
+    transaction_id: int,
+    user: UserContext = Depends(permission_required("transaction", "read")),
+    db: Session = Depends(get_db),
+):
+    tx = transaction_service.get_transaction(db, user, transaction_id)
+    if tx is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return tx
 
 
 @router.post("", dependencies=[Depends(permission_required("request", "write"))])

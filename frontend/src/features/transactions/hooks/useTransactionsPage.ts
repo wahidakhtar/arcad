@@ -8,7 +8,7 @@ export type TxRaw = {
   project_id: number
   site_id: number | null
   recipient_id: number | null
-  recipient_label: string | null
+  recipient_label?: string | null
   bucket_key: string | null
   type_id: number
   amount: number | string
@@ -62,41 +62,35 @@ export type TxRow = {
 export default function useTransactionsPage() {
   const [rows, setRows] = useState<TxRow[]>([])
   const [allBadges, setAllBadges] = useState<BadgeEntry[]>([])
-  const [transitions, setTransitions] = useState<TransitionEntry[]>([])
-  const [cancelBadgeId, setCancelBadgeId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<{ page: number; pages: number; total: number; pageSize: number } | null>(null)
 
-  const loadData = useCallback(async function loadData() {
+  const loadData = useCallback(async function loadData(requestedPage = 1) {
     try {
       const [txResponse, projectsResponse, badgesResponse] = await Promise.all([
-        api.get<TxRaw[]>("/transactions"),
+        api.get<{ items: TxRaw[]; total: number; page: number; page_size: number; pages: number }>("/transactions", {
+          params: { page: requestedPage, page_size: 50 },
+        }),
         api.get<ProjectEntry[]>("/projects"),
         api.get<BadgeEntry[]>("/badges"),
       ])
 
-      const transactions: TxRaw[] = txResponse.data ?? []
+      const { items: allTxs, total, page: responsePage, page_size, pages } = txResponse.data
+      setPagination({ page: responsePage, pages, total, pageSize: page_size })
+      const transactions: TxRaw[] = allTxs ?? []
       const projects: ProjectEntry[] = Array.isArray(projectsResponse.data) ? projectsResponse.data : []
       const fetchedBadges: BadgeEntry[] = Array.isArray(badgesResponse.data) ? badgesResponse.data : []
 
-      api.get<TransitionEntry[]>("/transactions/transitions").then((response) => {
-        setTransitions(Array.isArray(response.data) ? response.data : [])
-      }).catch(() => {})
-
       setAllBadges(fetchedBadges)
-      setCancelBadgeId(fetchedBadges.find((badge) => badge.key === "cancel")?.id ?? null)
 
       const projectById = new Map(projects.map((project) => [project.id, project]))
       const badgeById = new Map(fetchedBadges.map((badge) => [badge.id, badge]))
-      // Only show "requested" transactions — others disappear naturally after WS refetch
-      const requestedTransactions = transactions.filter((tx) => {
-        const badge = badgeById.get(tx.status_id)
-        return badge?.key === "requested"
-      })
 
       // Deduplicate (projectKey, siteId) pairs → individual lookups instead of full list per project
       const sitePairs = new Map<string, { projectKey: string; siteId: number }>()
-      for (const tx of requestedTransactions) {
+      for (const tx of transactions) {
         const project = projectById.get(tx.project_id)
         if (project && tx.site_id) {
           const key = `${project.key}:${tx.site_id}`
@@ -119,7 +113,7 @@ export default function useTransactionsPage() {
       )
 
       setRows(
-        requestedTransactions.map((tx) => {
+        transactions.map((tx) => {
           const project = projectById.get(tx.project_id)
           const cktKey = project && tx.site_id ? `${project.key}:${tx.site_id}` : ""
           const statusBadge = badgeById.get(tx.status_id)
@@ -149,13 +143,13 @@ export default function useTransactionsPage() {
   }, [])
 
   useEffect(() => {
-    void loadData()
-  }, [])
+    void loadData(page)
+  }, [loadData, page])
 
   // WS subscriptions — refetch on any transaction change + ping sidebar counts
   useEffect(() => {
     function handleTxEvent() {
-      void loadData()
+      void loadData(page)
       window.dispatchEvent(new Event("refresh-counts"))
     }
     const unsub1 = subscribe("TRANSACTION_CREATED", handleTxEvent)
@@ -172,10 +166,11 @@ export default function useTransactionsPage() {
     rows,
     allBadges,
     badgeById,
-    transitions,
-    cancelBadgeId,
     loading,
     error,
     loadData,
+    page,
+    setPage,
+    pagination,
   }
 }

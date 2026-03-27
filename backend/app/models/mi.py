@@ -52,7 +52,7 @@ class MIUIField(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     label: Mapped[str] = mapped_column(String(255), nullable=False)
-    tag: Mapped[str] = mapped_column(String(64), nullable=False)
+    key: Mapped[str] = mapped_column(String(64), nullable=False)
     list_view: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     type: Mapped[str] = mapped_column(String(64), nullable=False)
 

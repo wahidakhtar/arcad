@@ -36,24 +36,28 @@ export default function useTicketsPage() {
   const [rows, setRows] = useState<TicketRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<{ page: number; pages: number; total: number; pageSize: number } | null>(null)
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (requestedPage = 1) => {
     setLoading(true)
     setError("")
     try {
       const [ticketsResponse, projectsResponse] = await Promise.all([
-        api.get<TicketRaw[]>("/tickets"),
+        api.get<{ items: TicketRaw[]; total: number; page: number; page_size: number; pages: number }>("/tickets", {
+          params: { page: requestedPage, page_size: 50 },
+        }),
         api.get<ProjectEntry[]>("/projects"),
       ])
 
-      const tickets: TicketRaw[] = ticketsResponse.data ?? []
+      const { items: allTickets, total, page: responsePage, page_size, pages } = ticketsResponse.data
+      setPagination({ page: responsePage, pages, total, pageSize: page_size })
+      const tickets: TicketRaw[] = allTickets ?? []
       const projects: ProjectEntry[] = Array.isArray(projectsResponse.data) ? projectsResponse.data : []
       const projectById = new Map(projects.map((p) => [p.id, p]))
 
-      // Only show open tickets — closed ones disappear naturally after WS-triggered refetch
       const openTickets = tickets.filter((t) => !t.closing_date)
 
-      // Deduplicate (projectKey, siteId) pairs → individual lookups instead of full list per project
       const pairs = new Map<string, { projectKey: string; siteId: number }>()
       for (const ticket of openTickets) {
         const proj = projectById.get(ticket.project_id)
@@ -100,8 +104,8 @@ export default function useTicketsPage() {
   }, [])
 
   useEffect(() => {
-    void loadData()
-  }, [loadData])
+    void loadData(page)
+  }, [loadData, page])
 
   // Dedup guard
   const lastRefetchRef = useRef(0)
@@ -109,8 +113,8 @@ export default function useTicketsPage() {
     const now = Date.now()
     if (now - lastRefetchRef.current < 300) return
     lastRefetchRef.current = now
-    void loadData()
-  }, [loadData])
+    void loadData(page)
+  }, [loadData, page])
 
   // WS subscriptions
   useEffect(() => {
@@ -128,5 +132,5 @@ export default function useTicketsPage() {
     }
   }, [safeLoad])
 
-  return { rows, loading, error, loadData }
+  return { rows, loading, error, loadData, page, setPage, pagination }
 }

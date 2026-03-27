@@ -1,10 +1,11 @@
 import DataTable from "../../components/ui/DataTable"
+import ListPageLayout from "../../components/layout/ListPageLayout"
 import useTicketsPage from "./hooks/useTicketsPage"
 
 export default function TicketsPage() {
-  const { rows, loading, error } = useTicketsPage()
+  const { rows, loading, error, page, setPage, pagination } = useTicketsPage()
 
-  if (loading) {
+  if (loading && rows.length === 0) {
     return <div className="p-6 text-jscolors-text/50">Loading tickets...</div>
   }
 
@@ -13,7 +14,7 @@ export default function TicketsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <ListPageLayout pagination={pagination} onPageChange={setPage}>
       <DataTable
         columns={[
           { key: "ticket_ref", label: "Ticket Number" },
@@ -33,6 +34,6 @@ export default function TicketsPage() {
         rows={rows}
         rowHref={(row) => `/tickets/${(row as unknown as { id: number }).id}`}
       />
-    </div>
+    </ListPageLayout>
   )
 }

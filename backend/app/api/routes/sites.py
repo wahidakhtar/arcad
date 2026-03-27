@@ -49,8 +49,11 @@ def list_sites(
     db: Session = Depends(get_db),
     exclude_staged: bool = Query(default=False),
     subproject_id: Optional[int] = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=500),
+    search: Optional[str] = Query(default=None),
 ):
-    return site_service.list_sites(db, user, project_key, exclude_staged=exclude_staged, subproject_id=subproject_id)
+    return site_service.list_sites(db, user, project_key, exclude_staged=exclude_staged, subproject_id=subproject_id, page=page, page_size=page_size, search=search)
 
 
 @router.post("/{project_key}")

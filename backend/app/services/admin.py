@@ -131,22 +131,22 @@ def list_ui_fields(db: Session) -> dict:
     for project in _ALL_PROJECTS:
         rows = db.execute(text(
             f"""
-            SELECT id, tag, label, type, list_view, form_view, bulk_view, section, perm_tag, "order"
-            FROM schema_{project}.ui_fields
-            ORDER BY "order" NULLS LAST, id
+            SELECT uf.id, uf.key, uf.label, uf.type, uf.list_view, uf.form_view, uf.bulk_view, t.tag, uf."order"
+            FROM schema_{project}.ui_fields uf
+            JOIN schema_core.tags t ON t.id = uf.tag_id
+            ORDER BY uf."order" NULLS LAST, uf.id
             """
         )).mappings().all()
         result[project] = [
             {
                 "id": r["id"],
-                "tag": r["tag"],
+                "key": r["key"],
                 "label": r["label"],
                 "type": r["type"],
                 "list_view": r["list_view"],
                 "form_view": r["form_view"],
                 "bulk_view": r["bulk_view"],
-                "section": r["section"],
-                "perm_tag": r["perm_tag"],
+                "tag": r["tag"],
                 "order": r["order"],
             }
             for r in rows
@@ -156,30 +156,34 @@ def list_ui_fields(db: Session) -> dict:
 
 def update_ui_field(db: Session, project: str, field_id: int, payload: UIFieldUpdate) -> dict:
     updates = {k: v for k, v in payload.model_dump().items() if v is not None}
+
+    _select = (
+        f"SELECT uf.id, uf.key, uf.label, uf.type, uf.list_view, uf.form_view, uf.bulk_view, t.tag, uf.\"order\" "
+        f"FROM schema_{project}.ui_fields uf "
+        f"JOIN schema_core.tags t ON t.id = uf.tag_id "
+        f"WHERE uf.id = :fid"
+    )
+
     if not updates:
-        row = db.execute(
-            text(
-                f'SELECT id, tag, label, type, list_view, form_view, bulk_view, section, perm_tag, "order" '
-                f"FROM schema_{project}.ui_fields WHERE id = :fid"
-            ),
-            {"fid": field_id},
-        ).mappings().one()
+        row = db.execute(text(_select), {"fid": field_id}).mappings().one()
         return dict(row)
+
+    # Convert tag string → tag_id FK before building SET clause
+    if "tag" in updates:
+        tag_row = db.execute(
+            text("SELECT id FROM schema_core.tags WHERE tag = :tag"),
+            {"tag": updates.pop("tag")},
+        ).mappings().one()
+        updates["tag_id"] = tag_row["id"]
 
     set_clause = ", ".join(f'"{k}" = :{k}' if k == "order" else f"{k} = :{k}" for k in updates)
     params = {**updates, "fid": field_id}
-    row = db.execute(
-        text(
-            f"""
-            UPDATE schema_{project}.ui_fields
-            SET {set_clause}
-            WHERE id = :fid
-            RETURNING id, tag, label, type, list_view, form_view, bulk_view, section, perm_tag, "order"
-            """
-        ),
+    db.execute(
+        text(f"UPDATE schema_{project}.ui_fields SET {set_clause} WHERE id = :fid"),
         params,
-    ).mappings().one()
+    )
     db.commit()
+    row = db.execute(text(_select), {"fid": field_id}).mappings().one()
     return dict(row)
 
 

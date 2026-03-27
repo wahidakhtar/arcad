@@ -15,9 +15,10 @@ class Update(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("schema_core.projects.id"), nullable=False)
-    site_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    site_id: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     update: Mapped[str] = mapped_column(Text, nullable=False)
     followup_date: Optional[Mapped[date]] = mapped_column(Date)
     update_type: Mapped[str] = mapped_column(String(16), nullable=False, default="ops")
+    po_id: Optional[Mapped[int]] = mapped_column(Integer, ForeignKey("schema_acc.pos.id"), nullable=True)
 

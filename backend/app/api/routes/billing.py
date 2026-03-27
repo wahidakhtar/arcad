@@ -18,12 +18,12 @@ def list_jobs(db: Session = Depends(get_db)):
     return billing_service.list_jobs(db)
 
 
-@router.get("/rate-card", dependencies=[Depends(permission_required("billing", "read"))])
+@router.get("/rate-card", dependencies=[Depends(permission_required("rate", "read"))])
 def list_rate_card(db: Session = Depends(get_db)):
     return billing_service.list_rate_card(db)
 
 
-@router.post("/rate-card", dependencies=[Depends(permission_required("billing", "write"))])
+@router.post("/rate-card", dependencies=[Depends(permission_required("rate", "write"))])
 def create_rate_card(payload: RateCardCreate, db: Session = Depends(get_db)):
     return billing_service.create_rate_card(db, payload)
 
@@ -82,3 +82,17 @@ async def update_invoice_status(invoice_id: int, payload: StatusUpdate, db: Sess
     po_id = result.get("po_id") if isinstance(result, dict) else getattr(result, "po_id", None)
     await ws_manager.broadcast({"type": "INVOICE_UPDATED", "po_id": po_id})
     return result
+
+
+@router.get("/po/{po_id}/updates", dependencies=[Depends(permission_required("acc_update", "read"))])
+def list_po_updates(po_id: int, db: Session = Depends(get_db)):
+    return billing_service.list_po_updates(db, po_id)
+
+
+@router.post("/po/{po_id}/updates", dependencies=[Depends(permission_required("acc_update", "write"))])
+def create_po_update(po_id: int, payload: dict, db: Session = Depends(get_db)):
+    po = billing_service.get_po(db, po_id)
+    if po is None:
+        raise HTTPException(status_code=404, detail="PO not found")
+    data = {**payload, "project_id": po["project_id"]}
+    return billing_service.create_po_update(db, po_id, data)

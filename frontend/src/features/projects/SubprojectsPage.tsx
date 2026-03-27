@@ -21,7 +21,7 @@ export default function SubprojectsPage() {
   }, [projectKey])
 
   return (
-    <div className="space-y-6">
+    <div className="h-full overflow-y-auto space-y-6">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/42">{project?.label ?? projectKey?.toUpperCase()}</p>
         <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">Subprojects</h1>

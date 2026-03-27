@@ -1,33 +1,17 @@
 import { useMemo } from "react"
 
 import DataTable from "../../../components/ui/DataTable"
+import FieldRenderer from "../../../components/ui/FieldRenderer"
 import { formatCurrency } from "../../../utils/format"
-import type { BadgeEntry, TransitionEntry, TxRow } from "../hooks/useTransactionsPage"
-import TransactionStatusCell from "./TransactionStatusCell"
+import { txStatusLabel } from "../../sites/siteDetailHelpers"
+import type { BadgeEntry, TxRow } from "../hooks/useTransactionsPage"
 
 type TransactionsTableProps = {
   rows: TxRow[]
   badgeById: Map<number, BadgeEntry>
-  transitions: TransitionEntry[]
-  canRequestWrite: boolean
-  canTransactionWrite: boolean
-  transitioning: number | null
-  onApplyTransition: (txId: number, toId: number, version: number) => void
-  onOpenExecutionModal: (row: TxRow, toId: number) => void
-  onOpenCancel: (row: TxRow) => void
 }
 
-export default function TransactionsTable({
-  rows,
-  badgeById,
-  transitions,
-  canRequestWrite,
-  canTransactionWrite,
-  transitioning,
-  onApplyTransition,
-  onOpenExecutionModal,
-  onOpenCancel,
-}: TransactionsTableProps) {
+export default function TransactionsTable({ rows, badgeById }: TransactionsTableProps) {
   const columns = useMemo(() => [
     { key: "recipient_label", label: "Recipient", minWidth: 120 },
     { key: "project_label", label: "Project", minWidth: 120 },
@@ -43,27 +27,21 @@ export default function TransactionsTable({
     {
       key: "status_label",
       label: "Status",
-      minWidth: 180,
-      render: (_value: unknown, row: Record<string, unknown>) => (
-        <TransactionStatusCell
-          row={row as unknown as TxRow}
-          badgeById={badgeById}
-          transitions={transitions}
-          canRequestWrite={canRequestWrite}
-          canTransactionWrite={canTransactionWrite}
-          transitioning={transitioning}
-          onApplyTransition={onApplyTransition}
-          onOpenExecutionModal={onOpenExecutionModal}
-          onOpenCancel={onOpenCancel}
-        />
-      ),
+      minWidth: 160,
+      render: (_value: unknown, row: Record<string, unknown>) => {
+        const txRow = row as unknown as TxRow
+        const badge = badgeById.get(txRow.status_id)
+        const label = txStatusLabel(txRow.type_key, txRow.status_key, txRow.status_label)
+        return <FieldRenderer type="badge" value={{ label, color: badge?.color ?? null }} />
+      },
     },
-  ], [badgeById, transitions, canRequestWrite, canTransactionWrite, transitioning, onApplyTransition, onOpenExecutionModal, onOpenCancel])
+  ], [badgeById])
 
   return (
     <DataTable
       columns={columns}
       rows={rows as unknown as Record<string, unknown>[]}
+      rowHref={(row) => `/transactions/${(row as unknown as TxRow).id}`}
     />
   )
 }

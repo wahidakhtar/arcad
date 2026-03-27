@@ -73,17 +73,22 @@ def _comp_condition_met(site, project_key: str) -> bool:
     return False
 
 
-def list_all_tickets(db: Session, user: UserContext) -> list[Ticket]:
+def list_all_tickets(db: Session, user: UserContext, page: int = 1, page_size: int = 50) -> dict:
     query = select(Ticket).order_by(Ticket.ticket_date.desc())
 
     project_ids = user_project_ids(user)
     if project_ids is not None:
-        # Ops and other project-scoped roles: filter by assigned projects
         query = query.where(Ticket.project_id.in_(project_ids))
-    # Global-scope users (mgmt, acc): no filter — see all
-    # FO cannot reach this function (blocked by ticket permission check in route)
 
-    return db.execute(query).scalars().all()
+    from sqlalchemy import func
+    count_query = select(func.count()).select_from(query.subquery())
+    total = db.execute(count_query).scalar_one()
+    page_size = max(1, page_size)
+    pages = max(1, (total + page_size - 1) // page_size)
+    page = max(1, min(page, pages))
+    offset = (page - 1) * page_size
+    items = db.execute(query.limit(page_size).offset(offset)).scalars().all()
+    return {"items": list(items), "total": total, "page": page, "page_size": page_size, "pages": pages}
 
 
 def get_ticket(db: Session, ticket_id: int) -> Ticket:

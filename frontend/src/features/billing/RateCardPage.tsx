@@ -65,9 +65,9 @@ export default function RateCardPage() {
   const rows = data ?? []
 
   return (
-    <div className="space-y-6">
+    <div className="h-full overflow-y-auto space-y-6">
       <div className="flex justify-end">
-        {can("billing", "write") && (
+        {can("rate", "write") && (
           <Button type="button" className="shrink-0" onClick={openModal}>
             Add Rate
           </Button>
