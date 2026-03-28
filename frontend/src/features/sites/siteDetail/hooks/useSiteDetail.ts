@@ -116,7 +116,9 @@ export default function useSiteDetail() {
       )
       setSubcons((subconsResponse.data as SubconRow[]) ?? [])
       setTransactionTypes(Array.isArray(txTypesResponse.data) ? txTypesResponse.data as Badge[] : [])
-    } catch {
+    } catch (err) {
+      console.error("useSiteDetail failed:", err)
+      console.error("Response:", (err as {response?: {status?: number; config?: {url?: string}}})?.response?.status, (err as {response?: {status?: number; config?: {url?: string}}})?.response?.config?.url)
       setError("Unable to load site details.")
     } finally {
       setLoading(false)
