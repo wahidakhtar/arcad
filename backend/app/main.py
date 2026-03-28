@@ -12,6 +12,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.routes.admin import router as admin_router
+from app.api.routes.admin_schema import router as admin_schema_router
+from app.api.routes.error_log import router as error_log_router
 from app.api.routes.ws import router as ws_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.badges import router as badges_router
@@ -119,6 +121,8 @@ app.include_router(media_router, prefix=settings.api_prefix)
 app.include_router(reports_router, prefix=settings.api_prefix)
 app.include_router(dashboard_router, prefix=settings.api_prefix)
 app.include_router(admin_router, prefix=settings.api_prefix)
+app.include_router(admin_schema_router, prefix=settings.api_prefix)
+app.include_router(error_log_router, prefix=settings.api_prefix)
 app.include_router(ws_router, prefix=settings.api_prefix)
 
 

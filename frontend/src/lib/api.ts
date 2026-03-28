@@ -1,4 +1,5 @@
 import axios from "axios"
+import { logError } from "./errorLogger"
 
 // Force frontend rebuild: align with paginated backend responses (f50d5fc)
 const baseURL = import.meta.env.VITE_API_URL || "https://arcad-production.up.railway.app/api/v1"
@@ -24,6 +25,12 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config
     if (error.response?.status !== 401 || original?._retry) {
+      logError({
+        error_type: "api_error",
+        http_status: error.response?.status,
+        http_url: error.config?.url,
+        error_message: (error.response?.data as { detail?: string } | undefined)?.detail ?? error.message,
+      })
       return Promise.reject(error)
     }
 

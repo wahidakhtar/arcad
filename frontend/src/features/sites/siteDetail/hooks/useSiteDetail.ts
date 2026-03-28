@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { logError } from "../../../../lib/errorLogger"
 import { useParams } from "react-router-dom"
 
 import { useAuth } from "../../../../context/AuthContext"
@@ -116,7 +117,12 @@ export default function useSiteDetail() {
       )
       setSubcons((subconsResponse.data as SubconRow[]) ?? [])
       setTransactionTypes(Array.isArray(txTypesResponse.data) ? txTypesResponse.data as Badge[] : [])
-    } catch {
+    } catch (err) {
+      logError({
+        error_type: "js_exception",
+        error_message: (err as Error)?.message ?? String(err),
+        stack_trace: (err as Error)?.stack,
+      })
       setError("Unable to load site details.")
     } finally {
       setLoading(false)

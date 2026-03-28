@@ -24,6 +24,8 @@ import TicketsPage from "./features/tickets/TicketsPage"
 import TicketDetailPage from "./features/tickets/TicketDetailPage"
 import UpdatesPage from "./features/updates/UpdatesPage"
 import AdminPage from "./features/admin/AdminPage"
+import SchemaBrowserPage from "./features/admin/schema-browser/SchemaBrowserPage"
+import ErrorLogPage from "./features/admin/error-log/ErrorLogPage"
 import SubconsPage from "./features/subcons/SubconsPage"
 import SubconDetailPage from "./features/subcons/SubconDetailPage"
 
@@ -144,6 +146,8 @@ export default function App() {
         <Route path="/tickets/:ticketId" element={<TicketDetailPage />} />
         <Route path="/updates/:siteId" element={<UpdatesPage />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin/schema-browser" element={<SchemaBrowserPage />} />
+        <Route path="/admin/error-log" element={<ErrorLogPage />} />
         <Route path="/subcons" element={<SubconsPage />} />
         <Route path="/subcons/:subconId" element={<SubconDetailPage />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
