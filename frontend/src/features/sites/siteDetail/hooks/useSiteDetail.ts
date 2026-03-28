@@ -105,20 +105,18 @@ export default function useSiteDetail() {
       setJobBuckets(Array.isArray(bucketsResponse.data) ? bucketsResponse.data as JobBucket[] : [])
       setUpdates(Array.isArray(updatesResponse.data) ? updatesResponse.data as UpdateRow[] : [])
       setTickets(
-        ((ticketsResponse.data as TicketRow[]) ?? []).filter(
+        ((ticketsResponse.data as { items?: TicketRow[] })?.items ?? []).filter(
           (row) => row.project_id === project?.id && row.site_id === numericSiteId,
         ),
       )
       setTransactions(
-        ((transactionsResponse.data as TransactionRow[]) ?? []).filter(
+        ((transactionsResponse.data as { items?: TransactionRow[] })?.items ?? []).filter(
           (row) => row.project_id === project?.id && row.site_id === numericSiteId,
         ),
       )
       setSubcons((subconsResponse.data as SubconRow[]) ?? [])
       setTransactionTypes(Array.isArray(txTypesResponse.data) ? txTypesResponse.data as Badge[] : [])
-    } catch (err) {
-      console.error("useSiteDetail failed:", err)
-      console.error("Response:", (err as {response?: {status?: number; config?: {url?: string}}})?.response?.status, (err as {response?: {status?: number; config?: {url?: string}}})?.response?.config?.url)
+    } catch {
       setError("Unable to load site details.")
     } finally {
       setLoading(false)
