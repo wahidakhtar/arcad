@@ -71,6 +71,7 @@ export default function SiteListPage() {
   const [addModalTab, setAddModalTab] = useState<"site" | "subproject">("site")
   const [badges, setBadges] = useState<Badge[]>([])
   const [states, setStates] = useState<Array<{ id: number; label: string }>>([])
+  const [metaError, setMetaError] = useState("")
 
   const baseEndpoint =
     activeTab === "deployed"
@@ -99,11 +100,12 @@ export default function SiteListPage() {
   useEffect(() => {
     setActiveTab("deployed")
     setSelectedBadges([])
+    setMetaError("")
     void Promise.all([
       api.get("/badges", { params: { type: "status" } }),
       api.get(`/projects/${projectKey}/ui-fields`),
       api.get("/indian-states"),
-      api.get("/projects"),
+      api.get("/projects").catch(() => ({ data: [] })),
     ]).then(([badgesRes, uiFieldsRes, statesRes, projectsRes]) => {
       const statusBadges = badgesRes.data as Badge[]
       const uiFields = uiFieldsRes.data as UIField[]
@@ -129,6 +131,8 @@ export default function SiteListPage() {
       setColumns(listColumns)
       setFormFields(uiFields.filter((f) => f.form_view).map(({ key, label, type }) => ({ key, label, type })))
       setBulkFields(uiFields.filter((f) => f.bulk_view).map(({ key, label, type }) => ({ key, label, type })))
+    }).catch(() => {
+      setMetaError("Unable to load page configuration. Please refresh.")
     })
   }, [projectKey])
 
@@ -201,6 +205,7 @@ export default function SiteListPage() {
           )}
         </div>
       </div>
+      {metaError && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{metaError}</div>}
       {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
     </div>
   )

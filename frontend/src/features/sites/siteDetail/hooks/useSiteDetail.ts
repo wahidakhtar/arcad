@@ -75,7 +75,7 @@ export default function useSiteDetail() {
         api.get("/badges"),
         api.get(`/projects/${projectKey}/badge-transitions`),
         api.get("/indian-states"),
-        api.get("/projects"),
+        api.get("/projects").catch(() => ({ data: [] })),
         api.get(`/projects/${projectKey}/job-buckets`),
         api.get("/updates", { params: { site_id: numericSiteId } }).catch(() => empty),
         api.get("/tickets").catch(() => empty),
