@@ -23,11 +23,11 @@ def list_updates(db: Session, site_id: int, user: UserContext) -> list[Update]:
     - Neither      → empty list (caller should have already 403'd)
     """
     has_update = any(
-        r for (rid, tag), (rd, _) in user.permission_map.items()
+        rd for (rid, tag), (rd, _) in user.permission_map.items()
         if tag == "update" and rd and rid in {role.role_id for role in user.roles}
     )
     has_acc_update = any(
-        r for (rid, tag), (rd, _) in user.permission_map.items()
+        rd for (rid, tag), (rd, _) in user.permission_map.items()
         if tag == "acc_update" and rd and rid in {role.role_id for role in user.roles}
     )
 
