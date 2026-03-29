@@ -114,7 +114,7 @@ export default function SubconsPage() {
         </div>
       </Modal>
 
-      <div className="overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
+      <div className="rounded-[24px] border border-jscolors-crimson/10 bg-white" style={{ overflow: "clip" }}>
         <table className="min-w-full border-collapse">
           <thead className="sticky top-0 z-10">
             <tr className="border-b border-jscolors-crimson/10 bg-jscolors-crimson/[0.03]">

@@ -74,7 +74,7 @@ export default function RateCardPage() {
         pagination={pagination}
         onPageChange={setPage}
       >
-        <div className="overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
+        <div className="rounded-[24px] border border-jscolors-crimson/10 bg-white" style={{ overflow: "clip" }}>
           <table className="min-w-full border-collapse table-fixed">
             <colgroup>
               <col className="w-1/2" />
