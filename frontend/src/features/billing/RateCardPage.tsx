@@ -1,6 +1,7 @@
 import { useState } from "react"
 
 import Button from "../../components/ui/Button"
+import ListPageLayout from "../../components/layout/ListPageLayout"
 import { useAuth } from "../../context/AuthContext"
 import { useListPage } from "../../hooks/useListPage"
 import Modal from "../../components/ui/Modal"
@@ -23,7 +24,7 @@ type JobEntry = {
 
 export default function RateCardPage() {
   const { can } = useAuth()
-  const { data, loading, error, refetch } = useListPage<RateCardRow[]>({ endpoint: "/billing/rate-card" })
+  const { data, loading, error, refetch, pagination, setPage } = useListPage<RateCardRow[]>({ endpoint: "/billing/rate-card" })
   const [openAdd, setOpenAdd] = useState(false)
   const [jobs, setJobs] = useState<JobEntry[]>([])
   const [form, setForm] = useState({ job_id: "", date: "", cost: "" })
@@ -65,14 +66,47 @@ export default function RateCardPage() {
   const rows = data ?? []
 
   return (
-    <div className="h-full overflow-y-auto space-y-6">
-      <div className="flex justify-end">
-        {can("rate", "write") && (
-          <Button type="button" className="shrink-0" onClick={openModal}>
-            Add Rate
-          </Button>
-        )}
-      </div>
+    <>
+      <ListPageLayout
+        actions={can("rate", "write") ? (
+          <Button type="button" className="shrink-0" onClick={openModal}>Add Rate</Button>
+        ) : undefined}
+        pagination={pagination}
+        onPageChange={setPage}
+      >
+        <div className="overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
+          <table className="min-w-full border-collapse table-fixed">
+            <colgroup>
+              <col className="w-1/2" />
+              <col className="w-1/4" />
+              <col className="w-1/4" />
+            </colgroup>
+            <thead className="sticky top-0 z-10">
+              <tr className="border-b border-jscolors-crimson/10 bg-jscolors-crimson/[0.03]">
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50">Job</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50">Effective From</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50">Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id} className="border-b border-jscolors-crimson/8">
+                  <td className="px-5 py-4 text-sm text-jscolors-text">{row.job_label}</td>
+                  <td className="px-5 py-4 text-sm text-jscolors-text">{row.date}</td>
+                  <td className="px-5 py-4 text-right text-sm text-jscolors-text">
+                    ₹ {Number(row.cost).toLocaleString("en-IN")}
+                  </td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-5 py-6 text-center text-sm text-jscolors-text/50">No rates configured yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </ListPageLayout>
 
       <Modal open={openAdd} title="Add Rate" onClose={() => setOpenAdd(false)} size="lg">
         <form className="space-y-4" onSubmit={handleSubmit}>
@@ -114,39 +148,6 @@ export default function RateCardPage() {
           </Button>
         </form>
       </Modal>
-
-      <div className="overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
-        <table className="min-w-full border-collapse table-fixed">
-          <colgroup>
-            <col className="w-1/2" />
-            <col className="w-1/4" />
-            <col className="w-1/4" />
-          </colgroup>
-          <thead>
-            <tr className="border-b border-jscolors-crimson/10 bg-jscolors-crimson/[0.03]">
-              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50">Job</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50">Effective From</th>
-              <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50">Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-b border-jscolors-crimson/8">
-                <td className="px-5 py-4 text-sm text-jscolors-text">{row.job_label}</td>
-                <td className="px-5 py-4 text-sm text-jscolors-text">{row.date}</td>
-                <td className="px-5 py-4 text-right text-sm text-jscolors-text">
-                  ₹ {Number(row.cost).toLocaleString("en-IN")}
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={3} className="px-5 py-6 text-center text-sm text-jscolors-text/50">No rates configured yet.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    </>
   )
 }

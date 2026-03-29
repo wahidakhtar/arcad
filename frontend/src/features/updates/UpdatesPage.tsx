@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 
 import DataTable from "../../components/ui/DataTable"
+import ListPageLayout from "../../components/layout/ListPageLayout"
 import { api } from "../../lib/api"
 
 export default function UpdatesPage() {
@@ -13,11 +14,7 @@ export default function UpdatesPage() {
   }, [siteId])
 
   return (
-    <div className="h-full overflow-y-auto space-y-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/42">Updates</p>
-        <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">Site update log</h1>
-      </div>
+    <ListPageLayout title="Site update log">
       <DataTable
         columns={[
           { key: "date", label: "Date" },
@@ -28,6 +25,6 @@ export default function UpdatesPage() {
         ]}
         rows={rows}
       />
-    </div>
+    </ListPageLayout>
   )
 }

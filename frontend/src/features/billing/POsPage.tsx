@@ -1,5 +1,6 @@
 import DataTable from "../../components/ui/DataTable"
 import FilterBar from "../../components/ui/FilterBar"
+import ListPageLayout from "../../components/layout/ListPageLayout"
 import { useListPage } from "../../hooks/useListPage"
 import FieldRenderer from "../../components/ui/FieldRenderer"
 import type { PO } from "./types"
@@ -20,8 +21,7 @@ export default function POsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <FilterBar filters={[]} onFilterChange={() => {}} />
+    <ListPageLayout filters={<FilterBar filters={[]} onFilterChange={() => {}} />}>
       <DataTable
         columns={[
           { key: "po_no", label: "PO Number", minWidth: 220 },
@@ -36,6 +36,6 @@ export default function POsPage() {
         rows={rows}
         rowHref={(row) => `/billing/po/${row.id}`}
       />
-    </div>
+    </ListPageLayout>
   )
 }

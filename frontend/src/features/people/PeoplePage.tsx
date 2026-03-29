@@ -148,7 +148,7 @@ export default function PeoplePage() {
 
       <div className="overflow-x-auto rounded-[24px] border border-jscolors-crimson/10 bg-white">
         <table className="min-w-full border-collapse">
-          <thead>
+          <thead className="sticky top-0 z-10">
             <tr className="border-b border-jscolors-crimson/10 bg-jscolors-crimson/[0.03]">
               {["Name", "Department", "Project", "Access"].map((col) => (
                 <th key={col} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50">
