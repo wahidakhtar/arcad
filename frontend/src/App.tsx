@@ -19,6 +19,7 @@ import TransactionsPage from "./features/transactions/TransactionsPage"
 import TransactionDetailPage from "./features/transactions/TransactionDetailPage"
 import PoListPage from "./features/billing/PoListPage"
 import RateCardPage from "./features/billing/RateCardPage"
+import RateHistoryPage from "./features/billing/RateHistoryPage"
 import PoDetailPage from "./features/billing/po/PoDetailPage"
 import TicketsPage from "./features/tickets/TicketsPage"
 import TicketDetailPage from "./features/tickets/TicketDetailPage"
@@ -142,6 +143,7 @@ export default function App() {
         <Route path="/billing/po" element={<PoListPage />} />
         <Route path="/billing/po/:poId" element={<PoDetailPage />} />
         <Route path="/billing/rate-card" element={<RateCardPage />} />
+        <Route path="/billing/rate-history/:job_key" element={<RateHistoryPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
         <Route path="/tickets/:ticketId" element={<TicketDetailPage />} />
         <Route path="/updates/:siteId" element={<UpdatesPage />} />

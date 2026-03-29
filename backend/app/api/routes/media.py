@@ -12,8 +12,8 @@ router = APIRouter(prefix="/media", tags=["media"])
 
 
 @router.get("", dependencies=[Depends(permission_required("site", "read"))])
-def list_media(site_id: int = Query(...), db: Session = Depends(get_db)):
-    return media_service.list_media(db, site_id)
+def list_media(project_key: str = Query(...), site_id: int = Query(...), db: Session = Depends(get_db)):
+    return media_service.list_media(db, project_key, site_id)
 
 
 @router.post("/upload", dependencies=[Depends(permission_required("site", "write"))])

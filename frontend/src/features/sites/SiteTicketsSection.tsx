@@ -35,14 +35,14 @@ export default function SiteTicketsSection({
   onReload: () => Promise<void>
 }) {
   const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ ticket_date: TODAY, rfo: "" })
+  const [form, setForm] = useState({ ticket_date: TODAY })
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState("")
 
   if (!canTicketRead && !canTicketWrite) return null
 
   function openModal() {
-    setForm({ ticket_date: TODAY, rfo: "" })
+    setForm({ ticket_date: TODAY })
     setErr("")
     setShowModal(true)
   }
@@ -55,7 +55,6 @@ export default function SiteTicketsSection({
         project_id: projectId,
         site_id: siteId,
         ticket_date: form.ticket_date,
-        rfo: form.rfo || null,
       })
       setShowModal(false)
       await onReload()
@@ -80,16 +79,6 @@ export default function SiteTicketsSection({
               className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
             />
           </label>
-          <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Reason / Note</span>
-            <textarea
-              value={form.rfo}
-              onChange={(e) => setForm((c) => ({ ...c, rfo: e.target.value }))}
-              placeholder="Reason / ticket note"
-              rows={4}
-              className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
-            />
-          </label>
           {err ? <p className="text-sm text-red-600">{err}</p> : null}
           <Button type="button" className="w-full" disabled={submitting} onClick={() => void handleSubmit()}>
             {submitting ? "Adding..." : "Add Ticket"}
@@ -109,7 +98,7 @@ export default function SiteTicketsSection({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold text-jscolors-text">{row.ticket_date}</div>
-                  <div className="mt-1 text-sm text-jscolors-text/60">{row.rfo || "Open ticket"}</div>
+                  <div className="mt-1 text-sm text-jscolors-text/60">Open ticket</div>
                 </div>
                 {!row.closing_date && canTicketWrite && (
                   <Button

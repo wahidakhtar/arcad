@@ -46,12 +46,6 @@ def project_subcons(project_key: str, user: UserContext = Depends(permission_req
     return project_service.list_project_subcons(db, user, project_key)
 
 
-@router.get("/{project_key}/providers")
-def project_providers(project_key: str, user: UserContext = Depends(permission_required("site", "read")), db: Session = Depends(get_db)):
-    if project_key != "bb":
-        return []
-    return project_service.list_bb_providers(db, user)
-
 
 @router.get("/{project_key}/transaction-types")
 def project_transaction_types(project_key: str, user: UserContext = Depends(permission_required("transaction", "read")), db: Session = Depends(get_db)):

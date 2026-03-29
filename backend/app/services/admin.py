@@ -202,7 +202,7 @@ def reorder_ui_fields(db: Session, project: str, payload: UIFieldReorder) -> Non
 
 def list_jobs(db: Session) -> list[dict]:
     rows = db.execute(
-        select(Job, JobBucket.label.label("bucket_label"))
+        select(Job, JobBucket.key.label("bucket_key"), JobBucket.label.label("bucket_label"))
         .join(JobBucket, JobBucket.id == Job.job_bucket_id)
         .order_by(Job.id)
     ).all()
@@ -210,7 +210,7 @@ def list_jobs(db: Session) -> list[dict]:
         {
             "id": row.Job.id,
             "job_key": row.Job.job_key,
-            "bucket_key": row.Job.bucket_key,
+            "bucket_key": row.bucket_key,
             "label": row.Job.label,
             "scale_by": row.Job.scale_by,
             "bucket_label": row.bucket_label,
@@ -231,7 +231,7 @@ def update_job(db: Session, job_id: int, payload: JobUpdate) -> dict:
     return {
         "id": row.id,
         "job_key": row.job_key,
-        "bucket_key": row.bucket_key,
+        "bucket_key": bucket.key if bucket else None,
         "label": row.label,
         "scale_by": row.scale_by,
         "bucket_label": bucket.label if bucket else None,

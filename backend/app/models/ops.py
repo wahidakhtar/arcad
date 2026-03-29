@@ -71,7 +71,6 @@ class Ticket(Base):
     ticket_date: Mapped[date] = mapped_column(Date, nullable=False)
     ticket_time: Optional[Mapped[time]] = mapped_column(Time)
     pp_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_ops.punch_point.id"))
-    rfo: Optional[Mapped[str]] = mapped_column(String(255))
     closing_date: Optional[Mapped[date]] = mapped_column(Date)
     closing_time: Optional[Mapped[time]] = mapped_column(Time)
 

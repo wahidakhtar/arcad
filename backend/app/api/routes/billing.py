@@ -20,7 +20,12 @@ def list_jobs(db: Session = Depends(get_db)):
 
 @router.get("/rate-card", dependencies=[Depends(permission_required("rate", "read"))])
 def list_rate_card(db: Session = Depends(get_db)):
-    return billing_service.list_rate_card(db)
+    return billing_service.list_rate_card_latest(db)
+
+
+@router.get("/rate-card/history/{job_key}", dependencies=[Depends(permission_required("rate", "read"))])
+def rate_history(job_key: str, db: Session = Depends(get_db)):
+    return billing_service.list_rate_history(db, job_key)
 
 
 @router.post("/rate-card", dependencies=[Depends(permission_required("rate", "write"))])

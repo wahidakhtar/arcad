@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 
 import Button from "../../components/ui/Button"
 import DataTable from "../../components/ui/DataTable"
@@ -25,6 +26,7 @@ type JobEntry = {
 
 export default function RateCardPage() {
   const { can } = useAuth()
+  const navigate = useNavigate()
   const { data, loading, error, refetch, pagination, setPage } = useListPage<RateCardRow[]>({ endpoint: "/billing/rate-card" })
   const [openAdd, setOpenAdd] = useState(false)
   const [jobs, setJobs] = useState<JobEntry[]>([])
@@ -85,6 +87,21 @@ export default function RateCardPage() {
               minWidth: 120,
               align: "right",
               render: (value) => <>₹ {Number(value).toLocaleString("en-IN")}</>,
+            },
+            {
+              key: "job_key",
+              label: "",
+              minWidth: 80,
+              align: "right",
+              render: (value) => (
+                <button
+                  type="button"
+                  className="text-xs text-jscolors-crimson/70 hover:text-jscolors-crimson underline"
+                  onClick={() => navigate(`/billing/rate-history/${String(value)}`)}
+                >
+                  History
+                </button>
+              ),
             },
           ]}
           rows={rows as unknown as Record<string, unknown>[]}

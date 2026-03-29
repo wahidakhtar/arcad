@@ -213,15 +213,15 @@ def _build_financials(db: Session, project_id: int, project_key: str, site_id: i
     transactions = [
         TransactionRow(
             recipient_id=row.recipient_id,
-            bucket_key=row.bucket_key,
             type_key=badges[row.type_id].key,
             amount=row.amount,
             status_key=badges[row.status_id].key,
         )
         for row in db.execute(select(Transaction).where(Transaction.project_id == project_id, Transaction.site_id == site_id)).scalars()
     ]
-    rates = [RateCardRow(job_key=row.job_key, effective_date=row.date, cost=row.cost) for row in db.execute(select(RateCard)).scalars()]
-    job_scales = {job.bucket_key: job.scale_by for job in db.execute(select(Job)).scalars()}
+    rate_rows = db.execute(select(RateCard, Job.job_key.label("jk")).join(Job, Job.id == RateCard.job_id)).all()
+    rates = [RateCardRow(job_key=r.jk, effective_date=r.RateCard.date, cost=r.RateCard.cost) for r in rate_rows]
+    job_scales = {job.job_key: job.scale_by for job in db.execute(select(Job)).scalars()}
     site_data["status_key"] = badges[site_data["status_id"]].key
     return calculate_site_financials(site_data, assignments, transactions, rates, job_scales)
 

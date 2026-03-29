@@ -55,11 +55,11 @@ class Transaction(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     request_date: Mapped[date] = mapped_column(Date, nullable=False)
-    recipient_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_hr.users.id"))
+    recipient_type_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_core.recipients.id"))
+    recipient_id: Optional[Mapped[int]] = mapped_column(Integer)
     type_id: Mapped[int] = mapped_column(ForeignKey("schema_core.badges.id"), nullable=False)
     project_id: Mapped[int] = mapped_column(ForeignKey("schema_core.projects.id"), nullable=False)
     site_id: Optional[Mapped[int]] = mapped_column(Integer)
-    bucket_key: Optional[Mapped[str]] = mapped_column(String(32))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     status_id: Mapped[int] = mapped_column(ForeignKey("schema_core.badges.id"), nullable=False)
     execution_date: Optional[Mapped[date]] = mapped_column(Date)
@@ -73,7 +73,5 @@ class RateCard(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("schema_core.jobs.id"), nullable=False)
-    job_key: Mapped[str] = mapped_column(String(32), nullable=False)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-

@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.bb import BBSite, BBSubproject, Provider, Recharge, Termination
+from app.models.bb import BBSite, BBSubproject, Recharge, Termination
 from app.models.core import Badge, Project
 from app.models.ma import MASite, MASubproject, MAUIField
 from app.models.mc import MCSite, MCSubproject, MCUIField
@@ -19,7 +19,7 @@ SITE_MODELS = {
     "md": {"site": MDSite, "subproject": MDSubproject, "ui_field": MDUIField},
     "ma": {"site": MASite, "subproject": MASubproject, "ui_field": MAUIField},
     "mc": {"site": MCSite, "subproject": MCSubproject, "ui_field": MCUIField},
-    "bb": {"site": BBSite, "subproject": BBSubproject, "provider": Provider, "recharge": Recharge, "termination": Termination, "ui_field": None},
+    "bb": {"site": BBSite, "subproject": BBSubproject, "recharge": Recharge, "termination": Termination, "ui_field": None},
 }
 
 

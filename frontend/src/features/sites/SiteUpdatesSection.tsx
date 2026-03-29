@@ -52,11 +52,8 @@ export default function SiteUpdatesSection({
 
   if (!canReadOpsUpdates && !canReadAccUpdates && !canAddUpdate) return null
 
-  const visibleUpdates = updates.filter((row) => {
-    const t = row.update_type ?? "ops"
-    if (t === "finance") return canReadAccUpdates
-    return canReadOpsUpdates
-  })
+  // Filtering is handled server-side based on user permissions
+  const visibleUpdates = updates
 
   function openModal() {
     setForm({ date: TODAY, update: "", followup_date: "" })
@@ -135,7 +132,7 @@ export default function SiteUpdatesSection({
             <InfoRow
               key={row.id}
               title={row.date}
-              text={`${row.update}${row.followup_date ? ` • Follow-up ${row.followup_date}` : ""}${row.update_type === "finance" ? " [Finance]" : ""}`}
+              text={`${row.update}${row.followup_date ? ` • Follow-up ${row.followup_date}` : ""}`}
             />
           )) : <EmptyState text="No updates yet" />}
         </div>

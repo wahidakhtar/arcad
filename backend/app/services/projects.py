@@ -267,14 +267,6 @@ def list_project_buckets(db: Session, user: UserContext, project_key: str) -> li
     return [{"id": row.id, "key": row.key, "label": row.label} for row in rows]
 
 
-def list_bb_providers(db: Session, user: UserContext) -> list[dict]:
-    from app.models.bb import Provider
-    ensure_permission(user, db, project_key="bb", tag="site", action="read")
-    providers = db.execute(
-        select(Provider).where(Provider.active.is_(True)).order_by(Provider.label)
-    ).scalars().all()
-    return [{"id": p.id, "label": p.label} for p in providers]
-
 
 def list_project_subcons(db: Session, user: UserContext, project_key: str) -> list[dict]:
     ensure_permission(user, db, project_key=project_key, tag="site", action="read")

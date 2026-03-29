@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -33,7 +32,6 @@ class RateCardRow:
 @dataclass
 class TransactionRow:
     recipient_id: Optional[int]
-    bucket_key: Optional[str]
     type_key: str
     amount: Decimal
     status_key: str
@@ -79,14 +77,11 @@ def _sum_transactions(
     transactions: list[TransactionRow],
     *,
     type_keys: set[str],
-    bucket_key: Optional[str] = None,
     recipient_id: Optional[int] = None,
 ) -> Decimal:
     total = ZERO
     for row in transactions:
         if row.status_key != EXECUTED_STATUS or row.type_key not in type_keys:
-            continue
-        if bucket_key is not None and row.bucket_key != bucket_key:
             continue
         if recipient_id is not None and row.recipient_id != recipient_id:
             continue
@@ -109,7 +104,8 @@ def site_cost_for_bucket(
         if qty == ZERO:
             continue
         amount += _select_rate(job_key, receiving_date, rate_rows) * qty
-    amount += _sum_transactions(transactions, type_keys={"b_sur", "e_sur"}, bucket_key=bucket_key)
+    # Each site belongs to one bucket, so all site surcharges apply here
+    amount += _sum_transactions(transactions, type_keys={"b_sur", "e_sur"})
     return amount
 
 
@@ -129,7 +125,7 @@ def subcon_budget(
         if qty == ZERO:
             continue
         amount += _select_rate(job_key, receiving_date, rate_rows) * qty
-    amount += _sum_transactions(transactions, type_keys={"b_sur"}, bucket_key=bucket_key, recipient_id=subcon_id)
+    amount += _sum_transactions(transactions, type_keys={"b_sur"}, recipient_id=subcon_id)
     return amount
 
 

@@ -38,11 +38,11 @@ def _tx_to_dict(tx: Transaction) -> dict:
     return {
         "id": tx.id,
         "request_date": tx.request_date,
+        "recipient_type_id": tx.recipient_type_id,
         "recipient_id": tx.recipient_id,
         "type_id": tx.type_id,
         "project_id": tx.project_id,
         "site_id": tx.site_id,
-        "bucket_key": tx.bucket_key,
         "amount": tx.amount,
         "status_id": tx.status_id,
         "execution_date": tx.execution_date,
@@ -77,11 +77,11 @@ def get_transaction(db: Session, user: UserContext, transaction_id: int) -> dict
     where_clause = " AND ".join(conditions)
     row = db.execute(
         text(f"""
-            SELECT t.id, t.request_date, t.recipient_id, t.type_id, t.project_id,
-                   t.site_id, t.bucket_key, t.amount, t.status_id, t.execution_date,
-                   t.remarks, t.version, u.label AS recipient_label
+            SELECT t.id, t.request_date, t.recipient_type_id, t.recipient_id, t.type_id,
+                   t.project_id, t.site_id, t.amount, t.status_id, t.execution_date,
+                   t.remarks, t.version, r.label AS recipient_label
             FROM schema_acc.transactions t
-            LEFT JOIN schema_hr.users u ON u.id = t.recipient_id
+            LEFT JOIN schema_core.recipients r ON r.id = t.recipient_type_id
             WHERE {where_clause}
         """),
         params,
@@ -119,11 +119,11 @@ def list_transactions(db: Session, user: UserContext, page: int = 1, page_size: 
     params_paged = {**params, "limit": page_size, "offset": offset}
     rows = db.execute(
         text(f"""
-            SELECT t.id, t.request_date, t.recipient_id, t.type_id, t.project_id,
-                   t.site_id, t.bucket_key, t.amount, t.status_id, t.execution_date,
-                   t.remarks, t.version, u.label AS recipient_label
+            SELECT t.id, t.request_date, t.recipient_type_id, t.recipient_id, t.type_id,
+                   t.project_id, t.site_id, t.amount, t.status_id, t.execution_date,
+                   t.remarks, t.version, r.label AS recipient_label
             FROM schema_acc.transactions t
-            LEFT JOIN schema_hr.users u ON u.id = t.recipient_id
+            LEFT JOIN schema_core.recipients r ON r.id = t.recipient_type_id
             WHERE {where_clause}
             ORDER BY t.request_date DESC
             LIMIT :limit OFFSET :offset

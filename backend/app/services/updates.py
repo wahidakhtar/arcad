@@ -6,21 +6,25 @@ from sqlalchemy.orm import Session
 from app.api.auth import UserContext
 from app.models.updates import Update
 
+# Department badge IDs (from schema_core.badges)
+_OPS_DEPT_ID = 3
+_ACC_DEPT_ID = 2
 
-def _update_type_for_user(user: UserContext) -> str:
-    """Auto-resolve update_type from the posting user's department."""
+
+def _dept_id_for_user(user: UserContext) -> int:
+    """Auto-resolve dept_id from the posting user's department."""
     if any(role.dept_key == "acc" for role in user.roles):
-        return "finance"
-    return "ops"
+        return _ACC_DEPT_ID
+    return _OPS_DEPT_ID
 
 
 def list_updates(db: Session, site_id: int, user: UserContext) -> list[Update]:
     """Return updates filtered by the user's tag permissions.
 
-    - update read  → sees ops rows
-    - acc_update read → sees finance rows
-    - Both         → sees all rows (e.g. mgmt l3)
-    - Neither      → empty list (caller should have already 403'd)
+    - update read  → sees ops rows (dept_id=3)
+    - acc_update read → sees acc/finance rows (dept_id=2)
+    - Both         → sees all rows
+    - Neither      → empty list
     """
     has_update = any(
         rd for (rid, tag), (rd, _) in user.permission_map.items()
@@ -36,9 +40,9 @@ def list_updates(db: Session, site_id: int, user: UserContext) -> list[Update]:
     if has_update and has_acc_update:
         pass  # no filter — see everything
     elif has_update:
-        query = query.where(Update.update_type == "ops")
+        query = query.where(Update.dept_id == _OPS_DEPT_ID)
     elif has_acc_update:
-        query = query.where(Update.update_type == "finance")
+        query = query.where(Update.dept_id == _ACC_DEPT_ID)
     else:
         return []
 
@@ -47,7 +51,7 @@ def list_updates(db: Session, site_id: int, user: UserContext) -> list[Update]:
 
 def create_update(db: Session, data: dict, user: UserContext) -> Update:
     data = dict(data)
-    data["update_type"] = _update_type_for_user(user)
+    data["dept_id"] = _dept_id_for_user(user)
     row = Update(**data)
     db.add(row)
     db.commit()

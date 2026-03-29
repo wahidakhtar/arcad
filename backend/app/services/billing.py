@@ -8,6 +8,9 @@ from app.models.core import Badge, Job, Project
 from app.models.updates import Update
 from app.schemas.billing import InvoiceCreate, POCreate, RateCardCreate
 
+# acc department badge id (used for PO-level updates)
+_ACC_DEPT_ID = 2
+
 
 def list_jobs(db: Session) -> list[Job]:
     return db.execute(select(Job).order_by(Job.id)).scalars().all()
@@ -18,14 +21,14 @@ def create_rate_card(db: Session, payload: RateCardCreate) -> dict:
     if job is None:
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Job not found")
-    row = RateCard(job_id=payload.job_id, job_key=job.job_key, date=payload.date, cost=payload.cost)
+    row = RateCard(job_id=payload.job_id, date=payload.date, cost=payload.cost)
     db.add(row)
     db.commit()
     db.refresh(row)
     return {
         "id": row.id,
         "job_id": row.job_id,
-        "job_key": row.job_key,
+        "job_key": job.job_key,
         "job_label": job.label,
         "date": row.date,
         "cost": row.cost,
@@ -34,7 +37,7 @@ def create_rate_card(db: Session, payload: RateCardCreate) -> dict:
 
 def list_rate_card(db: Session) -> list[dict]:
     rows = db.execute(
-        select(RateCard, Job.label.label("job_label"))
+        select(RateCard, Job.job_key.label("job_key"), Job.label.label("job_label"))
         .join(Job, Job.id == RateCard.job_id)
         .order_by(RateCard.job_id.asc(), RateCard.date.desc())
     ).all()
@@ -42,7 +45,39 @@ def list_rate_card(db: Session) -> list[dict]:
         {
             "id": row.RateCard.id,
             "job_id": row.RateCard.job_id,
-            "job_key": row.RateCard.job_key,
+            "job_key": row.job_key,
+            "job_label": row.job_label,
+            "date": row.RateCard.date,
+            "cost": row.RateCard.cost,
+        }
+        for row in rows
+    ]
+
+
+def list_rate_card_latest(db: Session) -> list[dict]:
+    """Return only the latest effective rate per job."""
+    all_rows = list_rate_card(db)
+    seen: dict[int, dict] = {}
+    for row in all_rows:
+        # list_rate_card orders by date desc per job, so first seen = latest
+        if row["job_id"] not in seen:
+            seen[row["job_id"]] = row
+    return list(seen.values())
+
+
+def list_rate_history(db: Session, job_key: str) -> list[dict]:
+    """Return all rate rows for a given job_key ordered by date desc."""
+    rows = db.execute(
+        select(RateCard, Job.job_key.label("job_key"), Job.label.label("job_label"))
+        .join(Job, Job.id == RateCard.job_id)
+        .where(Job.job_key == job_key)
+        .order_by(RateCard.date.desc())
+    ).all()
+    return [
+        {
+            "id": row.RateCard.id,
+            "job_id": row.RateCard.job_id,
+            "job_key": row.job_key,
             "job_label": row.job_label,
             "date": row.RateCard.date,
             "cost": row.RateCard.cost,
@@ -193,7 +228,15 @@ def update_invoice_status(db: Session, invoice_id: int, status_id: int) -> Invoi
 
 
 def list_po_updates(db: Session, po_id: int) -> list[dict]:
-    rows = db.execute(select(Update).where(Update.po_id == po_id).order_by(Update.date.desc())).scalars().all()
+    # po_id column removed; return project-level acc updates for this PO's project
+    po = db.get(PO, po_id)
+    if po is None:
+        return []
+    rows = db.execute(
+        select(Update)
+        .where(Update.project_id == po.project_id, Update.dept_id == _ACC_DEPT_ID)
+        .order_by(Update.date.desc())
+    ).scalars().all()
     return [
         {
             "id": r.id,
@@ -207,12 +250,11 @@ def list_po_updates(db: Session, po_id: int) -> list[dict]:
 
 def create_po_update(db: Session, po_id: int, data: dict) -> dict:
     row = Update(
-        po_id=po_id,
         project_id=data["project_id"],
         date=data["date"],
         update=data["update"],
         followup_date=data.get("followup_date"),
-        update_type="finance",
+        dept_id=_ACC_DEPT_ID,
     )
     db.add(row)
     db.commit()

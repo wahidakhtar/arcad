@@ -65,7 +65,6 @@ class Job(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     job_bucket_id: Mapped[int] = mapped_column(ForeignKey("schema_core.job_buckets.id"), nullable=False)
-    bucket_key: Mapped[str] = mapped_column(String(32), nullable=False)
     job_key: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
     label: Mapped[str] = mapped_column(String(255), nullable=False)
     scale_by: Mapped[str] = mapped_column(String(16), nullable=False, default="unit")
@@ -97,4 +96,13 @@ class TransitionType(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     key: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     label: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
+class Recipient(Base):
+    __tablename__ = "recipients"
+    __table_args__ = {"schema": "schema_core"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    label: Mapped[str] = mapped_column(String(128), nullable=False)
 

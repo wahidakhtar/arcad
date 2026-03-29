@@ -20,15 +20,6 @@ class BBSubproject(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
-class Provider(Base):
-    __tablename__ = "providers"
-    __table_args__ = {"schema": "schema_bb"}
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    label: Mapped[str] = mapped_column(String(256), nullable=False)
-    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-
-
 class BBSite(Base):
     __tablename__ = "sites"
     __table_args__ = {"schema": "schema_bb"}
@@ -47,6 +38,7 @@ class BBSite(Base):
     po_number: Optional[Mapped[str]] = mapped_column(String(128))
     invoice_number: Optional[Mapped[str]] = mapped_column(String(128))
     active_fe: Optional[Mapped[str]] = mapped_column(String(256))
+    active_provider: Optional[Mapped[str]] = mapped_column(String(255))
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
 
@@ -70,7 +62,7 @@ class Recharge(Base):
     date: Mapped[date] = mapped_column(Date, nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     validity: Mapped[int] = mapped_column(Integer, nullable=False)
-    uom: Mapped[str] = mapped_column(String(32), nullable=False)
+    months: Mapped[bool] = mapped_column(Boolean, nullable=False)
     next_recharge_date: Optional[Mapped[date]] = mapped_column(Date, nullable=True)
 
 

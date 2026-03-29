@@ -66,7 +66,7 @@ export type UpdateRow = {
   date: string
   update: string
   followup_date?: string | null
-  update_type?: string
+  dept_id?: number
 }
 
 export type TicketRow = {
@@ -74,7 +74,6 @@ export type TicketRow = {
   project_id: number
   site_id: number
   ticket_date: string
-  rfo?: string | null
   closing_date?: string | null
 }
 
