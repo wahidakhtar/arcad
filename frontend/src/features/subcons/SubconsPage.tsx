@@ -1,7 +1,7 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
 
 import Button from "../../components/ui/Button"
+import DataTable from "../../components/ui/DataTable"
 import ListPageLayout from "../../components/layout/ListPageLayout"
 import Modal from "../../components/ui/Modal"
 import { useAuth } from "../../context/AuthContext"
@@ -26,7 +26,6 @@ const labelCls = "mb-2 block text-xs font-semibold uppercase tracking-[0.22em] t
 
 export default function SubconsPage() {
   const { can } = useAuth()
-  const navigate = useNavigate()
   const [createOpen, setCreateOpen] = useState(false)
   const [createForm, setCreateForm] = useState({ name: "", subcon_type_id: "1" })
   const [createSaving, setCreateSaving] = useState(false)
@@ -114,44 +113,34 @@ export default function SubconsPage() {
         </div>
       </Modal>
 
-      <div className="rounded-[24px] border border-jscolors-crimson/10 bg-white" style={{ overflow: "clip" }}>
-        <table className="min-w-full border-collapse">
-          <thead className="sticky top-0 z-10">
-            <tr className="border-b border-jscolors-crimson/10 bg-jscolors-crimson/[0.03]">
-              {["Name", "Type", "Projects", "Status"].map((col) => (
-                <th key={col} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50">
-                  {col}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {(subcons ?? []).map((subcon) => (
-              <tr
-                key={subcon.id}
-                className="cursor-pointer border-b border-jscolors-crimson/8 transition hover:bg-jscolors-gold/10"
-                onClick={() => navigate(`/subcons/${subcon.id}`)}
-              >
-                <td className="px-5 py-4 text-sm font-medium text-jscolors-text">{subcon.name}</td>
-                <td className="px-5 py-4 text-sm text-jscolors-text">{subcon.subcon_type_label}</td>
-                <td className="px-5 py-4 text-sm text-jscolors-text">
-                  {subcon.projects.length ? subcon.projects.map((p) => p.label).join(", ") : "—"}
-                </td>
-                <td className="px-5 py-4">
-                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${subcon.is_active ? "bg-emerald-100 text-emerald-700" : "bg-zinc-200 text-zinc-600"}`}>
-                    {subcon.is_active ? "Active" : "Inactive"}
-                  </span>
-                </td>
-              </tr>
-            ))}
-            {(subcons ?? []).length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-5 py-8 text-center text-sm text-jscolors-text/50">No subcons created yet.</td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={[
+          { key: "name", label: "Name", minWidth: 180 },
+          { key: "subcon_type_label", label: "Type", minWidth: 120 },
+          {
+            key: "projects",
+            label: "Projects",
+            minWidth: 200,
+            render: (value) => {
+              const projects = value as Array<{ id: number; label: string }>
+              return projects.length ? projects.map((p) => p.label).join(", ") : "—"
+            },
+          },
+          {
+            key: "is_active",
+            label: "Status",
+            minWidth: 100,
+            render: (value) => (
+              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${value ? "bg-emerald-100 text-emerald-700" : "bg-zinc-200 text-zinc-600"}`}>
+                {value ? "Active" : "Inactive"}
+              </span>
+            ),
+          },
+        ]}
+        rows={(subcons ?? []) as unknown as Record<string, unknown>[]}
+        rowHref={(row) => `/subcons/${(row as unknown as SubconRow).id}`}
+        emptyState={<span className="text-jscolors-text/50">No subcons created yet.</span>}
+      />
     </ListPageLayout>
   )
 }

@@ -1,6 +1,7 @@
 import { useState } from "react"
 
 import Button from "../../components/ui/Button"
+import DataTable from "../../components/ui/DataTable"
 import ListPageLayout from "../../components/layout/ListPageLayout"
 import { useAuth } from "../../context/AuthContext"
 import { useListPage } from "../../hooks/useListPage"
@@ -74,38 +75,21 @@ export default function RateCardPage() {
         pagination={pagination}
         onPageChange={setPage}
       >
-        <div className="rounded-[24px] border border-jscolors-crimson/10 bg-white" style={{ overflow: "clip" }}>
-          <table className="min-w-full border-collapse table-fixed">
-            <colgroup>
-              <col className="w-1/2" />
-              <col className="w-1/4" />
-              <col className="w-1/4" />
-            </colgroup>
-            <thead className="sticky top-0 z-10">
-              <tr className="border-b border-jscolors-crimson/10 bg-jscolors-crimson/[0.03]">
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50">Job</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50">Effective From</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50">Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} className="border-b border-jscolors-crimson/8">
-                  <td className="px-5 py-4 text-sm text-jscolors-text">{row.job_label}</td>
-                  <td className="px-5 py-4 text-sm text-jscolors-text">{row.date}</td>
-                  <td className="px-5 py-4 text-right text-sm text-jscolors-text">
-                    ₹ {Number(row.cost).toLocaleString("en-IN")}
-                  </td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="px-5 py-6 text-center text-sm text-jscolors-text/50">No rates configured yet.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={[
+            { key: "job_label", label: "Job", minWidth: 220 },
+            { key: "date", label: "Effective From", minWidth: 160 },
+            {
+              key: "cost",
+              label: "Rate",
+              minWidth: 120,
+              align: "right",
+              render: (value) => <>₹ {Number(value).toLocaleString("en-IN")}</>,
+            },
+          ]}
+          rows={rows as unknown as Record<string, unknown>[]}
+          emptyState={<span className="text-jscolors-text/50">No rates configured yet.</span>}
+        />
       </ListPageLayout>
 
       <Modal open={openAdd} title="Add Rate" onClose={() => setOpenAdd(false)} size="lg">

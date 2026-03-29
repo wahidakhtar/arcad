@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
 
 import Button from "../../components/ui/Button"
+import DataTable from "../../components/ui/DataTable"
 import FieldRenderer from "../../components/ui/FieldRenderer"
 import ListPageLayout from "../../components/layout/ListPageLayout"
 import Modal from "../../components/ui/Modal"
@@ -16,12 +16,6 @@ type RoleEntry = {
   access: string
 }
 
-type UserGroup = {
-  user_id: number
-  name: string
-  active: boolean
-  roles: RoleEntry[]
-}
 
 type ProjectEntry = {
   id: number
@@ -31,10 +25,8 @@ type ProjectEntry = {
 
 export default function PeoplePage() {
   const config = getPageConfig("people")
-  const navigate = useNavigate()
   const { can } = useAuth()
   const canWriteUser = can("people", "write")
-  const [hoveredUserId, setHoveredUserId] = useState<number | null>(null)
   const [openAddUser, setOpenAddUser] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
@@ -71,26 +63,37 @@ export default function PeoplePage() {
     })
   }, [])
 
-  const groups = useMemo<UserGroup[]>(() => {
-    return (data ?? []).map((user) => {
-      const roles = user.roles ?? []
-      const roleEntries: RoleEntry[] = roles.length
-        ? roles.map((role) => ({
-            department: badgeLabels.department[role.dept_key] ?? role.dept_key,
-            project: role.project_id != null ? (projectMap[role.project_id] ?? String(role.project_id)) : "Global",
-            access: badgeLabels.level[role.level_key] ?? role.level_key,
-          }))
-        : [{ department: "-", project: "-", access: "-" }]
-      return { user_id: user.id, name: user.label, active: user.active, roles: roleEntries }
-    }).sort((a, b) => {
-      if (a.active !== b.active) return a.active ? -1 : 1
-      const deptOrder = ["mgmt", "ops", "acc", "hr", "fo"]
-      const aKey = data?.find((u) => u.id === a.user_id)?.roles[0]?.dept_key ?? ""
-      const bKey = data?.find((u) => u.id === b.user_id)?.roles[0]?.dept_key ?? ""
-      const aOrder = deptOrder.indexOf(aKey)
-      const bOrder = deptOrder.indexOf(bKey)
-      return (aOrder === -1 ? 999 : aOrder) - (bOrder === -1 ? 999 : bOrder)
-    })
+  type FlatRow = { user_id: number; name: string; active: boolean; department: string; project: string; access: string }
+
+  const flatRows = useMemo<FlatRow[]>(() => {
+    const deptOrder = ["mgmt", "ops", "acc", "hr", "fo"]
+    return (data ?? [])
+      .slice()
+      .sort((a, b) => {
+        if (a.active !== b.active) return a.active ? -1 : 1
+        const aKey = a.roles[0]?.dept_key ?? ""
+        const bKey = b.roles[0]?.dept_key ?? ""
+        return (deptOrder.indexOf(aKey) === -1 ? 999 : deptOrder.indexOf(aKey)) -
+               (deptOrder.indexOf(bKey) === -1 ? 999 : deptOrder.indexOf(bKey))
+      })
+      .flatMap((user) => {
+        const roles = user.roles ?? []
+        const roleEntries: RoleEntry[] = roles.length
+          ? roles.map((role) => ({
+              department: badgeLabels.department[role.dept_key] ?? role.dept_key,
+              project: role.project_id != null ? (projectMap[role.project_id] ?? String(role.project_id)) : "Global",
+              access: badgeLabels.level[role.level_key] ?? role.level_key,
+            }))
+          : [{ department: "-", project: "-", access: "-" }]
+        return roleEntries.map((role) => ({
+          user_id: user.id,
+          name: user.label,
+          active: user.active,
+          department: role.department,
+          project: role.project,
+          access: role.access,
+        }))
+      })
   }, [badgeLabels.department, badgeLabels.level, projectMap, data])
 
   if (loading) return <div className="p-6 text-jscolors-text/50">Loading people...</div>
@@ -146,45 +149,18 @@ export default function PeoplePage() {
         </form>
       </Modal>
 
-      <div className="rounded-[24px] border border-jscolors-crimson/10 bg-white" style={{ overflow: "clip" }}>
-        <table className="min-w-full border-collapse">
-          <thead className="sticky top-0 z-10">
-            <tr className="border-b border-jscolors-crimson/10 bg-jscolors-crimson/[0.03]">
-              {["Name", "Department", "Project", "Access"].map((col) => (
-                <th key={col} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.24em] text-jscolors-text/50">
-                  {col}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {groups.map((group) =>
-              group.roles.map((role, roleIndex) => (
-                <tr
-                  key={`${group.user_id}-${roleIndex}`}
-                  className={`cursor-pointer border-b border-jscolors-crimson/8 transition ${hoveredUserId === group.user_id ? "bg-jscolors-gold/10" : ""} ${!group.active ? "opacity-40" : ""}`}
-                  onClick={() => navigate(`/people/${group.user_id}`)}
-                  onMouseEnter={() => setHoveredUserId(group.user_id)}
-                  onMouseLeave={() => setHoveredUserId(null)}
-                >
-                  {roleIndex === 0 && (
-                    <td rowSpan={group.roles.length} className="px-5 py-4 align-middle text-sm font-medium text-jscolors-text">
-                      {group.name}
-                    </td>
-                  )}
-                  {roleIndex === 0 && (
-                    <td rowSpan={group.roles.length} className="px-5 py-4 align-middle text-sm text-jscolors-text">
-                      {role.department}
-                    </td>
-                  )}
-                  <td className="px-5 py-4 text-sm text-jscolors-text">{role.project}</td>
-                  <td className="px-5 py-4 text-sm text-jscolors-text">{role.access}</td>
-                </tr>
-              )),
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={[
+          { key: "name", label: "Name", minWidth: 160, groupMerge: true },
+          { key: "department", label: "Department", minWidth: 140, groupMerge: true },
+          { key: "project", label: "Project", minWidth: 160 },
+          { key: "access", label: "Access", minWidth: 120 },
+        ]}
+        rows={flatRows as unknown as Record<string, unknown>[]}
+        groupBy="user_id"
+        rowHref={(row) => `/people/${(row as unknown as FlatRow).user_id}`}
+        getRowClassName={(row) => !(row as unknown as FlatRow).active ? "opacity-40" : ""}
+      />
     </ListPageLayout>
   )
 }
