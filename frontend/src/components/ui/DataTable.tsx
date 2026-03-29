@@ -67,7 +67,7 @@ export default function DataTable<T extends Record<string, unknown>>({
         </div>
 
         {/* Rows — only this section scrolls vertically */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" style={minTableWidth ? { minWidth: minTableWidth } : undefined}>
           {loading && (
             <div className="px-5 py-8 text-center text-sm text-jscolors-text/50">Loading...</div>
           )}
