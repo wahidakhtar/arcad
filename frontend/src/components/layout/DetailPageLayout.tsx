@@ -24,23 +24,20 @@ export default function DetailPageLayout({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {badges ? (
-        <div className="flex shrink-0 flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar pb-4">
-          {badges}
+      {(badges || backHref) ? (
+        <div className="flex shrink-0 items-center gap-2 pb-4">
+          <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar">
+            {badges}
+          </div>
+          {backHref ? (
+            <Link to={backHref} className="shrink-0">
+              <Button type="button" variant="secondary">← Back</Button>
+            </Link>
+          ) : null}
         </div>
       ) : null}
 
       <div className="flex-1 overflow-y-auto space-y-6">
-        {backHref ? (
-          <div>
-            <Link to={backHref}>
-              <Button type="button" variant="secondary">
-                ← Back
-              </Button>
-            </Link>
-          </div>
-        ) : null}
-
         {title || subtitle || actions ? (
           <section className="glass-panel p-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">

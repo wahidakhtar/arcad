@@ -34,9 +34,10 @@ export default function SiteHeader({
         if (field.key === "tx_copy_status" && !isAssetTransfer) return null
 
         const badgeValue = getFieldValue(site, field)
-        const currentBadge = typeof badgeValue === "number" ? badgeById.get(badgeValue) : null
+        if (typeof badgeValue !== "number") return null
+        const currentBadge = badgeById.get(badgeValue) ?? null
         const isDocBadge = DOC_BADGE_FIELDS.has(field.key)
-        const nextTransitions = (!isDocBadge || docBadgeEditable) && typeof badgeValue === "number"
+        const nextTransitions = (!isDocBadge || docBadgeEditable)
           ? transitionOptions(transitions, field.key, badgeValue)
           : []
 
