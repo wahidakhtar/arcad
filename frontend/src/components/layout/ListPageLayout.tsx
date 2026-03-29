@@ -12,7 +12,7 @@ type ListPageLayoutProps = {
 
 export default function ListPageLayout({ title, actions, filters, pagination, onPageChange, children }: ListPageLayoutProps) {
   return (
-    <div className="flex h-full flex-col gap-0">
+    <div className="flex h-full flex-col overflow-hidden">
       {(title || actions || filters) && (
         <div className="shrink-0 space-y-4 pb-5">
           {(title || actions) && (
