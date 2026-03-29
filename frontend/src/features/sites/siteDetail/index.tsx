@@ -60,6 +60,7 @@ export default function SiteDetailPage() {
 
   return (
     <DetailPageLayout
+      backHref={`/projects/${projectKey}`}
       badges={
         <SiteHeader
           site={site}
