@@ -1,5 +1,4 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
 
 import Button from "../../components/ui/Button"
 import DataTable from "../../components/ui/DataTable"
@@ -26,11 +25,10 @@ type JobEntry = {
 
 export default function RateCardPage() {
   const { can } = useAuth()
-  const navigate = useNavigate()
   const { data, loading, error, refetch, pagination, setPage } = useListPage<RateCardRow[]>({ endpoint: "/billing/rate-card" })
   const [openAdd, setOpenAdd] = useState(false)
   const [jobs, setJobs] = useState<JobEntry[]>([])
-  const [form, setForm] = useState({ job_id: "", date: "", cost: "" })
+  const [form, setForm] = useState({ job_id: "", date: new Date().toISOString().split('T')[0], cost: "" })
   const [submitting, setSubmitting] = useState(false)
   const [addError, setAddError] = useState("")
 
@@ -38,7 +36,7 @@ export default function RateCardPage() {
     void api.get<JobEntry[]>("/billing/jobs").then((res) => {
       setJobs(Array.isArray(res.data) ? res.data : [])
     })
-    setForm({ job_id: "", date: "", cost: "" })
+    setForm({ job_id: "", date: new Date().toISOString().split('T')[0], cost: "" })
     setAddError("")
     setOpenAdd(true)
   }
@@ -88,23 +86,9 @@ export default function RateCardPage() {
               align: "right",
               render: (value) => <>₹ {Number(value).toLocaleString("en-IN")}</>,
             },
-            {
-              key: "job_key",
-              label: "",
-              minWidth: 80,
-              align: "right",
-              render: (value) => (
-                <button
-                  type="button"
-                  className="text-xs text-jscolors-crimson/70 hover:text-jscolors-crimson underline"
-                  onClick={() => navigate(`/billing/rate-history/${String(value)}`)}
-                >
-                  History
-                </button>
-              ),
-            },
           ]}
           rows={rows as unknown as Record<string, unknown>[]}
+          rowHref={(row) => `/billing/rate-history/${String((row as unknown as RateCardRow).job_key)}`}
           emptyState={<span className="text-jscolors-text/50">No rates configured yet.</span>}
         />
       </ListPageLayout>
@@ -144,9 +128,14 @@ export default function RateCardPage() {
             />
           </label>
           {addError ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{addError}</div> : null}
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? "Adding..." : "Add Rate"}
-          </Button>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setOpenAdd(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1" disabled={submitting}>
+              {submitting ? "Adding..." : "Add Rate"}
+            </Button>
+          </div>
         </form>
       </Modal>
     </>

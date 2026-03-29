@@ -49,11 +49,11 @@ export default function ExecutionDateModal({
           </Button>
           <Button
             type="button"
-            variant="secondary"
+            variant="ghost"
             className="flex-1"
             onClick={onClose}
           >
-            Back
+            Cancel
           </Button>
         </div>
       )}

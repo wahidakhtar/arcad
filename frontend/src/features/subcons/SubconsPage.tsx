@@ -102,14 +102,19 @@ export default function SubconsPage() {
             </select>
           </div>
           {createError ? <p className="text-sm text-red-600">{createError}</p> : null}
-          <Button
-            type="button"
-            className="w-full"
-            disabled={createSaving || !createForm.name.trim()}
-            onClick={() => void createSubcon()}
-          >
-            {createSaving ? "Creating..." : "Create Subcon"}
-          </Button>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              disabled={createSaving || !createForm.name.trim()}
+              onClick={() => void createSubcon()}
+            >
+              {createSaving ? "Creating..." : "Create Subcon"}
+            </Button>
+          </div>
         </div>
       </Modal>
 

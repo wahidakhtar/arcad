@@ -168,9 +168,14 @@ export default function SiteFEAssignmentSection({
             />
           </label>
           {removeModal.err ? <p className="text-sm text-red-600">{removeModal.err}</p> : null}
-          <Button type="button" className="w-full" disabled={removing} onClick={() => void removeSubcon()}>
-            {removing ? "Removing..." : "Confirm Remove"}
-          </Button>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setRemoveModal((current) => ({ ...current, open: false, err: "" }))}>
+              Cancel
+            </Button>
+            <Button type="button" variant="danger" className="flex-1" disabled={removing} onClick={() => void removeSubcon()}>
+              {removing ? "Removing..." : "Remove"}
+            </Button>
+          </div>
         </div>
       </Modal>
 
@@ -206,14 +211,19 @@ export default function SiteFEAssignmentSection({
           </label>
           {alreadyAssigned ? <p className="text-sm text-red-600">An active subcon already exists for this bucket.</p> : null}
           {assignErr ? <p className="text-sm text-red-600">{assignErr}</p> : null}
-          <Button
-            type="button"
-            className="w-full"
-            disabled={assigning || alreadyAssigned || (jobBuckets.length > 1 && !assignmentForm.bucket_id) || !assignmentForm.subcon_id}
-            onClick={() => void assignSubcon()}
-          >
-            {assigning ? "Assigning..." : "Assign Subcon"}
-          </Button>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setAssignModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              disabled={assigning || alreadyAssigned || (jobBuckets.length > 1 && !assignmentForm.bucket_id) || !assignmentForm.subcon_id}
+              onClick={() => void assignSubcon()}
+            >
+              {assigning ? "Assigning..." : "Assign"}
+            </Button>
+          </div>
         </div>
       </Modal>
 
@@ -244,14 +254,19 @@ export default function SiteFEAssignmentSection({
             />
           </label>
           {txModal.err ? <p className="text-sm text-red-600">{txModal.err}</p> : null}
-          <Button
-            type="button"
-            className="w-full"
-            disabled={txSubmitting || !txModal.type_id || !txModal.amount}
-            onClick={() => void submitTxModal()}
-          >
-            {txSubmitting ? "Submitting..." : "Submit Request"}
-          </Button>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setTxModal((current) => ({ ...current, open: false }))}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              disabled={txSubmitting || !txModal.type_id || !txModal.amount}
+              onClick={() => void submitTxModal()}
+            >
+              {txSubmitting ? "Submitting..." : "Submit Request"}
+            </Button>
+          </div>
         </div>
       </Modal>
 

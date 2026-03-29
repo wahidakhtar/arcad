@@ -107,14 +107,19 @@ export default function ProjectsPage() {
             />
           </label>
           {saveError && <p className="text-sm text-red-600">{saveError}</p>}
-          <Button
-            type="button"
-            className="w-full"
-            disabled={saving || !form.label.trim() || !form.key.trim()}
-            onClick={() => void handleAddProject()}
-          >
-            {saving ? "Creating..." : "Create Project"}
-          </Button>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => { setAddOpen(false); setSaveError("") }}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              disabled={saving || !form.label.trim() || !form.key.trim()}
+              onClick={() => void handleAddProject()}
+            >
+              {saving ? "Creating..." : "Create Project"}
+            </Button>
+          </div>
         </div>
       </Modal>
     </ListPageLayout>

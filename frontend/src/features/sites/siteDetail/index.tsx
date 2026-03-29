@@ -99,9 +99,14 @@ export default function SiteDetailPage() {
                 onChange={(value) => setEditingField((current) => (current ? { ...current, draft: value } : null))}
               />
               {editError ? <p className="text-sm text-red-600">{editError}</p> : null}
-              <Button type="button" className="w-full" disabled={editSaving} onClick={() => void saveFieldEdit()}>
-                {editSaving ? "Saving..." : "Save"}
-              </Button>
+              <div className="flex gap-3">
+                <Button type="button" variant="ghost" className="flex-1" onClick={() => setEditingField(null)}>
+                  Cancel
+                </Button>
+                <Button type="button" className="flex-1" disabled={editSaving} onClick={() => void saveFieldEdit()}>
+                  {editSaving ? "Saving..." : "Save"}
+                </Button>
+              </div>
             </div>
           ) : null}
         </Modal>

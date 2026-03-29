@@ -1,8 +1,8 @@
 import { useState } from "react"
 import Button from "../../components/ui/Button"
 import BadgeDropdown, { type BadgeOption } from "../../components/ui/BadgeDropdown"
+import ConfirmCancelTransactionModal from "../../components/ui/ConfirmCancelTransactionModal"
 import ExecutionDateModal from "../../components/ui/ExecutionDateModal"
-import Modal from "../../components/ui/Modal"
 import { api } from "../../lib/api"
 import type { Badge, TransactionRow, TransitionRow } from "./siteDetailTypes"
 import { txStatusLabel } from "./siteDetailHelpers"
@@ -97,24 +97,15 @@ export default function SiteTransactionCard({
         onClose={() => setShowExecModal(false)}
       />
 
-      <Modal open={showCancelModal} title="Cancel Transaction" onClose={() => setShowCancelModal(false)} size="sm">
-        <p className="mb-4 text-sm text-jscolors-text/70">Cancel this transaction?</p>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            disabled={updating}
-            onClick={() => {
-              setShowCancelModal(false)
-              if (pendingCancelId !== null) void handleTransition(pendingCancelId)
-            }}
-          >
-            Confirm
-          </Button>
-          <Button type="button" variant="secondary" onClick={() => setShowCancelModal(false)}>
-            Back
-          </Button>
-        </div>
-      </Modal>
+      <ConfirmCancelTransactionModal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        onConfirm={() => {
+          setShowCancelModal(false)
+          if (pendingCancelId !== null) void handleTransition(pendingCancelId)
+        }}
+        isLoading={updating}
+      />
 
       {err ? <p className="mb-2 text-xs text-red-600">{err}</p> : null}
 

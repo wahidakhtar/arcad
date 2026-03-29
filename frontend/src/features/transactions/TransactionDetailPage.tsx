@@ -1,11 +1,11 @@
 import { useState } from "react"
 
 import Button from "../../components/ui/Button"
+import ConfirmCancelTransactionModal from "../../components/ui/ConfirmCancelTransactionModal"
 import DetailFieldCard from "../../components/ui/DetailFieldCard"
 import DetailPageLayout from "../../components/layout/DetailPageLayout"
 import ExecutionDateModal from "../../components/ui/ExecutionDateModal"
 import FieldRenderer from "../../components/ui/FieldRenderer"
-import Modal from "../../components/ui/Modal"
 import { useAuth } from "../../context/AuthContext"
 import { formatCurrency } from "../../utils/format"
 import { txStatusLabel } from "../sites/siteDetailHelpers"
@@ -97,29 +97,13 @@ export default function TransactionDetailPage() {
         onClose={() => setExecModal((m) => ({ ...m, open: false }))}
       />
 
-      <Modal
-        open={confirmCancel}
-        title="Cancel Transaction"
+      <ConfirmCancelTransactionModal
+        isOpen={confirmCancel}
         onClose={() => { setConfirmCancel(false); setCancelError("") }}
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-jscolors-text/70">Cancel this transaction?</p>
-          {cancelError ? <p className="text-sm text-red-600">{cancelError}</p> : null}
-          <div className="flex gap-3">
-            <Button type="button" className="flex-1" disabled={transitioning} onClick={() => void doCancel()}>
-              Confirm
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              className="flex-1"
-              onClick={() => { setConfirmCancel(false); setCancelError("") }}
-            >
-              Back
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        onConfirm={() => void doCancel()}
+        isLoading={transitioning}
+        error={cancelError}
+      />
 
       <section className="glass-panel p-6">
         <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">

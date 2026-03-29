@@ -143,9 +143,14 @@ export default function PeoplePage() {
             </label>
           ))}
           {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? "Creating User..." : "Create User"}
-          </Button>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => { setOpenAddUser(false); setError("") }}>
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1" disabled={submitting}>
+              {submitting ? "Creating User..." : "Create User"}
+            </Button>
+          </div>
         </form>
       </Modal>
 

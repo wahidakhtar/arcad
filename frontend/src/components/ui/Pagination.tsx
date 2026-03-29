@@ -1,3 +1,5 @@
+import Button from "./Button"
+
 type PaginationProps = {
   page: number
   pages: number
@@ -24,28 +26,27 @@ export default function Pagination({ page, pages, total, pageSize, onChange }: P
           item === "…" ? (
             <span key={`ellipsis-${i}`} className="px-2 text-xs text-jscolors-text/40">…</span>
           ) : (
-            <button
+            <Button
               key={item}
               type="button"
+              size="sm"
+              variant={item === page ? "primary" : "ghost"}
+              className="min-w-[32px]"
               onClick={() => onChange(item as number)}
-              className={`min-w-[32px] rounded-full px-3 py-1 text-xs font-semibold transition ${
-                item === page
-                  ? "bg-jscolors-crimson text-white"
-                  : "border border-jscolors-crimson/20 text-jscolors-crimson hover:bg-jscolors-crimson/10"
-              }`}
             >
               {item}
-            </button>
+            </Button>
           )
         )}
-        <button
+        <Button
           type="button"
-          onClick={() => onChange(Math.min(pages, page + 1))}
+          size="sm"
+          variant="ghost"
           disabled={page >= pages}
-          className="rounded-full border border-jscolors-crimson/20 px-3 py-1 text-xs font-semibold text-jscolors-crimson transition hover:bg-jscolors-crimson/10 disabled:opacity-40 disabled:cursor-not-allowed"
+          onClick={() => onChange(Math.min(pages, page + 1))}
         >
           Next
-        </button>
+        </Button>
       </div>
     </div>
   )

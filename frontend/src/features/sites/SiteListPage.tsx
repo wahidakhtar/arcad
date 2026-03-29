@@ -201,7 +201,7 @@ export default function SiteListPage() {
             className="rounded-full border border-jscolors-crimson/15 bg-white px-5 py-3 outline-none"
           />
           {showAddButton && (
-            <Button type="button" className="shrink-0" onClick={openAddHandler}>Add</Button>
+            <Button type="button" className="shrink-0" onClick={openAddHandler}>Add Site</Button>
           )}
         </div>
       </div>

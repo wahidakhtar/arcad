@@ -175,7 +175,7 @@ export default function UserDetailPage() {
   return (
     <DetailPageLayout backHref="/people">
       {/* Edit Details modal */}
-      <Modal open={editOpen} title="Edit Details" onClose={() => setEditOpen(false)}>
+      <Modal open={editOpen} title="Edit Details" onClose={() => setEditOpen(false)} size="md">
         <div className="space-y-4">
           <div>
             <label className={labelCls}>Name</label>
@@ -198,9 +198,14 @@ export default function UserDetailPage() {
             <input type="text" value={editForm.ctc} onChange={(e) => setEditForm((f) => ({ ...f, ctc: e.target.value }))} className={fieldCls} />
           </div>
           {editError && <p className="text-sm text-red-600">{editError}</p>}
-          <Button type="button" className="w-full" disabled={editSaving} onClick={() => void saveEdit()}>
-            {editSaving ? "Saving…" : "Save"}
-          </Button>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" className="flex-1" disabled={editSaving} onClick={() => void saveEdit()}>
+              {editSaving ? "Saving…" : "Save"}
+            </Button>
+          </div>
         </div>
       </Modal>
 
@@ -216,14 +221,19 @@ export default function UserDetailPage() {
             <input type="password" value={pwForm.confirm_password} onChange={(e) => setPwForm((f) => ({ ...f, confirm_password: e.target.value }))} className={fieldCls} />
           </div>
           {pwError && <p className="text-sm text-red-600">{pwError}</p>}
-          <Button type="button" className="w-full" onClick={() => void savePassword()}>
-            Update Password
-          </Button>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setPwOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" className="flex-1" onClick={() => void savePassword()}>
+              Update Password
+            </Button>
+          </div>
         </div>
       </Modal>
 
       {/* Assign Role modal */}
-      <Modal open={roleModalOpen} title="Assign Role" onClose={() => setRoleModalOpen(false)}>
+      <Modal open={roleModalOpen} title="Assign Role" onClose={() => setRoleModalOpen(false)} size="md">
         <div className="space-y-4">
           <div>
             <label className={labelCls}>Department</label>
@@ -270,9 +280,14 @@ export default function UserDetailPage() {
               ))}
             </select>
           </div>
-          <Button type="button" className="w-full" onClick={() => void handleAssignRole()}>
-            Assign
-          </Button>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setRoleModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" className="flex-1" onClick={() => void handleAssignRole()}>
+              Assign
+            </Button>
+          </div>
         </div>
       </Modal>
 
@@ -282,12 +297,12 @@ export default function UserDetailPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Identity</p>
             <div className="flex gap-2">
               {canWriteUser ? (
-                <Button type="button" variant="secondary" size="sm" className="py-1 px-3" onClick={openEdit}>
+                <Button type="button" variant="secondary" size="sm" onClick={openEdit}>
                   Edit
                 </Button>
               ) : null}
               {canWriteUser ? (
-                <Button type="button" variant="secondary" size="sm" className="py-1 px-3" onClick={() => { setPwOpen(true); setPwError("") }}>
+                <Button type="button" variant="secondary" size="sm" onClick={() => { setPwOpen(true); setPwError("") }}>
                   Password
                 </Button>
               ) : null}
@@ -296,7 +311,6 @@ export default function UserDetailPage() {
                   type="button"
                   variant="secondary"
                   size="sm"
-                  className="py-1 px-3"
                   onClick={() => { void api.patch(`/users/${user.id}`, { active: !user.active }).then(() => reloadUser()) }}
                 >
                   {user.active ? "Deactivate" : "Activate"}
@@ -324,7 +338,7 @@ export default function UserDetailPage() {
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Assigned Roles</p>
             {canWriteAssignRole && availableDepts.length > 0 ? (
-              <Button type="button" variant="primary" size="sm" className="py-1 px-3" onClick={openAssignRole}>
+              <Button type="button" variant="primary" size="sm" onClick={openAssignRole}>
                 Assign Role
               </Button>
             ) : null}

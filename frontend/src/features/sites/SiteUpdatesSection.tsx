@@ -115,9 +115,14 @@ export default function SiteUpdatesSection({
             />
           </label>
           {err ? <p className="text-sm text-red-600">{err}</p> : null}
-          <Button type="button" className="w-full" disabled={submitting} onClick={() => void handleSubmit()}>
-            {submitting ? "Adding..." : "Add Update"}
-          </Button>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowModal(false)}>
+              Cancel
+            </Button>
+            <Button type="button" className="flex-1" disabled={submitting} onClick={() => void handleSubmit()}>
+              {submitting ? "Adding..." : "Add Update"}
+            </Button>
+          </div>
         </div>
       </Modal>
 
