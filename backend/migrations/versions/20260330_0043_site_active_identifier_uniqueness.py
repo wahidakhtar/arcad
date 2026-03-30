@@ -44,6 +44,25 @@ def upgrade() -> None:
                 """
             )
         )
+        op.execute(
+            sa.text(
+                f"""
+                WITH ranked AS (
+                    SELECT
+                        id,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY subproject_id, ckt_id, active
+                            ORDER BY id DESC
+                        ) AS row_num
+                    FROM {schema}.sites
+                )
+                DELETE FROM {schema}.sites s
+                USING ranked r
+                WHERE s.id = r.id
+                  AND r.row_num > 1
+                """
+            )
+        )
         op.create_unique_constraint(
             f"uq_{schema}_sites_subproject_ckt_active",
             "sites",
