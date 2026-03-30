@@ -27,7 +27,7 @@ export default function TransitionsPanel() {
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       ) : null}
 
-      <Modal open={addOpen} title="Add Transition" onClose={closeAdd}>
+      <Modal isOpen={addOpen} title="Add Transition" onClose={closeAdd} submitLabel="Add" onSubmit={handleAdd} isSubmitting={adding}>
         <div className="space-y-4">
           <div>
             <label className={labelCls}>Project</label>
@@ -65,9 +65,6 @@ export default function TransitionsPanel() {
             </select>
           </div>
           {modalError ? <p className="text-sm text-red-600">{modalError}</p> : null}
-          <Button className="w-full" onClick={handleAdd} disabled={adding}>
-            {adding ? "Adding…" : "Add"}
-          </Button>
         </div>
       </Modal>
 

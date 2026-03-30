@@ -310,10 +310,13 @@ export default function ErrorLogPage() {
       {/* Detail modal */}
       {detailItem && (
         <Modal
-          open={true}
+          isOpen={true}
           title={`Error #${detailItem.id} — ${typeLabel(detailItem.error_type)}`}
           onClose={() => setDetailItem(null)}
           size="lg"
+          submitLabel="Close"
+          onSubmit={() => setDetailItem(null)}
+          hideCancel={true}
         >
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">

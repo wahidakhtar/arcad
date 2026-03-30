@@ -96,7 +96,7 @@ export default function UiFieldsPanel() {
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       ) : null}
 
-      <Modal open={editingField !== null} title="Edit Field" onClose={() => setEditingField(null)}>
+      <Modal isOpen={editingField !== null} title="Edit Field" onClose={() => setEditingField(null)} submitLabel="Save" onSubmit={handleSave} isSubmitting={saving}>
         <div className="space-y-4">
           <div>
             <label className={labelCls}>Label</label>
@@ -123,9 +123,6 @@ export default function UiFieldsPanel() {
             ))}
           </div>
           {modalError ? <p className="text-sm text-red-600">{modalError}</p> : null}
-          <Button className="w-full" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
-          </Button>
         </div>
       </Modal>
 

@@ -26,7 +26,7 @@ export default function BadgesPanel() {
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       ) : null}
 
-      <Modal open={editingBadge !== null} title="Edit Badge" onClose={closeEdit} size="sm">
+      <Modal isOpen={editingBadge !== null} title="Edit Badge" onClose={closeEdit} size="sm" submitLabel="Save" onSubmit={saveBadge} isSubmitting={saving}>
         <div className="space-y-4">
           <div>
             <label className={labelCls}>Label</label>
@@ -56,9 +56,6 @@ export default function BadgesPanel() {
             </div>
           </div>
           {modalError ? <p className="text-sm text-red-600">{modalError}</p> : null}
-          <Button className="w-full" onClick={saveBadge} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
-          </Button>
         </div>
       </Modal>
 
