@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type MouseEvent } from "react"
 import { ComposableMap, Geographies, Geography } from "react-simple-maps"
-import indiaGeoUrl from "../../assets/india-full.geojson?url"
+import indiaGeoUrl from "../../assets/india-lite.geojson?url"
 
 const TOOLTIP_WIDTH = 260
 const TOOLTIP_HEIGHT = 140 // conservative estimate for clamping vertical
