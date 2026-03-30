@@ -10,17 +10,19 @@ import { useAuth } from "../../context/AuthContext"
 import { useListPage } from "../../hooks/useListPage"
 import { api } from "../../lib/api"
 
-type RoleEntry = {
-  department: string
-  project: string
-  access: string
-}
-
-
 type ProjectEntry = {
   id: number
   key: string
   label: string
+}
+
+type UserRow = {
+  user_id: number
+  name: string
+  active: boolean
+  departments: string[]
+  projects: string[]
+  accesses: string[]
 }
 
 export default function PeoplePage() {
@@ -63,9 +65,7 @@ export default function PeoplePage() {
     })
   }, [])
 
-  type FlatRow = { user_id: number; name: string; active: boolean; department: string; project: string; access: string }
-
-  const flatRows = useMemo<FlatRow[]>(() => {
+  const userRows = useMemo<UserRow[]>(() => {
     const deptOrder = ["mgmt", "ops", "acc", "hr", "fo"]
     return (data ?? [])
       .slice()
@@ -76,25 +76,41 @@ export default function PeoplePage() {
         return (deptOrder.indexOf(aKey) === -1 ? 999 : deptOrder.indexOf(aKey)) -
                (deptOrder.indexOf(bKey) === -1 ? 999 : deptOrder.indexOf(bKey))
       })
-      .flatMap((user) => {
+      .map((user) => {
         const roles = user.roles ?? []
-        const roleEntries: RoleEntry[] = roles.length
-          ? roles.map((role) => ({
-              department: badgeLabels.department[role.dept_key] ?? role.dept_key,
-              project: role.project_id != null ? (projectMap[role.project_id] ?? String(role.project_id)) : "Global",
-              access: badgeLabels.level[role.level_key] ?? role.level_key,
-            }))
-          : [{ department: "-", project: "-", access: "-" }]
-        return roleEntries.map((role) => ({
+        if (!roles.length) {
+          return { user_id: user.id, name: user.label, active: user.active, departments: ["-"], projects: ["-"], accesses: ["-"] }
+        }
+        return {
           user_id: user.id,
           name: user.label,
           active: user.active,
-          department: role.department,
-          project: role.project,
-          access: role.access,
-        }))
+          departments: roles.map((r) => badgeLabels.department[r.dept_key] ?? r.dept_key),
+          projects: roles.map((r) => r.project_id != null ? (projectMap[r.project_id] ?? String(r.project_id)) : "Global"),
+          accesses: roles.map((r) => badgeLabels.level[r.level_key] ?? r.level_key),
+        }
       })
   }, [badgeLabels.department, badgeLabels.level, projectMap, data])
+
+  async function handleAddUser() {
+    if (form.password !== form.confirm_password) {
+      setError("Passwords do not match.")
+      return
+    }
+    setSubmitting(true)
+    setError("")
+    try {
+      await api.post("/users", { label: form.label, username: form.username, password: form.password })
+      setForm({ label: "", username: "", password: "", confirm_password: "" })
+      setOpenAddUser(false)
+      refetch()
+    } catch (requestError: unknown) {
+      const detail = (requestError as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setError(detail ?? "Unable to create user.")
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   if (loading) return <div className="p-6 text-jscolors-text/50">Loading people...</div>
   if (loadError) return <div className="p-6 text-red-600">{loadError}</div>
@@ -107,30 +123,16 @@ export default function PeoplePage() {
         </Button>
       ) : undefined}
     >
-      <Modal open={canWriteUser && openAddUser} title="Add User" onClose={() => { setOpenAddUser(false); setError("") }} size="md">
-        <form
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault()
-            if (form.password !== form.confirm_password) {
-              setError("Passwords do not match.")
-              return
-            }
-            setSubmitting(true)
-            setError("")
-            void api
-              .post("/users", { label: form.label, username: form.username, password: form.password })
-              .then(() => {
-                setForm({ label: "", username: "", password: "", confirm_password: "" })
-                setOpenAddUser(false)
-                refetch()
-              })
-              .catch((requestError: { response?: { data?: { detail?: string } } }) => {
-                setError(requestError.response?.data?.detail ?? "Unable to create user.")
-              })
-              .finally(() => setSubmitting(false))
-          }}
-        >
+      <Modal
+        isOpen={canWriteUser && openAddUser}
+        title="Add User"
+        onClose={() => { setOpenAddUser(false); setError("") }}
+        size="md"
+        submitLabel="Create User"
+        onSubmit={() => void handleAddUser()}
+        isSubmitting={submitting}
+      >
+        <div className="space-y-4">
           {config.addUserFields.map((field) => (
             <label key={field.key} className="block">
               <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">{field.label}</span>
@@ -143,28 +145,46 @@ export default function PeoplePage() {
             </label>
           ))}
           {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
-          <div className="flex gap-3">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => { setOpenAddUser(false); setError("") }}>
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1" disabled={submitting}>
-              {submitting ? "Creating User..." : "Create User"}
-            </Button>
-          </div>
-        </form>
+        </div>
       </Modal>
 
       <DataTable
         columns={[
-          { key: "name", label: "Name", minWidth: 160, groupMerge: true },
-          { key: "department", label: "Department", minWidth: 140, groupMerge: true },
-          { key: "project", label: "Project", minWidth: 160 },
-          { key: "access", label: "Access", minWidth: 120 },
+          { key: "name", label: "Name", minWidth: 160 },
+          {
+            key: "departments",
+            label: "Department",
+            minWidth: 140,
+            render: (value) => (
+              <div className="space-y-1">
+                {(value as string[]).map((d, i) => <div key={i}>{d}</div>)}
+              </div>
+            ),
+          },
+          {
+            key: "projects",
+            label: "Project",
+            minWidth: 160,
+            render: (value) => (
+              <div className="space-y-1">
+                {(value as string[]).map((p, i) => <div key={i}>{p}</div>)}
+              </div>
+            ),
+          },
+          {
+            key: "accesses",
+            label: "Access",
+            minWidth: 120,
+            render: (value) => (
+              <div className="space-y-1">
+                {(value as string[]).map((a, i) => <div key={i}>{a}</div>)}
+              </div>
+            ),
+          },
         ]}
-        rows={flatRows as unknown as Record<string, unknown>[]}
-        groupBy="user_id"
-        rowHref={(row) => `/people/${(row as unknown as FlatRow).user_id}`}
-        getRowClassName={(row) => !(row as unknown as FlatRow).active ? "opacity-40" : ""}
+        rows={userRows as unknown as Record<string, unknown>[]}
+        rowHref={(row) => `/people/${(row as unknown as UserRow).user_id}`}
+        getRowClassName={(row) => !(row as unknown as UserRow).active ? "opacity-40" : ""}
       />
     </ListPageLayout>
   )

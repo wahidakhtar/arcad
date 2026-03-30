@@ -52,7 +52,6 @@ export default function SiteUpdatesSection({
 
   if (!canReadOpsUpdates && !canReadAccUpdates && !canAddUpdate) return null
 
-  // Filtering is handled server-side based on user permissions
   const visibleUpdates = updates
 
   function openModal() {
@@ -84,7 +83,15 @@ export default function SiteUpdatesSection({
 
   return (
     <>
-      <Modal open={showModal} title="Add Update" onClose={() => setShowModal(false)} size="md">
+      <Modal
+        isOpen={showModal}
+        title="Add Update"
+        onClose={() => setShowModal(false)}
+        size="md"
+        submitLabel="Add Update"
+        onSubmit={() => void handleSubmit()}
+        isSubmitting={submitting}
+      >
         <div className="space-y-4">
           <label className="block">
             <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Date</span>
@@ -115,14 +122,6 @@ export default function SiteUpdatesSection({
             />
           </label>
           {err ? <p className="text-sm text-red-600">{err}</p> : null}
-          <div className="flex gap-3">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowModal(false)}>
-              Cancel
-            </Button>
-            <Button type="button" className="flex-1" disabled={submitting} onClick={() => void handleSubmit()}>
-              {submitting ? "Adding..." : "Add Update"}
-            </Button>
-          </div>
         </div>
       </Modal>
 

@@ -1,17 +1,9 @@
 import { useEffect, useState } from "react"
 
-import Button from "./Button"
 import Modal from "./Modal"
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
-/**
- * Shared execution-date confirmation modal.
- * Renders via createPortal into document.body — completely outside any
- * component tree, so CSS transforms / clip-path on parents cannot clip it.
- * Backdrop: position fixed, inset 0, z-index 9999 — covers full viewport
- * including sidebar.
- */
 export default function ExecutionDateModal({
   open,
   title = "Set Execution Date",
@@ -33,30 +25,13 @@ export default function ExecutionDateModal({
 
   return (
     <Modal
-      open={open}
+      isOpen={open}
       title={title}
       onClose={onClose}
       size="md"
-      footer={(
-        <div className="flex gap-3">
-          <Button
-            type="button"
-            className="flex-1"
-            disabled={submitting}
-            onClick={() => onConfirm(date)}
-          >
-            Confirm Execution
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="flex-1"
-            onClick={onClose}
-          >
-            Cancel
-          </Button>
-        </div>
-      )}
+      submitLabel="Confirm Execution"
+      onSubmit={() => onConfirm(date)}
+      isSubmitting={submitting}
     >
       <div className="space-y-4">
         <label className="block">

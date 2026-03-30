@@ -77,7 +77,15 @@ export default function SubconsPage() {
         </Button>
       }
     >
-      <Modal open={createOpen} title="Create Subcon" onClose={() => setCreateOpen(false)} size="sm">
+      <Modal
+        isOpen={createOpen}
+        title="Create Subcon"
+        onClose={() => setCreateOpen(false)}
+        size="sm"
+        submitLabel="Create Subcon"
+        onSubmit={() => void createSubcon()}
+        isSubmitting={createSaving}
+      >
         <div className="space-y-4">
           <div>
             <label className={labelCls}>Subcon Name</label>
@@ -102,19 +110,6 @@ export default function SubconsPage() {
             </select>
           </div>
           {createError ? <p className="text-sm text-red-600">{createError}</p> : null}
-          <div className="flex gap-3">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="flex-1"
-              disabled={createSaving || !createForm.name.trim()}
-              onClick={() => void createSubcon()}
-            >
-              {createSaving ? "Creating..." : "Create Subcon"}
-            </Button>
-          </div>
         </div>
       </Modal>
 

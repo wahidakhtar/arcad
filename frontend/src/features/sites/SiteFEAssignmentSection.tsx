@@ -152,9 +152,13 @@ export default function SiteFEAssignmentSection({
       }
     >
       <Modal
-        open={removeModal.open}
+        isOpen={removeModal.open}
         title={`Remove ${removeModal.subcon_label}`}
         onClose={() => setRemoveModal((current) => ({ ...current, open: false, err: "" }))}
+        submitLabel="Remove"
+        submitVariant="danger"
+        onSubmit={() => void removeSubcon()}
+        isSubmitting={removing}
       >
         <div className="space-y-4">
           <label className="block">
@@ -168,18 +172,18 @@ export default function SiteFEAssignmentSection({
             />
           </label>
           {removeModal.err ? <p className="text-sm text-red-600">{removeModal.err}</p> : null}
-          <div className="flex gap-3">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setRemoveModal((current) => ({ ...current, open: false, err: "" }))}>
-              Cancel
-            </Button>
-            <Button type="button" variant="danger" className="flex-1" disabled={removing} onClick={() => void removeSubcon()}>
-              {removing ? "Removing..." : "Remove"}
-            </Button>
-          </div>
         </div>
       </Modal>
 
-      <Modal open={assignModal} title="Assign Subcon" onClose={() => setAssignModal(false)} size="sm">
+      <Modal
+        isOpen={assignModal}
+        title="Assign Subcon"
+        onClose={() => setAssignModal(false)}
+        size="sm"
+        submitLabel="Assign"
+        onSubmit={() => void assignSubcon()}
+        isSubmitting={assigning}
+      >
         <div className="space-y-4">
           {jobBuckets.length > 1 && (
             <label className="block">
@@ -211,25 +215,20 @@ export default function SiteFEAssignmentSection({
           </label>
           {alreadyAssigned ? <p className="text-sm text-red-600">An active subcon already exists for this bucket.</p> : null}
           {assignErr ? <p className="text-sm text-red-600">{assignErr}</p> : null}
-          <div className="flex gap-3">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setAssignModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="flex-1"
-              disabled={assigning || alreadyAssigned || (jobBuckets.length > 1 && !assignmentForm.bucket_id) || !assignmentForm.subcon_id}
-              onClick={() => void assignSubcon()}
-            >
-              {assigning ? "Assigning..." : "Assign"}
-            </Button>
-          </div>
         </div>
       </Modal>
 
-      <Modal open={txModal.open} title="Request Transaction" onClose={() => setTxModal((current) => ({ ...current, open: false }))} size="md">
-        <p className="mb-4 text-sm text-jscolors-text/60">{txModal.subconLabel}</p>
+      <Modal
+        isOpen={txModal.open}
+        title="Request Transaction"
+        onClose={() => setTxModal((current) => ({ ...current, open: false }))}
+        size="md"
+        submitLabel="Submit Request"
+        onSubmit={() => void submitTxModal()}
+        isSubmitting={txSubmitting}
+      >
         <div className="space-y-4">
+          <p className="text-sm text-jscolors-text/60">{txModal.subconLabel}</p>
           <label className="block">
             <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Type</span>
             <select
@@ -254,19 +253,6 @@ export default function SiteFEAssignmentSection({
             />
           </label>
           {txModal.err ? <p className="text-sm text-red-600">{txModal.err}</p> : null}
-          <div className="flex gap-3">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setTxModal((current) => ({ ...current, open: false }))}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="flex-1"
-              disabled={txSubmitting || !txModal.type_id || !txModal.amount}
-              onClick={() => void submitTxModal()}
-            >
-              {txSubmitting ? "Submitting..." : "Submit Request"}
-            </Button>
-          </div>
         </div>
       </Modal>
 

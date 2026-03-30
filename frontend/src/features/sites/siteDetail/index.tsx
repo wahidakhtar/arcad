@@ -1,5 +1,4 @@
 import DetailPageLayout from "../../../components/layout/DetailPageLayout"
-import Button from "../../../components/ui/Button"
 import FieldRenderer from "../../../components/ui/FieldRenderer"
 import Modal from "../../../components/ui/Modal"
 import { useAuth } from "../../../context/AuthContext"
@@ -89,7 +88,15 @@ export default function SiteDetailPage() {
           />
         </div>
 
-        <Modal open={editingField !== null} title={editingField?.field.label ?? "Edit"} onClose={() => setEditingField(null)} size="sm">
+        <Modal
+          isOpen={editingField !== null}
+          title={editingField?.field.label ?? "Edit"}
+          onClose={() => setEditingField(null)}
+          size="sm"
+          submitLabel="Save"
+          onSubmit={() => void saveFieldEdit()}
+          isSubmitting={editSaving}
+        >
           {editingField ? (
             <div className="space-y-4">
               <FieldRenderer
@@ -99,14 +106,6 @@ export default function SiteDetailPage() {
                 onChange={(value) => setEditingField((current) => (current ? { ...current, draft: value } : null))}
               />
               {editError ? <p className="text-sm text-red-600">{editError}</p> : null}
-              <div className="flex gap-3">
-                <Button type="button" variant="ghost" className="flex-1" onClick={() => setEditingField(null)}>
-                  Cancel
-                </Button>
-                <Button type="button" className="flex-1" disabled={editSaving} onClick={() => void saveFieldEdit()}>
-                  {editSaving ? "Saving..." : "Save"}
-                </Button>
-              </div>
             </div>
           ) : null}
         </Modal>

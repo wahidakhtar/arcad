@@ -1,21 +1,35 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
-import Button from "./Button"
 import FieldRenderer, { type FieldDefinition } from "./FieldRenderer"
+
+const TODAY = new Date().toISOString().slice(0, 10)
 
 export default function BulkTable({
   columns,
   onSubmit,
+  submitTrigger,
 }: {
   columns: FieldDefinition[]
   states?: Array<{ id: number; label: string }>
   onSubmit: (payload: { batchDate: string; rows: Array<Record<string, string | boolean>> }) => Promise<void>
+  submitTrigger?: number
 }) {
-  const [batchDate, setBatchDate] = useState("")
+  const [batchDate, setBatchDate] = useState(TODAY)
   const [rows, setRows] = useState<Array<Record<string, string | boolean>>>(
     Array.from({ length: 8 }, () => Object.fromEntries(columns.map((column) => [column.key, ""]))),
   )
   const [focus, setFocus] = useState<{ rowIndex: number; columnIndex: number } | null>(null)
+
+  const batchDateRef = useRef(batchDate)
+  const rowsRef = useRef(rows)
+  useEffect(() => { batchDateRef.current = batchDate }, [batchDate])
+  useEffect(() => { rowsRef.current = rows }, [rows])
+
+  useEffect(() => {
+    if (!submitTrigger) return
+    const filteredRows = rowsRef.current.filter((row) => Object.values(row).some((v) => v !== "" && v !== false))
+    void onSubmit({ batchDate: batchDateRef.current, rows: filteredRows })
+  }, [submitTrigger, onSubmit])
 
   function updateCell(rowIndex: number, key: string, value: string | boolean) {
     setRows((current) => current.map((row, index) => (index === rowIndex ? { ...row, [key]: value } : row)))
@@ -26,10 +40,9 @@ export default function BulkTable({
       <label className="block">
         <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Receiving Date</span>
         <input
-          type="text"
+          type="date"
           value={batchDate}
           onChange={(event) => setBatchDate(event.target.value)}
-          placeholder="DD/MM/YYYY"
           className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
         />
       </label>
@@ -94,9 +107,6 @@ export default function BulkTable({
           </table>
         </div>
       </div>
-      <Button type="button" onClick={() => void onSubmit({ batchDate, rows: rows.filter((row) => Object.values(row).some((value) => value !== "" && value !== false)) })}>
-        Create Subproject
-      </Button>
     </div>
   )
 }

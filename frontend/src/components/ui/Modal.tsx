@@ -1,23 +1,45 @@
+import { useEffect } from "react"
 import { createPortal } from "react-dom"
 
 import Button from "./Button"
 
-export default function Modal({
-  open,
-  title,
-  onClose,
-  children,
-  footer,
-  size = "lg",
-}: {
-  open: boolean
-  title: string
+type ModalProps = {
+  isOpen: boolean
   onClose: () => void
-  children: React.ReactNode
-  footer?: React.ReactNode
+  title: string
   size?: "sm" | "md" | "lg"
-}) {
-  if (!open) return null
+  children: React.ReactNode
+  submitLabel: string
+  onSubmit: () => void
+  submitVariant?: "primary" | "danger"
+  isSubmitting?: boolean
+  cancelLabel?: string
+  hideCancel?: boolean
+}
+
+export default function Modal({
+  isOpen,
+  onClose,
+  title,
+  size = "md",
+  children,
+  submitLabel,
+  onSubmit,
+  submitVariant = "primary",
+  isSubmitting = false,
+  cancelLabel = "Cancel",
+  hideCancel = false,
+}: ModalProps) {
+  useEffect(() => {
+    if (!isOpen) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [isOpen, onClose])
+
+  if (!isOpen) return null
 
   const maxW = size === "sm" ? "max-w-sm" : size === "md" ? "max-w-md" : "max-w-2xl"
 
@@ -29,16 +51,49 @@ export default function Modal({
     >
       <div
         style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 10000 }}
-        className={`glass-panel w-full ${maxW} p-6`}
+        className={`glass-panel flex flex-col w-full ${maxW} max-h-[90vh]`}
       >
-        <div className="mb-4 flex items-center justify-between">
+        {/* Header */}
+        <div className="shrink-0 flex items-center justify-between px-6 pt-6 pb-4">
           <h2 className="font-syne text-2xl font-semibold text-jscolors-crimson">{title}</h2>
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Close
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-xl leading-none text-jscolors-text/40 transition hover:bg-jscolors-crimson/10 hover:text-jscolors-crimson"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-2">
+          {children}
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 flex gap-3 px-6 pt-4 pb-6">
+          {!hideCancel && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="flex-1"
+              disabled={isSubmitting}
+              onClick={onClose}
+            >
+              {cancelLabel}
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant={submitVariant}
+            className={hideCancel ? "w-full" : "flex-1"}
+            disabled={isSubmitting}
+            onClick={onSubmit}
+          >
+            {submitLabel}
           </Button>
         </div>
-        {children}
-        {footer ? <div className="mt-4">{footer}</div> : null}
       </div>
     </div>,
     document.body,

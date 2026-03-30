@@ -53,6 +53,7 @@ export default function UserDetailPage() {
   // Change Password modal
   const [pwOpen, setPwOpen] = useState(false)
   const [pwForm, setPwForm] = useState({ password: "", confirm_password: "" })
+  const [pwSaving, setPwSaving] = useState(false)
   const [pwError, setPwError] = useState("")
 
   // Assign Role modal
@@ -135,6 +136,7 @@ export default function UserDetailPage() {
       setPwError("Passwords do not match.")
       return
     }
+    setPwSaving(true)
     setPwError("")
     try {
       await api.patch(`/users/${user.id}/password`, { password: pwForm.password })
@@ -142,6 +144,8 @@ export default function UserDetailPage() {
       setPwOpen(false)
     } catch (err: unknown) {
       setPwError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? "Failed to update password.")
+    } finally {
+      setPwSaving(false)
     }
   }
 
@@ -175,7 +179,15 @@ export default function UserDetailPage() {
   return (
     <DetailPageLayout backHref="/people">
       {/* Edit Details modal */}
-      <Modal open={editOpen} title="Edit Details" onClose={() => setEditOpen(false)} size="md">
+      <Modal
+        isOpen={editOpen}
+        title="Edit Details"
+        onClose={() => setEditOpen(false)}
+        size="md"
+        submitLabel="Save"
+        onSubmit={() => void saveEdit()}
+        isSubmitting={editSaving}
+      >
         <div className="space-y-4">
           <div>
             <label className={labelCls}>Name</label>
@@ -198,19 +210,19 @@ export default function UserDetailPage() {
             <input type="text" value={editForm.ctc} onChange={(e) => setEditForm((f) => ({ ...f, ctc: e.target.value }))} className={fieldCls} />
           </div>
           {editError && <p className="text-sm text-red-600">{editError}</p>}
-          <div className="flex gap-3">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setEditOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="button" className="flex-1" disabled={editSaving} onClick={() => void saveEdit()}>
-              {editSaving ? "Saving…" : "Save"}
-            </Button>
-          </div>
         </div>
       </Modal>
 
       {/* Change Password modal */}
-      <Modal open={pwOpen} title="Change Password" onClose={() => setPwOpen(false)} size="sm">
+      <Modal
+        isOpen={pwOpen}
+        title="Change Password"
+        onClose={() => setPwOpen(false)}
+        size="sm"
+        submitLabel="Update Password"
+        onSubmit={() => void savePassword()}
+        isSubmitting={pwSaving}
+      >
         <div className="space-y-4">
           <div>
             <label className={labelCls}>New Password</label>
@@ -221,19 +233,18 @@ export default function UserDetailPage() {
             <input type="password" value={pwForm.confirm_password} onChange={(e) => setPwForm((f) => ({ ...f, confirm_password: e.target.value }))} className={fieldCls} />
           </div>
           {pwError && <p className="text-sm text-red-600">{pwError}</p>}
-          <div className="flex gap-3">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setPwOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="button" className="flex-1" onClick={() => void savePassword()}>
-              Update Password
-            </Button>
-          </div>
         </div>
       </Modal>
 
       {/* Assign Role modal */}
-      <Modal open={roleModalOpen} title="Assign Role" onClose={() => setRoleModalOpen(false)} size="md">
+      <Modal
+        isOpen={roleModalOpen}
+        title="Assign Role"
+        onClose={() => setRoleModalOpen(false)}
+        size="md"
+        submitLabel="Assign"
+        onSubmit={() => void handleAssignRole()}
+      >
         <div className="space-y-4">
           <div>
             <label className={labelCls}>Department</label>
@@ -279,14 +290,6 @@ export default function UserDetailPage() {
                 <option key={level} value={level}>{levelLabels[level] ?? level}</option>
               ))}
             </select>
-          </div>
-          <div className="flex gap-3">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setRoleModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="button" className="flex-1" onClick={() => void handleAssignRole()}>
-              Assign
-            </Button>
           </div>
         </div>
       </Modal>

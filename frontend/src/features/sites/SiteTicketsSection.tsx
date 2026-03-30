@@ -68,7 +68,15 @@ export default function SiteTicketsSection({
 
   return (
     <>
-      <Modal open={showModal} title="Add Ticket" onClose={() => setShowModal(false)} size="md">
+      <Modal
+        isOpen={showModal}
+        title="Add Ticket"
+        onClose={() => setShowModal(false)}
+        size="md"
+        submitLabel="Add Ticket"
+        onSubmit={() => void handleSubmit()}
+        isSubmitting={submitting}
+      >
         <div className="space-y-4">
           <label className="block">
             <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Date</span>
@@ -80,14 +88,6 @@ export default function SiteTicketsSection({
             />
           </label>
           {err ? <p className="text-sm text-red-600">{err}</p> : null}
-          <div className="flex gap-3">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowModal(false)}>
-              Cancel
-            </Button>
-            <Button type="button" className="flex-1" disabled={submitting} onClick={() => void handleSubmit()}>
-              {submitting ? "Adding..." : "Add Ticket"}
-            </Button>
-          </div>
         </div>
       </Modal>
 

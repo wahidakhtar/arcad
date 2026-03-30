@@ -69,6 +69,7 @@ export default function SiteListPage() {
   const [selectedBadges, setSelectedBadges] = useState<string[]>([])
   const [openAddModal, setOpenAddModal] = useState(false)
   const [addModalTab, setAddModalTab] = useState<"site" | "subproject">("site")
+  const [addTrigger, setAddTrigger] = useState(0)
   const [badges, setBadges] = useState<Badge[]>([])
   const [states, setStates] = useState<Array<{ id: number; label: string }>>([])
   const [metaError, setMetaError] = useState("")
@@ -229,10 +230,12 @@ export default function SiteListPage() {
       </ListPageLayout>
 
       <Modal
-        open={openAddModal}
+        isOpen={openAddModal}
         title={showModalTabs ? (addModalTab === "site" ? "Add Site" : "Add Subproject") : showSiteAdd ? "Add Site" : "Add Subproject"}
         onClose={() => setOpenAddModal(false)}
         size="lg"
+        submitLabel={addModalTab === "site" ? "Add Site" : "Add Subproject"}
+        onSubmit={() => setAddTrigger((n) => n + 1)}
       >
         <>
           {showModalTabs && (
@@ -245,6 +248,7 @@ export default function SiteListPage() {
             <AddForm
               fields={formFields}
               states={states}
+              submitTrigger={addTrigger}
               onSubmit={async (data) => {
                 const subId = typeof activeTab === "number" ? activeTab : 1
                 await api.post(`/sites/${projectKey}`, { project_key: projectKey, subproject_id: subId, data })
@@ -256,7 +260,7 @@ export default function SiteListPage() {
           {showModalTabs && addModalTab === "subproject" && (
             <BulkTable
               columns={bulkFields}
-              states={states}
+              submitTrigger={addTrigger}
               onSubmit={async ({ batchDate, rows: bulkRows }) => {
                 await api.post("/projects/subprojects", { project_key: projectKey, batch_date: batchDate, rows: bulkRows })
                 setOpenAddModal(false)
@@ -272,17 +276,16 @@ export default function SiteListPage() {
 
 function TabPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <Button
+    <button
       type="button"
       onClick={onClick}
-      variant="secondary"
-      className={`px-5 py-2 ${
+      className={`rounded-full border px-5 py-2 text-sm font-medium transition ${
         active
           ? "border-jscolors-crimson bg-jscolors-crimson text-white shadow-glow"
-          : "border-jscolors-crimson/20 bg-white text-jscolors-crimson hover:border-jscolors-crimson/40 hover:bg-white/90"
+          : "border-jscolors-crimson/20 bg-white text-jscolors-crimson hover:border-jscolors-crimson/40"
       }`}
     >
       {children}
-    </Button>
+    </button>
   )
 }

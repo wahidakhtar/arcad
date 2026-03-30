@@ -84,7 +84,15 @@ export default function ProjectsPage() {
         })}
       </div>
 
-      <Modal open={addOpen} title="Add Project" onClose={() => { setAddOpen(false); setSaveError("") }} size="md">
+      <Modal
+        isOpen={addOpen}
+        title="Add Project"
+        onClose={() => { setAddOpen(false); setSaveError("") }}
+        size="md"
+        submitLabel="Create Project"
+        onSubmit={() => void handleAddProject()}
+        isSubmitting={saving}
+      >
         <div className="space-y-4">
           <label className="block">
             <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Project Name</span>
@@ -107,19 +115,6 @@ export default function ProjectsPage() {
             />
           </label>
           {saveError && <p className="text-sm text-red-600">{saveError}</p>}
-          <div className="flex gap-3">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => { setAddOpen(false); setSaveError("") }}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="flex-1"
-              disabled={saving || !form.label.trim() || !form.key.trim()}
-              onClick={() => void handleAddProject()}
-            >
-              {saving ? "Creating..." : "Create Project"}
-            </Button>
-          </div>
         </div>
       </Modal>
     </ListPageLayout>

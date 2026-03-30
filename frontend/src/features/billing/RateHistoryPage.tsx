@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams } from "react-router-dom"
 
 import DataTable from "../../components/ui/DataTable"
-import ListPageLayout from "../../components/layout/ListPageLayout"
+import DetailPageLayout from "../../components/layout/DetailPageLayout"
 import { api } from "../../lib/api"
 
 type RateRow = {
@@ -16,7 +16,6 @@ type RateRow = {
 
 export default function RateHistoryPage() {
   const { job_key } = useParams<{ job_key: string }>()
-  const navigate = useNavigate()
   const [rows, setRows] = useState<RateRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -37,17 +36,7 @@ export default function RateHistoryPage() {
   if (error) return <div className="p-6 text-red-600">{error}</div>
 
   return (
-    <ListPageLayout
-      actions={
-        <button
-          type="button"
-          className="text-sm text-jscolors-crimson/70 hover:text-jscolors-crimson underline"
-          onClick={() => navigate("/billing/rate-card")}
-        >
-          ← Back to Rate Card
-        </button>
-      }
-    >
+    <DetailPageLayout backHref="/billing/rate-card">
       <div className="mb-4 px-1 text-sm font-semibold text-jscolors-text/60">{jobLabel} — rate history</div>
       <DataTable
         columns={[
@@ -63,6 +52,6 @@ export default function RateHistoryPage() {
         rows={rows as unknown as Record<string, unknown>[]}
         emptyState={<span className="text-jscolors-text/50">No history.</span>}
       />
-    </ListPageLayout>
+    </DetailPageLayout>
   )
 }

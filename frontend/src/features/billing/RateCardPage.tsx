@@ -23,12 +23,14 @@ type JobEntry = {
   label: string
 }
 
+const TODAY = new Date().toISOString().split("T")[0]
+
 export default function RateCardPage() {
   const { can } = useAuth()
   const { data, loading, error, refetch, pagination, setPage } = useListPage<RateCardRow[]>({ endpoint: "/billing/rate-card" })
   const [openAdd, setOpenAdd] = useState(false)
   const [jobs, setJobs] = useState<JobEntry[]>([])
-  const [form, setForm] = useState({ job_id: "", date: new Date().toISOString().split('T')[0], cost: "" })
+  const [form, setForm] = useState({ job_id: "", date: TODAY, cost: "" })
   const [submitting, setSubmitting] = useState(false)
   const [addError, setAddError] = useState("")
 
@@ -36,29 +38,28 @@ export default function RateCardPage() {
     void api.get<JobEntry[]>("/billing/jobs").then((res) => {
       setJobs(Array.isArray(res.data) ? res.data : [])
     })
-    setForm({ job_id: "", date: new Date().toISOString().split('T')[0], cost: "" })
+    setForm({ job_id: "", date: TODAY, cost: "" })
     setAddError("")
     setOpenAdd(true)
   }
 
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault()
+  async function handleSubmit() {
     if (!form.job_id || !form.date || !form.cost) {
       setAddError("All fields are required.")
       return
     }
     setSubmitting(true)
     setAddError("")
-    void api
-      .post("/billing/rate-card", { job_id: Number(form.job_id), date: form.date, cost: Number(form.cost) })
-      .then(() => {
-        setOpenAdd(false)
-        refetch()
-      })
-      .catch((err: { response?: { data?: { detail?: string } } }) => {
-        setAddError(err.response?.data?.detail ?? "Unable to add rate.")
-      })
-      .finally(() => setSubmitting(false))
+    try {
+      await api.post("/billing/rate-card", { job_id: Number(form.job_id), date: form.date, cost: Number(form.cost) })
+      setOpenAdd(false)
+      refetch()
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setAddError(detail ?? "Unable to add rate.")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (loading) return <div className="p-6 text-jscolors-text/50">Loading rate card...</div>
@@ -93,8 +94,16 @@ export default function RateCardPage() {
         />
       </ListPageLayout>
 
-      <Modal open={openAdd} title="Add Rate" onClose={() => setOpenAdd(false)} size="lg">
-        <form className="space-y-4" onSubmit={handleSubmit}>
+      <Modal
+        isOpen={openAdd}
+        title="Add Rate"
+        onClose={() => setOpenAdd(false)}
+        size="lg"
+        submitLabel="Add Rate"
+        onSubmit={() => void handleSubmit()}
+        isSubmitting={submitting}
+      >
+        <div className="space-y-4">
           <label className="block">
             <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Job</span>
             <select
@@ -128,15 +137,7 @@ export default function RateCardPage() {
             />
           </label>
           {addError ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{addError}</div> : null}
-          <div className="flex gap-3">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setOpenAdd(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1" disabled={submitting}>
-              {submitting ? "Adding..." : "Add Rate"}
-            </Button>
-          </div>
-        </form>
+        </div>
       </Modal>
     </>
   )

@@ -1,18 +1,34 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
-import Button from "./Button"
 import FieldRenderer, { type FieldDefinition } from "./FieldRenderer"
+
+const TODAY = new Date().toISOString().slice(0, 10)
+
+function buildInitialForm(fields: FieldDefinition[]): Record<string, string | boolean> {
+  return Object.fromEntries(
+    fields.map((f) => [f.key, f.type === "bool" ? false : f.type === "date" ? TODAY : ""]),
+  )
+}
 
 export default function AddForm({
   fields,
   states = [],
   onSubmit,
+  submitTrigger,
 }: {
   fields: FieldDefinition[]
   states?: Array<{ id: number; label: string }>
   onSubmit: (data: Record<string, string | boolean>) => Promise<void>
+  submitTrigger?: number
 }) {
-  const [form, setForm] = useState<Record<string, string | boolean>>({})
+  const [form, setForm] = useState<Record<string, string | boolean>>(() => buildInitialForm(fields))
+  const formRef = useRef(form)
+  useEffect(() => { formRef.current = form }, [form])
+
+  useEffect(() => {
+    if (!submitTrigger) return
+    void onSubmit(formRef.current)
+  }, [submitTrigger, onSubmit])
 
   return (
     <form
@@ -37,11 +53,6 @@ export default function AddForm({
           />
         </label>
       ))}
-      <div className="md:col-span-2">
-        <Button type="submit">
-          Submit
-        </Button>
-      </div>
     </form>
   )
 }

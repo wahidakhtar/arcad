@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom"
 
 import DetailPageLayout from "../../components/layout/DetailPageLayout"
 import Button from "../../components/ui/Button"
+import Modal from "../../components/ui/Modal"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
 
@@ -31,6 +32,7 @@ export default function SubconDetailPage() {
   const [assigning, setAssigning] = useState(false)
   const [assignError, setAssignError] = useState("")
   const [error, setError] = useState("")
+  const [assignConfirmOpen, setAssignConfirmOpen] = useState(false)
 
   async function load() {
     if (!subconId) return
@@ -58,6 +60,7 @@ export default function SubconDetailPage() {
     try {
       await api.post(`/subcons/${subconId}/projects`, { project_id: Number(selectedProject) })
       setSelectedProject("")
+      setAssignConfirmOpen(false)
       await load()
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -72,9 +75,27 @@ export default function SubconDetailPage() {
 
   const assignedIds = new Set(subcon.projects.map((p) => p.id))
   const availableProjects = projects.filter((p) => !assignedIds.has(p.id))
+  const selectedProjectLabel = projects.find((p) => String(p.id) === selectedProject)?.label ?? ""
 
   return (
     <DetailPageLayout backHref="/subcons">
+      <Modal
+        isOpen={assignConfirmOpen}
+        title="Assign Project"
+        onClose={() => { setAssignConfirmOpen(false); setAssignError("") }}
+        size="sm"
+        submitLabel="Assign"
+        onSubmit={() => void assignProject()}
+        isSubmitting={assigning}
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-jscolors-text/70">
+            Assign <span className="font-semibold">{selectedProjectLabel}</span> to this subcon?
+          </p>
+          {assignError ? <p className="text-sm text-red-600">{assignError}</p> : null}
+        </div>
+      </Modal>
+
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <section className="glass-panel p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Identity</p>
@@ -123,13 +144,12 @@ export default function SubconDetailPage() {
                 </select>
                 <Button
                   type="button"
-                  disabled={assigning || !selectedProject}
-                  onClick={() => void assignProject()}
+                  disabled={!selectedProject}
+                  onClick={() => { setAssignError(""); setAssignConfirmOpen(true) }}
                 >
-                  {assigning ? "Assigning..." : "Assign"}
+                  Assign
                 </Button>
               </div>
-              {assignError ? <p className="mt-2 text-sm text-red-600">{assignError}</p> : null}
             </div>
           )}
         </section>
