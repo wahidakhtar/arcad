@@ -156,8 +156,12 @@ def _allowed_badge_transitions(db: Session, project_key: str, field_name: str, f
 
 def _field_types(db: Session, project_key: str) -> dict[str, str]:
     from sqlalchemy import text
-    records = db.execute(text(f"SELECT tag, type FROM schema_{project_key}.ui ORDER BY id")).mappings().all()
-    return {str(record["tag"]): str(record["type"]) for record in records}
+    try:
+        records = db.execute(text(f"SELECT key, type FROM schema_{project_key}.ui_fields ORDER BY id")).mappings().all()
+    except SQLAlchemyError as exc:
+        logger.exception("field_type_lookup failed project=%s", project_key)
+        raise HTTPException(status_code=500, detail="Field configuration error for project") from exc
+    return {str(record["key"]): str(record["type"]) for record in records}
 
 
 def _normalize_site_payload(db: Session, project_key: str, data: dict[str, Any]) -> dict[str, Any]:

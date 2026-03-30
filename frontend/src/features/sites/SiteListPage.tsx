@@ -257,7 +257,6 @@ export default function SiteListPage() {
                 const subId = typeof activeTab === "number" ? activeTab : 1
                 await api.post(`/sites/${projectKey}`, { project_key: projectKey, subproject_id: subId, data })
                 setOpenAddModal(false)
-                refetch()
               }}
             />
           )}
