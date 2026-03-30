@@ -75,7 +75,7 @@ export default function TransactionDetailPage() {
   return (
     <DetailPageLayout
       backHref="/transactions"
-      subtitle="Transaction"
+      subtitle="Recipient"
       title={tx.recipient_label ?? tx.user_name ?? tx.subcon_name ?? `#${tx.id}`}
       badges={
         <div className="shrink-0 rounded-[18px] border border-jscolors-crimson/10 bg-white px-3 py-2">

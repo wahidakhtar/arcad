@@ -210,6 +210,7 @@ def update_status(
 
     current_badge = db.get(Badge, tx.status_id)
     target_badge = db.get(Badge, status_id)
+    type_badge = db.get(Badge, tx.type_id)
     if target_badge is None:
         raise HTTPException(status_code=400, detail="Invalid target status")
 
@@ -224,7 +225,8 @@ def update_status(
     elif target_key in ("exct", "rej"):
         if not check_permission(user, None, "transaction", "write", db):
             raise HTTPException(status_code=403, detail="write access denied for transaction")
-        if target_key == "exct" and execution_date is None:
+        requires_execution_date = type_badge is None or type_badge.key not in {"b_sur", "e_sur"}
+        if target_key == "exct" and requires_execution_date and execution_date is None:
             raise HTTPException(status_code=400, detail="execution_date is required for executed status")
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported target status: {target_key}")
