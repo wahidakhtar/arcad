@@ -7,14 +7,14 @@ const TODAY = new Date().toISOString().slice(0, 10)
 export default function BulkTable({
   columns,
   onSubmit,
-  submitTrigger,
   onLoadingChange,
+  submitRef,
 }: {
   columns: FieldDefinition[]
   states?: Array<{ id: number; label: string }>
   onSubmit: (payload: { batchDate: string; rows: Array<Record<string, string | boolean>> }) => Promise<void>
-  submitTrigger?: number
   onLoadingChange?: (loading: boolean) => void
+  submitRef?: React.MutableRefObject<(() => void) | null>
 }) {
   const [batchDate, setBatchDate] = useState(TODAY)
   const [rows, setRows] = useState<Array<Record<string, string | boolean>>>(
@@ -29,27 +29,35 @@ export default function BulkTable({
   useEffect(() => { batchDateRef.current = batchDate }, [batchDate])
   useEffect(() => { rowsRef.current = rows }, [rows])
 
-  useEffect(() => {
-    if (!submitTrigger) return
+  async function handleSubmit() {
+    if (loading) return
     const filteredRows = rowsRef.current.filter((row) => Object.values(row).some((v) => v !== "" && v !== false))
     const payload = { batchDate: batchDateRef.current, rows: filteredRows }
     console.log("SUBMIT PAYLOAD:", payload)
     setError("")
     setLoading(true)
     onLoadingChange?.(true)
-    void onSubmit(payload)
-      .catch((err: unknown) => {
-        console.error("AddSubproject error:", err)
-        console.error("status:", (err as { response?: { status?: number } })?.response?.status)
-        console.error("data:", (err as { response?: { data?: { detail?: string } } })?.response?.data)
-        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        setError(detail ?? "Failed to submit")
-      })
-      .finally(() => {
-        setLoading(false)
-        onLoadingChange?.(false)
-      })
-  }, [submitTrigger, onSubmit, onLoadingChange])
+    try {
+      await onSubmit(payload)
+    } catch (err: unknown) {
+      console.error("AddSubproject error:", err)
+      console.error("status:", (err as { response?: { status?: number } })?.response?.status)
+      console.error("data:", (err as { response?: { data?: { detail?: string } } })?.response?.data)
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setError(detail ?? "Failed to submit")
+    } finally {
+      setLoading(false)
+      onLoadingChange?.(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!submitRef) return
+    submitRef.current = () => { void handleSubmit() }
+    return () => {
+      submitRef.current = null
+    }
+  })
 
   function updateCell(rowIndex: number, key: string, value: string | boolean) {
     setRows((current) => current.map((row, index) => (index === rowIndex ? { ...row, [key]: value } : row)))

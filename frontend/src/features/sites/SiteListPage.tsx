@@ -59,6 +59,7 @@ function subprojectLabel(sub: Subproject) {
 
 export default function SiteListPage() {
   const addSiteSubmitRef = useRef<(() => void) | null>(null)
+  const addSubprojectSubmitRef = useRef<(() => void) | null>(null)
   const { can, roles, projectKeys } = useAuth()
   const { projectKey = "mi" } = useParams()
   const [projectMeta, setProjectMeta] = useState<ProjectMeta | null>(null)
@@ -70,7 +71,6 @@ export default function SiteListPage() {
   const [selectedBadges, setSelectedBadges] = useState<string[]>([])
   const [openAddModal, setOpenAddModal] = useState(false)
   const [addModalTab, setAddModalTab] = useState<"site" | "subproject">("site")
-  const [addTrigger, setAddTrigger] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [badges, setBadges] = useState<Badge[]>([])
   const [states, setStates] = useState<Array<{ id: number; label: string }>>([])
@@ -243,7 +243,7 @@ export default function SiteListPage() {
             addSiteSubmitRef.current?.()
             return
           }
-          setAddTrigger((n) => n + 1)
+          addSubprojectSubmitRef.current?.()
         }}
         isSubmitting={submitting}
       >
@@ -269,8 +269,8 @@ export default function SiteListPage() {
           )}
           {showModalTabs && addModalTab === "subproject" && (
             <BulkTable
+              submitRef={addSubprojectSubmitRef}
               columns={bulkFields}
-              submitTrigger={addTrigger}
               onLoadingChange={setSubmitting}
               onSubmit={async ({ batchDate, rows: bulkRows }) => {
                 await api.post("/projects/subprojects", { project_key: projectKey, batch_date: batchDate, rows: bulkRows })
