@@ -9,7 +9,7 @@ from app.config.calculator import RateCardRow, SubconAssignmentRow, TransactionR
 from app.models.acc import RateCard, Transaction
 from app.models.core import Job, JobBucket
 from app.models.ops import Subcon, SubconAssignment
-from app.services.common import badge_map, get_project, get_site_model, model_to_dict
+from app.services.common import badge_map, get_project, get_project_config, get_site_model, model_to_dict
 
 
 def build_site_financials(db: Session, project_id: int, project_key: str, site_id: int, site_data: dict[str, Any]) -> dict[str, Any]:
@@ -39,7 +39,14 @@ def build_site_financials(db: Session, project_id: int, project_key: str, site_i
     rates = [RateCardRow(job_key=row.jk, effective_date=row.RateCard.date, cost=row.RateCard.cost) for row in rate_rows]
     job_scales = {job.job_key: job.scale_by for job in db.execute(select(Job)).scalars()}
     site_data["status_key"] = badges[site_data["status_id"]].key
-    return calculate_site_financials(site_data, assignments, transactions, rates, job_scales)
+    project_config = get_project_config(project_key)
+    budget_params = getattr(project_config, "budget_params", {}) or {}
+    site_bucket_keys = [
+        value
+        for key, value in budget_params.items()
+        if isinstance(value, str) and "bucket" in key
+    ]
+    return calculate_site_financials(site_data, assignments, transactions, rates, job_scales, site_bucket_keys)
 
 
 def serialize_subcon_rows(db: Session, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -84,13 +84,18 @@ def get_transaction(db: Session, user: UserContext, transaction_id: int) -> dict
             SELECT t.id, t.request_date, t.recipient_type_id, t.recipient_id, t.type_id,
                    t.project_id, t.site_id, t.amount, t.status_id, t.execution_date,
                    t.remarks, t.version,
-                   COALESCE(u.label, s.name, r.label) AS recipient_label,
+                   CASE
+                       WHEN r.key = 'user' THEN u.label
+                       WHEN r.key = 'subcon' THEN s.name
+                       WHEN t.site_id IS NOT NULL THEN s.name
+                       ELSE COALESCE(u.label, s.name, r.label)
+                   END AS recipient_label,
                    r.key AS recipient_type_key,
                    u.label AS user_name, s.name AS subcon_name
             FROM schema_acc.transactions t
             LEFT JOIN schema_core.recipients r ON r.id = t.recipient_type_id
-            LEFT JOIN schema_hr.users u ON u.id = t.recipient_id AND r.key = 'user'
-            LEFT JOIN schema_ops.subcons s ON s.id = t.recipient_id AND r.key = 'subcon'
+            LEFT JOIN schema_hr.users u ON u.id = t.recipient_id
+            LEFT JOIN schema_ops.subcons s ON s.id = t.recipient_id
             WHERE {where_clause}
         """),
         params,
@@ -131,13 +136,18 @@ def list_transactions(db: Session, user: UserContext, page: int = 1, page_size: 
             SELECT t.id, t.request_date, t.recipient_type_id, t.recipient_id, t.type_id,
                    t.project_id, t.site_id, t.amount, t.status_id, t.execution_date,
                    t.remarks, t.version,
-                   COALESCE(u.label, s.name, r.label) AS recipient_label,
+                   CASE
+                       WHEN r.key = 'user' THEN u.label
+                       WHEN r.key = 'subcon' THEN s.name
+                       WHEN t.site_id IS NOT NULL THEN s.name
+                       ELSE COALESCE(u.label, s.name, r.label)
+                   END AS recipient_label,
                    r.key AS recipient_type_key,
                    u.label AS user_name, s.name AS subcon_name
             FROM schema_acc.transactions t
             LEFT JOIN schema_core.recipients r ON r.id = t.recipient_type_id
-            LEFT JOIN schema_hr.users u ON u.id = t.recipient_id AND r.key = 'user'
-            LEFT JOIN schema_ops.subcons s ON s.id = t.recipient_id AND r.key = 'subcon'
+            LEFT JOIN schema_hr.users u ON u.id = t.recipient_id
+            LEFT JOIN schema_ops.subcons s ON s.id = t.recipient_id
             WHERE {where_clause}
             ORDER BY t.request_date DESC
             LIMIT :limit OFFSET :offset

@@ -24,7 +24,10 @@ export default function useTransactionDetail() {
         api.get<TransitionEntry[]>("/transactions/transitions"),
       ])
       const txData = txRes.data
-      setTx(txData)
+      setTx({
+        ...txData,
+        recipient_label: txData.recipient_label ?? txData.user_name ?? txData.subcon_name ?? null,
+      })
       setAllBadges(Array.isArray(badgesRes.data) ? badgesRes.data : [])
       setTransitions(Array.isArray(transitionsRes.data) ? transitionsRes.data : [])
 

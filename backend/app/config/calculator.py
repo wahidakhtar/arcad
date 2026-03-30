@@ -109,6 +109,12 @@ def site_cost_for_bucket(
     return amount
 
 
+def site_paid(transactions: list[TransactionRow]) -> Decimal:
+    paid = _sum_transactions(transactions, type_keys={FE_PAYMENT_TYPE})
+    refunds = _sum_transactions(transactions, type_keys={REFUND_TYPE})
+    return paid - refunds
+
+
 def subcon_budget(
     site: dict[str, Any],
     subcon_id: int,
@@ -137,10 +143,7 @@ def subcon_cost(
     rate_rows: list[RateCardRow],
     job_scales: dict[str, str],
 ) -> Decimal:
-    if assignment.active:
-        return site_cost_for_bucket(site, assignment.bucket_key, transactions, rate_rows, job_scales)
-
-    return ZERO
+    return site_cost_for_bucket(site, assignment.bucket_key, transactions, rate_rows, job_scales)
 
 
 def subcon_paid(transactions: list[TransactionRow], subcon_id: int) -> Decimal:
@@ -174,19 +177,22 @@ def calculate_site_financials(
     transactions: list[TransactionRow],
     rate_rows: list[RateCardRow],
     job_scales: dict[str, str],
+    site_bucket_keys: list[str] | None = None,
 ) -> dict[str, Any]:
     by_subcon: list[dict[str, Any]] = []
+    site_bucket_keys = list(dict.fromkeys(site_bucket_keys or []))
     budget = ZERO
     cost = ZERO
-    paid = ZERO
+    for bucket_key in site_bucket_keys:
+        bucket_amount = site_cost_for_bucket(site, bucket_key, transactions, rate_rows, job_scales)
+        budget += bucket_amount
+        cost += bucket_amount
+    paid = site_paid(transactions)
     for assignment in assignments:
         row_budget = subcon_budget(site, assignment.subcon_id, assignment.bucket_key, transactions, rate_rows, job_scales)
         row_cost = subcon_cost(site, assignment, assignments, transactions, rate_rows, job_scales)
         row_paid = subcon_paid(transactions, assignment.subcon_id)
         row_balance = subcon_balance(site, assignment, assignments, transactions, rate_rows, job_scales)
-        budget += row_budget
-        cost += row_cost
-        paid += row_paid
         by_subcon.append(
             {
                 "assignment_id": assignment.id,
