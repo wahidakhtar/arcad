@@ -15,7 +15,7 @@ export default function TransactionsTable({ rows, badgeById }: TransactionsTable
   const columns = useMemo(() => [
     { key: "recipient_label", label: "Recipient", minWidth: 120 },
     { key: "project_label", label: "Project", minWidth: 120 },
-    { key: "ckt_id", label: "Site", minWidth: 100 },
+    { key: "ckt_id", label: "Circuit ID", minWidth: 100 },
     { key: "type_label", label: "Type", minWidth: 140 },
     {
       key: "amount",

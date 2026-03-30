@@ -47,6 +47,7 @@ def _tx_to_dict(tx: Transaction) -> dict:
         "status_id": tx.status_id,
         "execution_date": tx.execution_date,
         "remarks": tx.remarks,
+        "recipient_label": None,
         "version": tx.version,
     }
 
@@ -79,8 +80,10 @@ def get_transaction(db: Session, user: UserContext, transaction_id: int) -> dict
         text(f"""
             SELECT t.id, t.request_date, t.recipient_type_id, t.recipient_id, t.type_id,
                    t.project_id, t.site_id, t.amount, t.status_id, t.execution_date,
-                   t.remarks, t.version, r.label AS recipient_label, r.key AS recipient_type_key,
-                   u.username AS user_name, s.name AS subcon_name
+                   t.remarks, t.version,
+                   COALESCE(u.label, s.name, r.label) AS recipient_label,
+                   r.key AS recipient_type_key,
+                   u.label AS user_name, s.name AS subcon_name
             FROM schema_acc.transactions t
             LEFT JOIN schema_core.recipients r ON r.id = t.recipient_type_id
             LEFT JOIN schema_hr.users u ON u.id = t.recipient_id AND r.key = 'user'
@@ -124,8 +127,10 @@ def list_transactions(db: Session, user: UserContext, page: int = 1, page_size: 
         text(f"""
             SELECT t.id, t.request_date, t.recipient_type_id, t.recipient_id, t.type_id,
                    t.project_id, t.site_id, t.amount, t.status_id, t.execution_date,
-                   t.remarks, t.version, r.label AS recipient_label, r.key AS recipient_type_key,
-                   u.username AS user_name, s.name AS subcon_name
+                   t.remarks, t.version,
+                   COALESCE(u.label, s.name, r.label) AS recipient_label,
+                   r.key AS recipient_type_key,
+                   u.label AS user_name, s.name AS subcon_name
             FROM schema_acc.transactions t
             LEFT JOIN schema_core.recipients r ON r.id = t.recipient_type_id
             LEFT JOIN schema_hr.users u ON u.id = t.recipient_id AND r.key = 'user'
