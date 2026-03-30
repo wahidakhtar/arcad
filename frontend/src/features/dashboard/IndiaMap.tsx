@@ -1,9 +1,16 @@
 import { useMemo, useRef, useState, type MouseEvent } from "react"
-import { ComposableMap, Geographies, Geography } from "react-simple-maps"
+import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps"
 import indiaGeoUrl from "../../assets/india-lite.geojson?url"
 
 const TOOLTIP_WIDTH = 260
 const TOOLTIP_HEIGHT = 140 // conservative estimate for clamping vertical
+const TINY_REGION_MARKERS: Record<string, [number, number]> = {
+  "Andaman and Nicobar Islands": [92.9, 11.7],
+  Chandigarh: [76.78, 30.73],
+  "Dadra and Nagar Haveli and Daman and Diu": [72.95, 20.3],
+  Lakshadweep: [72.7, 10.6],
+  Puducherry: [79.82, 11.93],
+}
 
 type MapRow = {
   state_id: number
@@ -51,6 +58,22 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
     })
   }
 
+  const markerRows = useMemo(
+    () =>
+      Object.entries(TINY_REGION_MARKERS)
+        .map(([name, coordinates]) => {
+          const row = rowByState.get(normalizeStateLabel(name))
+          return {
+            name,
+            coordinates,
+            row,
+            count: row?.count ?? 0,
+          }
+        })
+        .filter((item) => knownStateLabels.has(normalizeStateLabel(item.name))),
+    [knownStateLabels, rowByState],
+  )
+
   return (
     <div ref={containerRef} className="relative rounded-[24px] border border-jscolors-crimson/10 bg-white/70 p-4">
       <ComposableMap projection="geoMercator" projectionConfig={{ scale: 920, center: [82, 22] }} style={{ width: "100%", height: "540px" }}>
@@ -82,6 +105,34 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
             })
           }
         </Geographies>
+        {markerRows.map((marker) => (
+          <Marker key={marker.name} coordinates={marker.coordinates}>
+            <g
+              onMouseEnter={(event) => {
+                const target = event.target as SVGCircleElement
+                const rect = target.getBoundingClientRect()
+                handleMouseEnter(
+                  {
+                    clientX: rect.left + rect.width / 2,
+                    clientY: rect.top + rect.height / 2,
+                  } as MouseEvent<SVGPathElement>,
+                  marker.name,
+                  marker.count,
+                  marker.row,
+                )
+              }}
+              onMouseLeave={() => setTooltip(null)}
+              style={{ cursor: "pointer" }}
+            >
+              <circle
+                r={6}
+                fill={marker.count > 0 ? "#8B1A1A" : "#E7D8D8"}
+                stroke="#ffffff"
+                strokeWidth={2}
+              />
+            </g>
+          </Marker>
+        ))}
       </ComposableMap>
       {tooltip ? (
         <div
