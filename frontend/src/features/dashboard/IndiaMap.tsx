@@ -11,6 +11,7 @@ const TINY_REGION_MARKERS: Record<string, [number, number]> = {
   Lakshadweep: [72.7, 10.6],
   Puducherry: [79.82, 11.93],
 }
+const TINY_REGION_NAMES = new Set(Object.keys(TINY_REGION_MARKERS))
 
 type MapRow = {
   state_id: number
@@ -82,6 +83,9 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
             geographies.map((geography: { rsmKey: string; properties: Record<string, unknown> }) => {
               const name = String(geography.properties?.st_nm ?? geography.properties?.ST_NM ?? geography.properties?.name ?? geography.properties?.NAME_1 ?? "")
               if (knownStateLabels.size && !knownStateLabels.has(normalizeStateLabel(name))) {
+                return null
+              }
+              if (TINY_REGION_NAMES.has(name)) {
                 return null
               }
               const row = rowByState.get(normalizeStateLabel(name))
