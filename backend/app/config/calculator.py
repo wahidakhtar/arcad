@@ -8,11 +8,19 @@ from typing import Any, Optional
 ZERO = Decimal("0.00")
 
 JOB_BUCKETS: dict[str, list[str]] = {
-    "bmi": ["mi"],
-    "bmdv": ["mdv"],
-    "bmd": ["md"],
-    "bma": ["ma"],
-    "bmc": ["mpaint", "mnbr", "ep", "ec", "arr"],
+    "bmi": ["jmi"],
+    "bmdv": ["jmdv"],
+    "bmd": ["jmd"],
+    "bma": ["jma"],
+    "bmc": ["jpaint", "jnbr", "jep", "jec", "jarr"],
+}
+
+JOB_SITE_FIELDS: dict[str, str] = {
+    "jpaint": "mpaint",
+    "jnbr": "mnbr",
+    "jep": "ep",
+    "jec": "ec",
+    "jarr": "arr",
 }
 
 SURCHARGE_TYPES = {"b_sur", "e_sur"}
@@ -54,15 +62,16 @@ def _as_decimal(value: Any) -> Decimal:
 
 
 def _job_quantity(site: dict[str, Any], job_key: str, scale_by: str) -> Decimal:
+    field_key = JOB_SITE_FIELDS.get(job_key, job_key)
     if scale_by == "height":
         return _as_decimal(site.get("height"))
     if scale_by == "height_if_true":
-        return _as_decimal(site.get("height")) if site.get(job_key) else ZERO
+        return _as_decimal(site.get("height")) if site.get(field_key) else ZERO
     if scale_by == "numeric":
-        return _as_decimal(site.get(job_key))
+        return _as_decimal(site.get(field_key))
     if scale_by == "visit_date":
         return Decimal("1") if site.get("visit_date") else ZERO
-    raw = site.get(job_key)
+    raw = site.get(field_key)
     return Decimal("1") if raw else ZERO
 
 
@@ -98,9 +107,12 @@ def site_cost_for_bucket(
 ) -> Decimal:
     receiving_date = site["receiving_date"]
     amount = ZERO
-    for job_key in JOB_BUCKETS[bucket_key]:
+    bucket_jobs = JOB_BUCKETS[bucket_key]
+    for job_key in bucket_jobs:
         scale_by = job_scales.get(job_key, "unit")
         qty = _job_quantity(site, job_key, scale_by)
+        if qty == ZERO and scale_by == "unit" and len(bucket_jobs) == 1:
+            qty = Decimal("1")
         if qty == ZERO:
             continue
         amount += _select_rate(job_key, receiving_date, rate_rows) * qty
