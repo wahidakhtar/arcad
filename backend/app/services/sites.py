@@ -642,8 +642,11 @@ def remove_assignment(db: Session, user: UserContext, project_key: str, site_id:
     ).scalar_one_or_none()
     if assignment is None:
         raise HTTPException(status_code=404, detail="Active assignment not found")
+    if final_cost is None:
+        raise HTTPException(status_code=400, detail="Final cost is required")
     assignment.active = False
     assignment.removed_at = datetime.now()
+    assignment.removed_cost = final_cost
     assignment.version = (assignment.version or 0) + 1
     _update_active_subcon_label(db, project_key, site_id, None)
     db.commit()

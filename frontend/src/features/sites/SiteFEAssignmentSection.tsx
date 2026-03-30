@@ -57,6 +57,7 @@ export default function SiteFEAssignmentSection({
   canSiteWrite: boolean
   onReload: () => Promise<void>
 }) {
+  const assigneeLabel = jobBuckets.length ? "FE" : "Subcon"
   const [assignmentForm, setAssignmentForm] = useState({ bucket_id: "", subcon_id: "" })
   const [assignModal, setAssignModal] = useState(false)
   const [assigning, setAssigning] = useState(false)
@@ -71,6 +72,7 @@ export default function SiteFEAssignmentSection({
     ? jobBuckets[0]
     : (jobBuckets.find((bucket) => String(bucket.id) === assignmentForm.bucket_id) ?? null)
   const alreadyAssigned = !!selectedBucket && currentSite.subcon_rows.some((row) => row.active && row.bucket_key === selectedBucket.key)
+  const hasActiveAssignment = currentSite.subcon_rows.some((row) => row.active)
 
   async function assignSubcon() {
     if (!assignmentForm.subcon_id) return
@@ -87,7 +89,7 @@ export default function SiteFEAssignmentSection({
       await onReload()
     } catch (error: unknown) {
       const response = (error as { response?: { status?: number; data?: { detail?: string } } }).response
-      setAssignErr(response?.data?.detail ?? "Failed to assign subcon.")
+      setAssignErr(response?.data?.detail ?? `Failed to assign ${assigneeLabel}.`)
     } finally {
       setAssigning(false)
     }
@@ -95,7 +97,11 @@ export default function SiteFEAssignmentSection({
 
   async function removeSubcon() {
     if (!removeModal.assignment_id) return
-    const payload = { final_cost: removeModal.final_cost ? Number(removeModal.final_cost) : null }
+    if (!removeModal.final_cost.trim()) {
+      setRemoveModal((current) => ({ ...current, err: "Final cost is required." }))
+      return
+    }
+    const payload = { final_cost: Number(removeModal.final_cost) }
     const endpoint = `/sites/${projectKey}/${currentSite.id}/assignments/${removeModal.assignment_id}`
     setRemoving(true)
     setRemoveModal((current) => ({ ...current, err: "" }))
@@ -139,37 +145,39 @@ export default function SiteFEAssignmentSection({
 
   return (
     <ActionPanel
-      title="Subcon Assignment"
+      title={`${assigneeLabel} Assignment`}
       action={
         <Button
           type="button"
+          disabled={hasActiveAssignment}
           onClick={() => {
+            if (hasActiveAssignment) return
             setAssignmentForm({ bucket_id: jobBuckets.length === 1 ? String(jobBuckets[0].id) : "", subcon_id: "" })
             setAssignErr("")
             setAssignModal(true)
           }}
         >
-          Assign Subcon
+          {`Assign ${assigneeLabel}`}
         </Button>
       }
     >
       <Modal
         isOpen={removeModal.open}
-        title={`Remove ${removeModal.subcon_label}`}
+        title={`Remove ${assigneeLabel}`}
         onClose={() => setRemoveModal((current) => ({ ...current, open: false, err: "" }))}
-        submitLabel="Remove"
+        submitLabel={`Remove ${assigneeLabel}`}
         submitVariant="danger"
         onSubmit={() => void removeSubcon()}
         isSubmitting={removing}
       >
         <div className="space-y-4">
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Final Cost (₹) — optional</span>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Final Cost (₹)</span>
             <input
               type="number"
               value={removeModal.final_cost}
               onChange={(event) => setRemoveModal((current) => ({ ...current, final_cost: event.target.value }))}
-              placeholder="Leave blank if unknown"
+              placeholder="Enter final cost"
               className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
             />
           </label>
@@ -179,7 +187,7 @@ export default function SiteFEAssignmentSection({
 
       <Modal
         isOpen={assignModal}
-        title="Assign Subcon"
+        title={`Assign ${assigneeLabel}`}
         onClose={() => setAssignModal(false)}
         size="sm"
         submitLabel="Assign"
@@ -203,26 +211,26 @@ export default function SiteFEAssignmentSection({
             </label>
           )}
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Subcon</span>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">{assigneeLabel}</span>
             <select
               value={assignmentForm.subcon_id}
               onChange={(event) => setAssignmentForm((current) => ({ ...current, subcon_id: event.target.value }))}
               className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
             >
-              <option value="">Select Subcon</option>
+              <option value="">{`Select ${assigneeLabel}`}</option>
               {subcons.map((subcon) => (
                 <option key={subcon.id} value={subcon.id}>{subcon.label}</option>
               ))}
             </select>
           </label>
-          {alreadyAssigned ? <p className="text-sm text-red-600">An active subcon already exists for this bucket.</p> : null}
+          {alreadyAssigned ? <p className="text-sm text-red-600">{`An active ${assigneeLabel} already exists for this bucket.`}</p> : null}
           {assignErr ? <p className="text-sm text-red-600">{assignErr}</p> : null}
         </div>
       </Modal>
 
       <Modal
         isOpen={txModal.open}
-        title="Request Transaction"
+        title="Request"
         onClose={() => setTxModal((current) => ({ ...current, open: false }))}
         size="md"
         submitLabel="Submit Request"
@@ -279,7 +287,7 @@ export default function SiteFEAssignmentSection({
                       variant="secondary"
                       onClick={() => setTxModal({ open: true, subconId: row.subcon_id, bucketKey: row.bucket_key, subconLabel: `${row.subcon_label} · ${bucketLabel(jobBuckets, row.bucket_key)}`, type_id: "", amount: "", err: "" })}
                     >
-                      Request Transaction
+                      Request
                     </Button>
                   )}
                   {row.active && canSiteWrite && row.assignment_id ? (
@@ -290,7 +298,7 @@ export default function SiteFEAssignmentSection({
                       className="rounded-2xl py-1.5 font-medium text-red-700"
                       onClick={() => setRemoveModal({ open: true, assignment_id: row.assignment_id, subcon_label: row.subcon_label, final_cost: "", err: "" })}
                     >
-                      Remove
+                      {`Remove ${assigneeLabel}`}
                     </Button>
                   ) : null}
                 </div>
@@ -311,7 +319,7 @@ export default function SiteFEAssignmentSection({
               </div>
             </div>
           )
-        }) : <EmptyState text={subcons.length ? "No subcon assignments yet" : "No subcons available for this project"} />}
+        }) : <EmptyState text={subcons.length ? `No ${assigneeLabel} assignments yet` : `No ${assigneeLabel}s available for this project`} />}
       </div>
       {transactions.some((transaction) => !transaction.recipient_id) ? (
         <div className="mt-4 space-y-3">

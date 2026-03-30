@@ -20,6 +20,7 @@ def build_site_financials(db: Session, project_id: int, project_key: str, site_i
             subcon_id=row.subcon_id,
             bucket_key=db.get(JobBucket, row.bucket_id).key,
             active=row.active,
+            removed_cost=row.removed_cost,
         )
         for row in db.execute(
             select(SubconAssignment).where(SubconAssignment.project_id == project_id, SubconAssignment.site_id == site_id)

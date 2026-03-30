@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 from datetime import date, datetime, time
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, String, Text, Time
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, Time
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -54,6 +54,7 @@ class SubconAssignment(Base):
     assigned_by: Optional[Mapped[int]] = mapped_column(Integer)
     assigned_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     removed_at: Optional[Mapped[datetime]] = mapped_column(DateTime)
+    removed_cost: Optional[Mapped[float]] = mapped_column(Numeric(12, 2))
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
 

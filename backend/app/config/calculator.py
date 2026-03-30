@@ -51,6 +51,7 @@ class SubconAssignmentRow:
     subcon_id: int
     bucket_key: str
     active: bool
+    removed_cost: Decimal | None = None
 
 
 def _as_decimal(value: Any) -> Decimal:
@@ -155,7 +156,15 @@ def subcon_cost(
     rate_rows: list[RateCardRow],
     job_scales: dict[str, str],
 ) -> Decimal:
-    return site_cost_for_bucket(site, assignment.bucket_key, transactions, rate_rows, job_scales)
+    if not assignment.active:
+        return _as_decimal(assignment.removed_cost)
+    removed_total = sum(
+        _as_decimal(row.removed_cost)
+        for row in assignments
+        if not row.active and row.bucket_key == assignment.bucket_key
+    )
+    remaining = site_cost_for_bucket(site, assignment.bucket_key, transactions, rate_rows, job_scales) - removed_total
+    return remaining if remaining > ZERO else ZERO
 
 
 def subcon_paid(transactions: list[TransactionRow], subcon_id: int) -> Decimal:

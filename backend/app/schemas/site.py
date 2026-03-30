@@ -34,7 +34,7 @@ class SubconAssignmentRequest(BaseModel):
 
 
 class FERemovalRequest(BaseModel):
-    final_cost: Optional[Decimal] = None
+    final_cost: Decimal
 
 
 class SiteFinancials(BaseModel):
