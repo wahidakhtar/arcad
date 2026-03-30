@@ -13,6 +13,7 @@ export type PO = {
   subproject_id: number | null
   site_circuit_id: string | null
   subproject_name: string | null
+  site_status_key?: string | null
   entity_id: string | null
   po_no: string | null
   po_date: string | null

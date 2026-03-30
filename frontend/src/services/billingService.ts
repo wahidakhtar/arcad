@@ -6,3 +6,6 @@ export const getPoById = (id: number) =>
 
 export const getInvoicesByPoId = (poId: number) =>
   api.get<Invoice[]>("/billing/invoices", { params: { po_id: poId } })
+
+export const updatePo = (id: number, data: { po_no?: string | null; po_date?: string | null }) =>
+  api.patch<PO>(`/billing/pos/${id}`, data)

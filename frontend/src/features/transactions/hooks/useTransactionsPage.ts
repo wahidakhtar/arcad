@@ -8,7 +8,10 @@ export type TxRaw = {
   project_id: number
   site_id: number | null
   recipient_id: number | null
+  recipient_type_key?: string | null
   recipient_label?: string | null
+  user_name?: string | null
+  subcon_name?: string | null
   bucket_key: string | null
   type_id: number
   amount: number | string
@@ -50,6 +53,7 @@ export type TxRow = {
   recipient_label: string
   project_label: string
   ckt_id: string
+  tab_key: "site" | "salaried" | "others"
   type_key: string
   type_label: string
   amount: number | string
@@ -121,9 +125,10 @@ export default function useTransactionsPage() {
 
           return {
             id: tx.id,
-            recipient_label: tx.recipient_label ?? "-",
+            recipient_label: tx.user_name ?? tx.subcon_name ?? "-",
             project_label: project?.label ?? String(tx.project_id),
             ckt_id: siteMap.get(cktKey) ?? (tx.site_id ? String(tx.site_id) : "-"),
+            tab_key: tx.site_id ? "site" : tx.user_name ? "salaried" : "others",
             amount: tx.amount,
             type_key: typeBadge?.key ?? "",
             type_label: typeBadge?.label ?? "-",

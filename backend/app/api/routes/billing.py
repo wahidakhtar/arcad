@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.auth import permission_required
 from app.core.database import get_db
 from app.core.ws_manager import manager as ws_manager
-from app.schemas.billing import ActivatePORequest, InvoiceCreate, POCreate, RateCardCreate, StatusUpdate
+from app.schemas.billing import ActivatePORequest, InvoiceCreate, POCreate, POUpdate, RateCardCreate, StatusUpdate
 from app.services import billing as billing_service
 from app.services import acc_rules
 
@@ -50,6 +50,15 @@ def get_po(po_id: int, db: Session = Depends(get_db)):
 async def create_po(payload: POCreate, db: Session = Depends(get_db)):
     result = billing_service.create_po(db, payload)
     await ws_manager.broadcast({"type": "PO_CREATED"})
+    return result
+
+
+@router.patch("/pos/{po_id}", dependencies=[Depends(permission_required("billing", "write"))])
+async def update_po(po_id: int, payload: POUpdate, db: Session = Depends(get_db)):
+    result = billing_service.update_po(db, po_id, payload.model_dump(exclude_unset=True))
+    if result is None:
+        raise HTTPException(status_code=404, detail="PO not found")
+    await ws_manager.broadcast({"type": "PO_UPDATED", "po_id": po_id})
     return result
 
 

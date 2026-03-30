@@ -28,6 +28,11 @@ class POOut(BaseModel):
     po_status_id: int
 
 
+class POUpdate(BaseModel):
+    po_no: Optional[str] = None
+    po_date: Optional[date] = None
+
+
 class InvoiceCreate(BaseModel):
     po_id: int
     invoice_no: Optional[str] = None

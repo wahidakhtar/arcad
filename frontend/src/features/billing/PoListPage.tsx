@@ -30,9 +30,9 @@ export default function PoListPage() {
     <ListPageLayout filters={<FilterBar filters={[]} onFilterChange={() => {}} />}>
       <DataTable
         columns={[
-          { key: "po_no", label: "PO Number", minWidth: 220 },
           { key: "project_name", label: "Project", minWidth: 180 },
           { key: "circuit_context", label: "Circuit ID", minWidth: 180 },
+          { key: "po_no", label: "PO Number", minWidth: 220 },
           { key: "po_status", label: "PO Status", type: "badge", minWidth: 180 },
           {
             key: "invoice_status",

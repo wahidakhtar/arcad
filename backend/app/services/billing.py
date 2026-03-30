@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -105,6 +104,7 @@ def _serialize_po(
     *,
     site_circuit_id: str | None = None,
     subproject_name: str | None = None,
+    site_status_key: str | None = None,
 ) -> dict:
     return {
         "id": po.id,
@@ -115,6 +115,7 @@ def _serialize_po(
         "subproject_id": po.subproject_id,
         "site_circuit_id": site_circuit_id,
         "subproject_name": subproject_name,
+        "site_status_key": site_status_key,
         "entity_id": po.entity_id,
         "po_no": po.po_no,
         "po_date": po.po_date,
@@ -130,6 +131,7 @@ def _serialize_po(
 
 def _po_context_maps(db: Session, rows: list[tuple]) -> tuple[dict[tuple[int, int], str | None], dict[tuple[int, int], str | None]]:
     site_map: dict[tuple[int, int], str | None] = {}
+    site_status_map: dict[tuple[int, int], str | None] = {}
     subproject_map: dict[tuple[int, int], str | None] = {}
 
     by_project: dict[int, dict[str, object]] = {}
@@ -153,6 +155,8 @@ def _po_context_maps(db: Session, rows: list[tuple]) -> tuple[dict[tuple[int, in
             site_rows = db.execute(select(site_model).where(site_model.id.in_(site_ids))).scalars().all()
             for site in site_rows:
                 site_map[(project_id, site.id)] = getattr(site, "ckt_id", None)
+                status_badge = db.get(Badge, getattr(site, "status_id", None)) if getattr(site, "status_id", None) is not None else None
+                site_status_map[(project_id, site.id)] = None if status_badge is None else status_badge.key
                 if getattr(site, "subproject_id", None) is not None:
                     subproject_ids.add(site.subproject_id)
 
@@ -165,7 +169,7 @@ def _po_context_maps(db: Session, rows: list[tuple]) -> tuple[dict[tuple[int, in
                     subproject.id,
                 )
 
-    return site_map, subproject_map
+    return site_map, subproject_map, site_status_map
 
 
 def _serialize_invoice(invoice: Invoice, status_label: str | None, status_color: str | None) -> dict:
@@ -203,7 +207,7 @@ def list_pos(db: Session) -> list[dict]:
         .join(Badge, Badge.id == PO.po_status_id)
         .order_by(PO.id.desc())
     ).all()
-    site_map, subproject_map = _po_context_maps(db, rows)
+    site_map, subproject_map, site_status_map = _po_context_maps(db, rows)
     return [
         _serialize_po(
             row.PO,
@@ -213,6 +217,7 @@ def list_pos(db: Session) -> list[dict]:
             latest_invoice_status_by_po.get(row.PO.id),
             site_circuit_id=site_map.get((row.PO.project_id, row.PO.site_id)) if row.PO.site_id is not None else None,
             subproject_name=subproject_map.get((row.PO.project_id, row.PO.subproject_id)) if row.PO.subproject_id is not None else None,
+            site_status_key=site_status_map.get((row.PO.project_id, row.PO.site_id)) if row.PO.site_id is not None else None,
         )
         for row in rows
     ]
@@ -227,7 +232,7 @@ def get_po(db: Session, po_id: int) -> dict | None:
     ).one_or_none()
     if row is None:
         return None
-    site_map, subproject_map = _po_context_maps(db, [row])
+    site_map, subproject_map, site_status_map = _po_context_maps(db, [row])
     return _serialize_po(
         row.PO,
         row.Project.label,
@@ -235,6 +240,7 @@ def get_po(db: Session, po_id: int) -> dict | None:
         row.status_color,
         site_circuit_id=site_map.get((row.PO.project_id, row.PO.site_id)) if row.PO.site_id is not None else None,
         subproject_name=subproject_map.get((row.PO.project_id, row.PO.subproject_id)) if row.PO.subproject_id is not None else None,
+        site_status_key=site_status_map.get((row.PO.project_id, row.PO.site_id)) if row.PO.site_id is not None else None,
     )
 
 
@@ -275,6 +281,18 @@ def update_po_status(db: Session, po_id: int, status_id: int) -> PO:
     db.commit()
     db.refresh(row)
     return row
+
+
+def update_po(db: Session, po_id: int, data: dict) -> dict | None:
+    row = db.get(PO, po_id)
+    if row is None:
+        return None
+    if "po_no" in data:
+        row.po_no = data["po_no"]
+    if "po_date" in data:
+        row.po_date = data["po_date"]
+    db.commit()
+    return get_po(db, po_id)
 
 
 def update_invoice_status(db: Session, invoice_id: int, status_id: int) -> Invoice:
