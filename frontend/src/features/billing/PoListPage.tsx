@@ -11,6 +11,11 @@ export default function PoListPage() {
   })
 
   const rows = [...(data ?? [])].sort((a, b) => b.id - a.id)
+  const tableRows = rows.map((row) => ({
+    ...row,
+    project_name: row.project_name ?? row.project_label ?? "-",
+    circuit_context: row.site_id ? (row.site_circuit_id ?? "-") : (row.subproject_name ?? "-"),
+  }))
 
   if (loading) {
     return <div className="p-6 text-jscolors-text/50">Loading purchase orders...</div>
@@ -25,6 +30,8 @@ export default function PoListPage() {
       <DataTable
         columns={[
           { key: "po_no", label: "PO Number", minWidth: 220 },
+          { key: "project_name", label: "Project", minWidth: 180 },
+          { key: "circuit_context", label: "Circuit ID", minWidth: 180 },
           { key: "po_status", label: "PO Status", type: "badge", minWidth: 180 },
           {
             key: "invoice_status",
@@ -33,7 +40,7 @@ export default function PoListPage() {
             render: (value) => value ? <FieldRenderer type="badge" value={value} /> : "-",
           },
         ]}
-        rows={rows}
+        rows={tableRows}
         rowHref={(row) => `/billing/po/${row.id}`}
       />
     </ListPageLayout>

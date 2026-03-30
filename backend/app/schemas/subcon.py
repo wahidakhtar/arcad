@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
@@ -30,3 +31,37 @@ class SubconOut(BaseModel):
     is_active: bool
     created_at: datetime
     projects: list[SubconProjectOut] = Field(default_factory=list)
+
+
+class SubconSummaryOut(BaseModel):
+    id: int
+    name: str
+    subcon_type_id: int
+    subcon_type_key: str
+    subcon_type_label: str
+    is_active: bool
+    created_at: datetime
+
+
+class SubconAssignedSiteOut(BaseModel):
+    project_name: str
+    circuit_id: str | None
+    status: str
+    cost: Decimal
+    paid: Decimal
+    balance: Decimal
+
+
+class SubconTransactionOut(BaseModel):
+    po_number: str | None
+    invoice_number: str | None
+    amount: Decimal
+    status: str
+    project_or_subproject: str
+
+
+class SubconDetailOut(BaseModel):
+    subcon: SubconSummaryOut
+    assigned_projects: list[SubconProjectOut] = Field(default_factory=list)
+    assigned_sites: list[SubconAssignedSiteOut] = Field(default_factory=list)
+    transactions: list[SubconTransactionOut] = Field(default_factory=list)

@@ -8,8 +8,11 @@ export type PO = {
   id: number
   project_id: number
   project_label: string | null
+  project_name: string | null
   site_id: number | null
   subproject_id: number | null
+  site_circuit_id: string | null
+  subproject_name: string | null
   entity_id: string | null
   po_no: string | null
   po_date: string | null

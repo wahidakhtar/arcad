@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.acc import Invoice, PO, RateCard
 from app.models.core import Badge, Job, Project
 from app.models.updates import Update
+from app.services.common import get_site_model, get_subproject_model
 from app.schemas.billing import InvoiceCreate, POCreate, RateCardCreate
 
 # acc department badge id (used for PO-level updates)
@@ -100,13 +102,19 @@ def _serialize_po(
     status_label: str | None,
     status_color: str | None,
     invoice_status: dict | None = None,
+    *,
+    site_circuit_id: str | None = None,
+    subproject_name: str | None = None,
 ) -> dict:
     return {
         "id": po.id,
         "project_id": po.project_id,
         "project_label": project_label,
+        "project_name": project_label,
         "site_id": po.site_id,
         "subproject_id": po.subproject_id,
+        "site_circuit_id": site_circuit_id,
+        "subproject_name": subproject_name,
         "entity_id": po.entity_id,
         "po_no": po.po_no,
         "po_date": po.po_date,
@@ -119,6 +127,50 @@ def _serialize_po(
         "invoice_status": invoice_status,
         "version": po.version,
     }
+
+
+def _format_subproject_name(batch_date: date | None, bucket: bool | None) -> str | None:
+    if bucket:
+        return "Bucket"
+    if batch_date is None:
+        return None
+    return batch_date.strftime("%B %Y")
+
+
+def _po_context_maps(db: Session, rows: list[tuple]) -> tuple[dict[tuple[int, int], str | None], dict[tuple[int, int], str | None]]:
+    site_map: dict[tuple[int, int], str | None] = {}
+    subproject_map: dict[tuple[int, int], str | None] = {}
+
+    by_project: dict[int, dict[str, object]] = {}
+    for row in rows:
+        po = row.PO
+        project = row.Project
+        entry = by_project.setdefault(project.id, {"project": project, "site_ids": set(), "subproject_ids": set()})
+        if po.site_id is not None:
+            entry["site_ids"].add(po.site_id)
+        if po.subproject_id is not None:
+            entry["subproject_ids"].add(po.subproject_id)
+
+    for project_id, entry in by_project.items():
+        project = entry["project"]
+        site_ids = list(entry["site_ids"])
+        subproject_ids = set(entry["subproject_ids"])
+        site_model = get_site_model(project.key)
+        subproject_model = get_subproject_model(project.key)
+
+        if site_ids:
+            site_rows = db.execute(select(site_model).where(site_model.id.in_(site_ids))).scalars().all()
+            for site in site_rows:
+                site_map[(project_id, site.id)] = getattr(site, "ckt_id", None)
+                if getattr(site, "subproject_id", None) is not None:
+                    subproject_ids.add(site.subproject_id)
+
+        if subproject_ids:
+            subproject_rows = db.execute(select(subproject_model).where(subproject_model.id.in_(list(subproject_ids)))).scalars().all()
+            for subproject in subproject_rows:
+                subproject_map[(project_id, subproject.id)] = _format_subproject_name(subproject.batch_date, getattr(subproject, "bucket", None))
+
+    return site_map, subproject_map
 
 
 def _serialize_invoice(invoice: Invoice, status_label: str | None, status_color: str | None) -> dict:
@@ -151,18 +203,21 @@ def list_pos(db: Session) -> list[dict]:
         )
 
     rows = db.execute(
-        select(PO, Project.label.label("project_label"), Badge.label.label("status_label"), Badge.color.label("status_color"))
+        select(PO, Project, Badge.label.label("status_label"), Badge.color.label("status_color"))
         .join(Project, Project.id == PO.project_id)
         .join(Badge, Badge.id == PO.po_status_id)
         .order_by(PO.id.desc())
     ).all()
+    site_map, subproject_map = _po_context_maps(db, rows)
     return [
         _serialize_po(
             row.PO,
-            row.project_label,
+            row.Project.label,
             row.status_label,
             row.status_color,
             latest_invoice_status_by_po.get(row.PO.id),
+            site_circuit_id=site_map.get((row.PO.project_id, row.PO.site_id)) if row.PO.site_id is not None else None,
+            subproject_name=subproject_map.get((row.PO.project_id, row.PO.subproject_id)) if row.PO.subproject_id is not None else None,
         )
         for row in rows
     ]
@@ -170,14 +225,22 @@ def list_pos(db: Session) -> list[dict]:
 
 def get_po(db: Session, po_id: int) -> dict | None:
     row = db.execute(
-        select(PO, Project.label.label("project_label"), Badge.label.label("status_label"), Badge.color.label("status_color"))
+        select(PO, Project, Badge.label.label("status_label"), Badge.color.label("status_color"))
         .join(Project, Project.id == PO.project_id)
         .join(Badge, Badge.id == PO.po_status_id)
         .where(PO.id == po_id)
     ).one_or_none()
     if row is None:
         return None
-    return _serialize_po(row.PO, row.project_label, row.status_label, row.status_color)
+    site_map, subproject_map = _po_context_maps(db, [row])
+    return _serialize_po(
+        row.PO,
+        row.Project.label,
+        row.status_label,
+        row.status_color,
+        site_circuit_id=site_map.get((row.PO.project_id, row.PO.site_id)) if row.PO.site_id is not None else None,
+        subproject_name=subproject_map.get((row.PO.project_id, row.PO.subproject_id)) if row.PO.subproject_id is not None else None,
+    )
 
 
 def create_po(db: Session, payload: POCreate) -> PO:

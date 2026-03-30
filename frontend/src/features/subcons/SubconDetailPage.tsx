@@ -1,35 +1,58 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
 
 import DetailPageLayout from "../../components/layout/DetailPageLayout"
 import Button from "../../components/ui/Button"
+import DataTable from "../../components/ui/DataTable"
 import Modal from "../../components/ui/Modal"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
 
-type SubconDetail = {
+type SubconSummary = {
   id: number
   name: string
   subcon_type_label: string
   is_active: boolean
   created_at: string
-  projects: Array<{ id: number; key: string; label: string }>
+}
+
+type AssignedProject = { id: number; key: string; label: string }
+type AssignedSite = {
+  project_name: string
+  circuit_id: string | null
+  status: string
+  cost: string | number
+  paid: string | number
+  balance: string | number
+}
+type SubconTransaction = {
+  po_number: string | null
+  invoice_number: string | null
+  amount: string | number
+  status: string
+  project_or_subproject: string
+}
+type SubconDetailResponse = {
+  subcon: SubconSummary
+  assigned_projects: AssignedProject[]
+  assigned_sites: AssignedSite[]
+  transactions: SubconTransaction[]
 }
 
 type ProjectRow = { id: number; key: string; label: string; active: boolean }
 
 const fieldCls = "w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
-const labelCls = "mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45"
 
 export default function SubconDetailPage() {
   const { subconId } = useParams()
   const { can } = useAuth()
   const canWrite = can("subproject", "write")
 
-  const [subcon, setSubcon] = useState<SubconDetail | null>(null)
+  const [detail, setDetail] = useState<SubconDetailResponse | null>(null)
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [selectedProject, setSelectedProject] = useState("")
   const [assigning, setAssigning] = useState(false)
+  const [removingProjectId, setRemovingProjectId] = useState<number | null>(null)
   const [assignError, setAssignError] = useState("")
   const [error, setError] = useState("")
   const [assignConfirmOpen, setAssignConfirmOpen] = useState(false)
@@ -42,8 +65,8 @@ export default function SubconDetailPage() {
         api.get(`/subcons/${subconId}`),
         api.get("/projects"),
       ])
-      setSubcon(subconResponse.data as SubconDetail)
-      setProjects((projectsResponse.data as ProjectRow[]).filter((p) => p.active))
+      setDetail(subconResponse.data as SubconDetailResponse)
+      setProjects((projectsResponse.data as ProjectRow[]).filter((project) => project.active))
     } catch {
       setError("Unable to load subcon details.")
     }
@@ -52,6 +75,13 @@ export default function SubconDetailPage() {
   useEffect(() => {
     void load()
   }, [subconId])
+
+  const assignedProjects = detail?.assigned_projects ?? []
+  const availableProjects = useMemo(() => {
+    const assignedIds = new Set(assignedProjects.map((project) => project.id))
+    return projects.filter((project) => !assignedIds.has(project.id))
+  }, [assignedProjects, projects])
+  const selectedProjectLabel = projects.find((project) => String(project.id) === selectedProject)?.label ?? ""
 
   async function assignProject() {
     if (!subconId || !selectedProject) return
@@ -70,36 +100,84 @@ export default function SubconDetailPage() {
     }
   }
 
-  if (error) return <div className="p-6 text-red-600">{error}</div>
-  if (!subcon) return <div className="p-6 text-jscolors-text/50">Loading...</div>
+  async function removeProject(projectId: number) {
+    if (!subconId) return
+    setRemovingProjectId(projectId)
+    setAssignError("")
+    try {
+      const response = await api.delete(`/subcons/${subconId}/projects/${projectId}`)
+      setDetail(response.data as SubconDetailResponse)
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setAssignError(detail ?? "Failed to remove project.")
+    } finally {
+      setRemovingProjectId(null)
+    }
+  }
 
-  const assignedIds = new Set(subcon.projects.map((p) => p.id))
-  const availableProjects = projects.filter((p) => !assignedIds.has(p.id))
-  const selectedProjectLabel = projects.find((p) => String(p.id) === selectedProject)?.label ?? ""
+  if (error) return <div className="p-6 text-red-600">{error}</div>
+  if (!detail) return <div className="p-6 text-jscolors-text/50">Loading...</div>
+
+  const { subcon, assigned_sites: assignedSites, transactions } = detail
 
   return (
-    <DetailPageLayout backHref="/subcons">
+    <DetailPageLayout
+      title={subcon.name}
+      subtitle="Subcontractor"
+      backHref="/subcons"
+      actions={canWrite ? (
+        <Button
+          type="button"
+          disabled={!availableProjects.length}
+          onClick={() => {
+            setAssignError("")
+            setAssignConfirmOpen(true)
+          }}
+        >
+          Assign Project
+        </Button>
+      ) : null}
+    >
       <Modal
         isOpen={assignConfirmOpen}
         title="Assign Project"
-        onClose={() => { setAssignConfirmOpen(false); setAssignError("") }}
+        onClose={() => {
+          setAssignConfirmOpen(false)
+          setAssignError("")
+          setSelectedProject("")
+        }}
         size="sm"
         submitLabel="Assign"
         onSubmit={() => void assignProject()}
         isSubmitting={assigning}
       >
-        <div className="space-y-3">
-          <p className="text-sm text-jscolors-text/70">
-            Assign <span className="font-semibold">{selectedProjectLabel}</span> to this subcon?
-          </p>
+        <div className="space-y-4">
+          {availableProjects.length ? (
+            <select
+              value={selectedProject}
+              onChange={(event) => setSelectedProject(event.target.value)}
+              className={fieldCls}
+            >
+              <option value="">Select Project</option>
+              {availableProjects.map((project) => (
+                <option key={project.id} value={project.id}>{project.label}</option>
+              ))}
+            </select>
+          ) : (
+            <p className="text-sm text-jscolors-text/70">No unassigned projects available.</p>
+          )}
+          {selectedProject ? (
+            <p className="text-sm text-jscolors-text/70">
+              Assign <span className="font-semibold">{selectedProjectLabel}</span> to this subcon?
+            </p>
+          ) : null}
           {assignError ? <p className="text-sm text-red-600">{assignError}</p> : null}
         </div>
       </Modal>
 
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
         <section className="glass-panel p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Identity</p>
-          <h1 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">{subcon.name}</h1>
           <div className="mt-6 space-y-3">
             {[
               { label: "Type", value: subcon.subcon_type_label },
@@ -115,11 +193,28 @@ export default function SubconDetailPage() {
         </section>
 
         <section className="glass-panel p-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Assigned Projects</p>
-          <div className="mt-5 space-y-3">
-            {subcon.projects.length ? subcon.projects.map((project) => (
-              <div key={project.id} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-3 text-sm text-jscolors-text">
-                {project.label}
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Assigned Projects</p>
+            {assignError ? <p className="text-sm text-red-600">{assignError}</p> : null}
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            {assignedProjects.length ? assignedProjects.map((project) => (
+              <div
+                key={project.id}
+                className="inline-flex items-center gap-2 rounded-full border border-jscolors-crimson/12 bg-white px-4 py-2 text-sm text-jscolors-text"
+              >
+                <span>{project.label}</span>
+                {canWrite ? (
+                  <button
+                    type="button"
+                    className="text-base leading-none text-jscolors-crimson transition hover:opacity-70 disabled:opacity-40"
+                    onClick={() => void removeProject(project.id)}
+                    disabled={removingProjectId === project.id}
+                    aria-label={`Remove ${project.label}`}
+                  >
+                    ×
+                  </button>
+                ) : null}
               </div>
             )) : (
               <div className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-3 text-sm text-jscolors-text/60">
@@ -127,33 +222,43 @@ export default function SubconDetailPage() {
               </div>
             )}
           </div>
-
-          {canWrite && availableProjects.length > 0 && (
-            <div className="mt-6">
-              <label className={labelCls}>Assign Project</label>
-              <div className="flex gap-3">
-                <select
-                  value={selectedProject}
-                  onChange={(e) => setSelectedProject(e.target.value)}
-                  className={fieldCls}
-                >
-                  <option value="">Select Project</option>
-                  {availableProjects.map((project) => (
-                    <option key={project.id} value={project.id}>{project.label}</option>
-                  ))}
-                </select>
-                <Button
-                  type="button"
-                  disabled={!selectedProject}
-                  onClick={() => { setAssignError(""); setAssignConfirmOpen(true) }}
-                >
-                  Assign
-                </Button>
-              </div>
-            </div>
-          )}
         </section>
       </div>
+
+      <section className="glass-panel p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Assigned Sites</p>
+        <div className="mt-5">
+          <DataTable
+            columns={[
+              { key: "project_name", label: "Project", minWidth: 180 },
+              { key: "circuit_id", label: "Circuit ID", minWidth: 180 },
+              { key: "status", label: "Status", minWidth: 140 },
+              { key: "cost", label: "Cost", align: "right", minWidth: 140 },
+              { key: "paid", label: "Paid", align: "right", minWidth: 140 },
+              { key: "balance", label: "Balance", align: "right", minWidth: 140 },
+            ]}
+            rows={assignedSites as Array<Record<string, unknown>>}
+            emptyState={<div className="text-center text-sm text-jscolors-text/50">No assigned sites.</div>}
+          />
+        </div>
+      </section>
+
+      <section className="glass-panel p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Transactions</p>
+        <div className="mt-5">
+          <DataTable
+            columns={[
+              { key: "po_number", label: "PO Number", minWidth: 180 },
+              { key: "invoice_number", label: "Invoice Number", minWidth: 180 },
+              { key: "amount", label: "Amount", align: "right", minWidth: 140 },
+              { key: "status", label: "Status", minWidth: 140 },
+              { key: "project_or_subproject", label: "Project/Subproject", minWidth: 240 },
+            ]}
+            rows={transactions as Array<Record<string, unknown>>}
+            emptyState={<div className="text-center text-sm text-jscolors-text/50">No transactions found.</div>}
+          />
+        </div>
+      </section>
     </DetailPageLayout>
   )
 }
