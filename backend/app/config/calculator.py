@@ -122,6 +122,28 @@ def site_cost_for_bucket(
     return amount
 
 
+def site_budget_for_bucket(
+    site: dict[str, Any],
+    bucket_key: str,
+    transactions: list[TransactionRow],
+    rate_rows: list[RateCardRow],
+    job_scales: dict[str, str],
+) -> Decimal:
+    receiving_date = site["receiving_date"]
+    amount = ZERO
+    bucket_jobs = JOB_BUCKETS[bucket_key]
+    for job_key in bucket_jobs:
+        scale_by = job_scales.get(job_key, "unit")
+        qty = _job_quantity(site, job_key, scale_by)
+        if qty == ZERO and scale_by == "unit" and len(bucket_jobs) == 1:
+            qty = Decimal("1")
+        if qty == ZERO:
+            continue
+        amount += _select_rate(job_key, receiving_date, rate_rows) * qty
+    amount += _sum_transactions(transactions, type_keys={"b_sur"})
+    return amount
+
+
 def site_paid(transactions: list[TransactionRow]) -> Decimal:
     paid = _sum_transactions(transactions, type_keys={FE_PAYMENT_TYPE})
     refunds = _sum_transactions(transactions, type_keys={REFUND_TYPE})
@@ -136,16 +158,7 @@ def subcon_budget(
     rate_rows: list[RateCardRow],
     job_scales: dict[str, str],
 ) -> Decimal:
-    receiving_date = site["receiving_date"]
-    amount = ZERO
-    for job_key in JOB_BUCKETS[bucket_key]:
-        scale_by = job_scales.get(job_key, "unit")
-        qty = _job_quantity(site, job_key, scale_by)
-        if qty == ZERO:
-            continue
-        amount += _select_rate(job_key, receiving_date, rate_rows) * qty
-    amount += _sum_transactions(transactions, type_keys={"b_sur"}, recipient_id=subcon_id)
-    return amount
+    return site_budget_for_bucket(site, bucket_key, transactions, rate_rows, job_scales)
 
 
 def subcon_cost(
@@ -205,9 +218,8 @@ def calculate_site_financials(
     budget = ZERO
     cost = ZERO
     for bucket_key in site_bucket_keys:
-        bucket_amount = site_cost_for_bucket(site, bucket_key, transactions, rate_rows, job_scales)
-        budget += bucket_amount
-        cost += bucket_amount
+        budget += site_budget_for_bucket(site, bucket_key, transactions, rate_rows, job_scales)
+        cost += site_cost_for_bucket(site, bucket_key, transactions, rate_rows, job_scales)
     paid = site_paid(transactions)
     for assignment in assignments:
         row_budget = subcon_budget(site, assignment.subcon_id, assignment.bucket_key, transactions, rate_rows, job_scales)
