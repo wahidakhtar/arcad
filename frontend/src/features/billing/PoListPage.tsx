@@ -3,6 +3,7 @@ import FilterBar from "../../components/ui/FilterBar"
 import ListPageLayout from "../../components/layout/ListPageLayout"
 import { useListPage } from "../../hooks/useListPage"
 import FieldRenderer from "../../components/ui/FieldRenderer"
+import { poCircuitContext, poProjectName } from "./poHelpers"
 import type { PO } from "./types"
 
 export default function PoListPage() {
@@ -13,8 +14,8 @@ export default function PoListPage() {
   const rows = [...(data ?? [])].sort((a, b) => b.id - a.id)
   const tableRows = rows.map((row) => ({
     ...row,
-    project_name: row.project_name ?? row.project_label ?? "-",
-    circuit_context: row.site_id ? (row.site_circuit_id ?? "-") : (row.subproject_name ?? "-"),
+    project_name: poProjectName(row),
+    circuit_context: poCircuitContext(row),
   }))
 
   if (loading) {

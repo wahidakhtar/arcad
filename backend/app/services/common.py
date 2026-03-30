@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from importlib import import_module
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -8,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.bb import BBSite, BBSubproject, Recharge, Termination
-from app.models.core import Badge, Project
+from app.models.core import Badge, Project, Recipient
 from app.models.ma import MASite, MASubproject, MAUIField
 from app.models.mc import MCSite, MCSubproject, MCUIField
 from app.models.md import MDSite, MDSubproject, MDUIField
@@ -56,3 +57,18 @@ def ensure_media_dir(media_root: str, project_key: str, site_id: int) -> Path:
 
 def badge_map(db: Session) -> dict[int, Badge]:
     return {badge.id: badge for badge in db.execute(select(Badge)).scalars()}
+
+
+def get_recipient_type_id(db: Session, key: str) -> int | None:
+    row = db.execute(select(Recipient.id).where(Recipient.key == key)).scalar_one_or_none()
+    return row
+
+
+def format_subproject_label(batch_date: date | None, bucket: bool | None, fallback_id: int | None = None) -> str:
+    if bucket:
+        return "Bucket"
+    if batch_date is not None:
+        return batch_date.strftime("%B %Y")
+    if fallback_id is not None:
+        return f"Batch {fallback_id}"
+    return "Unscheduled"

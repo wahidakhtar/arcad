@@ -1,4 +1,5 @@
 import FieldRenderer from "../../../../components/ui/FieldRenderer"
+import { poProjectName } from "../../poHelpers"
 import type { PO } from "../../types"
 
 export default function PoHeader({ po }: { po: PO }) {
@@ -12,7 +13,7 @@ export default function PoHeader({ po }: { po: PO }) {
             PO Date: <span className="text-jscolors-text">{po.po_date || "-"}</span>
           </p>
           <p className="mt-1 text-sm text-jscolors-text/60">
-            Project: <span className="text-jscolors-text">{po.project_label || "-"}</span>
+            Project: <span className="text-jscolors-text">{poProjectName(po)}</span>
           </p>
         </div>
         <div className="shrink-0">

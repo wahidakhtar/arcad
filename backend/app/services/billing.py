@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.acc import Invoice, PO, RateCard
 from app.models.core import Badge, Job, Project
 from app.models.updates import Update
-from app.services.common import get_site_model, get_subproject_model
+from app.services.common import format_subproject_label, get_site_model, get_subproject_model
 from app.schemas.billing import InvoiceCreate, POCreate, RateCardCreate
 
 # acc department badge id (used for PO-level updates)
@@ -128,15 +128,6 @@ def _serialize_po(
         "version": po.version,
     }
 
-
-def _format_subproject_name(batch_date: date | None, bucket: bool | None) -> str | None:
-    if bucket:
-        return "Bucket"
-    if batch_date is None:
-        return None
-    return batch_date.strftime("%B %Y")
-
-
 def _po_context_maps(db: Session, rows: list[tuple]) -> tuple[dict[tuple[int, int], str | None], dict[tuple[int, int], str | None]]:
     site_map: dict[tuple[int, int], str | None] = {}
     subproject_map: dict[tuple[int, int], str | None] = {}
@@ -168,7 +159,11 @@ def _po_context_maps(db: Session, rows: list[tuple]) -> tuple[dict[tuple[int, in
         if subproject_ids:
             subproject_rows = db.execute(select(subproject_model).where(subproject_model.id.in_(list(subproject_ids)))).scalars().all()
             for subproject in subproject_rows:
-                subproject_map[(project_id, subproject.id)] = _format_subproject_name(subproject.batch_date, getattr(subproject, "bucket", None))
+                subproject_map[(project_id, subproject.id)] = format_subproject_label(
+                    subproject.batch_date,
+                    getattr(subproject, "bucket", None),
+                    subproject.id,
+                )
 
     return site_map, subproject_map
 

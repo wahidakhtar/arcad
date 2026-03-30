@@ -12,8 +12,8 @@ from app.api.auth import UserContext, ensure_permission
 from app.models.acc import Transaction
 from app.models.core import Project
 from app.models.ops import Subcon, SubconAssignment, SubconProject, SubconType
-from app.services.common import badge_map, get_site_model, get_subproject_model, model_to_dict
-from app.services.sites import _build_financials
+from app.services.common import badge_map, format_subproject_label, get_recipient_type_id, get_site_model, get_subproject_model
+from app.services.site_views import get_site_projection
 from app.schemas.subcon import SubconCreate
 
 
@@ -54,14 +54,6 @@ def _serialize_subcon_summary(db: Session, subcon: Subcon) -> dict:
     }
 
 
-def _subproject_label(batch_date, bucket: bool) -> str:
-    if bucket:
-        return "Bucket"
-    if batch_date is not None:
-        return batch_date.strftime("%B %Y")
-    return "Unscheduled"
-
-
 def _serialize_assigned_sites(db: Session, subcon_id: int) -> list[dict]:
     assignments = db.execute(
         select(SubconAssignment).where(
@@ -89,16 +81,14 @@ def _serialize_assigned_sites(db: Session, subcon_id: int) -> list[dict]:
         site = db.get(model, assignment.site_id)
         if site is None:
             continue
-        site_data = model_to_dict(site)
-        financials = _build_financials(db, project.id, project.key, site.id, dict(site_data))
-        match = next(
-            (row for row in financials.get("subcon_rows", []) if int(row["subcon_id"]) == subcon_id and bool(row["active"])),
-            None,
-        )
+        projection = get_site_projection(db, project.key, site.id)
+        if projection is None:
+            continue
+        match = next((row for row in projection.get("subcon_rows", []) if int(row["subcon_id"]) == subcon_id and bool(row["active"])), None)
         rows.append(
             {
                 "project_name": project.label,
-                "circuit_id": site.ckt_id,
+                "circuit_id": projection["ckt_id"],
                 "status": badges.get(site.status_id).label if badges.get(site.status_id) is not None else str(site.status_id),
                 "cost": Decimal("0.00") if match is None else match["cost"],
                 "paid": Decimal("0.00") if match is None else match["paid"],
@@ -110,9 +100,10 @@ def _serialize_assigned_sites(db: Session, subcon_id: int) -> list[dict]:
 
 
 def _serialize_transactions(db: Session, subcon_id: int) -> list[dict]:
+    subcon_recipient_type_id = get_recipient_type_id(db, "subcon")
     transactions = db.execute(
         select(Transaction).where(
-            Transaction.recipient_type_id == 2,
+            Transaction.recipient_type_id == subcon_recipient_type_id,
             Transaction.recipient_id == subcon_id,
         ).order_by(Transaction.request_date.desc(), Transaction.id.desc())
     ).scalars().all()
@@ -156,7 +147,7 @@ def _serialize_transactions(db: Session, subcon_id: int) -> list[dict]:
             subproject = subproject_maps.get(project.key, {}).get(site.subproject_id)
         project_or_subproject = project.label
         if subproject is not None:
-            project_or_subproject = f"{project.label} / {_subproject_label(subproject.batch_date, subproject.bucket)}"
+            project_or_subproject = f"{project.label} / {format_subproject_label(subproject.batch_date, subproject.bucket, subproject.id)}"
         badge = badges.get(transaction.status_id)
         rows.append(
             {

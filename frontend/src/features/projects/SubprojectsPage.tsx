@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 
 import { api } from "../../lib/api"
+import { formatSubprojectLabel } from "../../lib/subprojects"
 
 type ProjectData = {
   key: string
@@ -37,11 +38,7 @@ export default function SubprojectsPage() {
             className="glass-panel block p-6 transition hover:shadow-glow"
           >
             <p className="font-syne text-xl font-semibold text-jscolors-crimson">
-              {sub.bucket
-                ? "Default"
-                : sub.batch_date
-                  ? new Date(sub.batch_date).toLocaleDateString("en-US", { month: "long", year: "numeric" })
-                  : `Batch ${sub.id}`}
+              {sub.bucket ? "Default" : formatSubprojectLabel(sub)}
             </p>
           </Link>
         ))}

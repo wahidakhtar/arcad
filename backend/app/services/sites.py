@@ -11,13 +11,12 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.api.auth import UserContext, ensure_permission
-from app.config.calculator import SubconAssignmentRow, RateCardRow, TransactionRow, calculate_site_financials
-from app.models.acc import RateCard, Transaction
-from app.models.core import Badge, IndianState, Job, JobBucket
+from app.models.core import Badge, IndianState, JobBucket
 from app.models.ops import Subcon, SubconAssignment, SubconProject
 from app.schemas.site import SubconAssignmentRequest, SiteOut
 from app.services.common import badge_map, get_project, get_project_config, get_site_model, get_subproject_model, model_to_dict
 from app.services import acc_rules
+from app.services.site_views import build_site_financials, get_site_projection
 from app.utils.normalization import normalize_identifier, validate_identifier
 
 logger = logging.getLogger(__name__)
@@ -264,49 +263,13 @@ def _resolve_subproject_id(db: Session, project_key: str, requested_subproject_i
 
 
 def _build_financials(db: Session, project_id: int, project_key: str, site_id: int, site_data: dict) -> dict:
-    badges = badge_map(db)
-    # Only include assignments that have a bucket
-    assignments = [
-        SubconAssignmentRow(id=row.id, subcon_id=row.subcon_id, bucket_key=db.get(JobBucket, row.bucket_id).key, active=row.active)
-        for row in db.execute(select(SubconAssignment).where(SubconAssignment.project_id == project_id, SubconAssignment.site_id == site_id)).scalars()
-        if row.bucket_id is not None
-    ]
-    transactions = [
-        TransactionRow(
-            recipient_id=row.recipient_id,
-            type_key=badges[row.type_id].key,
-            amount=row.amount,
-            status_key=badges[row.status_id].key,
-        )
-        for row in db.execute(select(Transaction).where(Transaction.project_id == project_id, Transaction.site_id == site_id)).scalars()
-    ]
-    rate_rows = db.execute(select(RateCard, Job.job_key.label("jk")).join(Job, Job.id == RateCard.job_id)).all()
-    rates = [RateCardRow(job_key=r.jk, effective_date=r.RateCard.date, cost=r.RateCard.cost) for r in rate_rows]
-    job_scales = {job.job_key: job.scale_by for job in db.execute(select(Job)).scalars()}
-    site_data["status_key"] = badges[site_data["status_id"]].key
-    return calculate_site_financials(site_data, assignments, transactions, rates, job_scales)
+    return build_site_financials(db, project_id, project_key, site_id, site_data)
 
 
 def _serialize_subcon_rows(db: Session, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    if not rows:
-        return []
-    subcons = {
-        subcon.id: subcon.name
-        for subcon in db.execute(select(Subcon).where(Subcon.id.in_([int(row["subcon_id"]) for row in rows]))).scalars().all()
-    }
-    return [
-        {
-            "assignment_id": row["assignment_id"],
-            "subcon_id": row["subcon_id"],
-            "subcon_label": subcons.get(int(row["subcon_id"]), f"Subcon {row['subcon_id']}"),
-            "bucket_key": row["bucket_key"],
-            "active": row["active"],
-            "cost": row["cost"],
-            "paid": row["paid"],
-            "balance": row["balance"],
-        }
-        for row in rows
-    ]
+    from app.services.site_views import serialize_subcon_rows
+
+    return serialize_subcon_rows(db, rows)
 
 
 def list_sites(
@@ -414,26 +377,11 @@ def _update_active_subcon_label(db: Session, project_key: str, site_id: int, lab
 
 
 def get_site(db: Session, user: UserContext, project_key: str, site_id: int) -> SiteOut:
-    project = get_project(db, project_key)
     ensure_permission(user, db, project_key=project_key, tag="site", action="read")
-    model = get_site_model(project_key)
-    site = db.get(model, site_id)
-    if site is None:
+    projection = get_site_projection(db, project_key, site_id)
+    if projection is None:
         raise HTTPException(status_code=404, detail="Site not found")
-    site_data = model_to_dict(site)
-    financials = _build_financials(db, project.id, project_key, site_id, site_data)
-    badges = badge_map(db)
-    return SiteOut(
-        id=site.id,
-        project_key=project_key,
-        subproject_id=site.subproject_id,
-        ckt_id=site.ckt_id,
-        status_key=badges[site.status_id].key,
-        receiving_date=site.receiving_date,
-        fields=site_data,
-        financials={k: financials[k] for k in ["budget", "cost", "paid", "balance"]},
-        subcon_rows=_serialize_subcon_rows(db, financials.get("subcon_rows", [])),
-    )
+    return SiteOut(**projection)
 
 
 def update_site(db: Session, user: UserContext, project_key: str, site_id: int, data: dict) -> dict:

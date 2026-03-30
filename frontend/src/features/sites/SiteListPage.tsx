@@ -13,6 +13,7 @@ import Modal from "../../components/ui/Modal"
 import { useListPage } from "../../hooks/useListPage"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
+import { formatSubprojectLabel } from "../../lib/subprojects"
 
 type Badge = {
   id: number
@@ -52,9 +53,7 @@ type ProjectMeta = {
 }
 
 function subprojectLabel(sub: Subproject) {
-  return sub.batch_date
-    ? new Date(sub.batch_date).toLocaleDateString("en-US", { month: "long", year: "numeric" })
-    : `Batch ${sub.id}`
+  return formatSubprojectLabel(sub)
 }
 
 export default function SiteListPage() {
