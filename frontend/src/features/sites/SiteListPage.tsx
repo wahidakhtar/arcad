@@ -52,6 +52,14 @@ type ProjectMeta = {
   subprojects: Subproject[]
 }
 
+const PROJECT_STATUS_FILTERS: Record<string, string[]> = {
+  mi: ["wip", "p_wait", "a_wait", "rect", "cancel", "comp"],
+  md: ["wip", "p_wait", "a_wait", "rect", "cancel", "comp"],
+  ma: ["wip", "p_wait", "p_iss", "a_wait", "cancel", "comp"],
+  mc: ["wip", "p_wait", "p_iss", "a_wait", "rect", "cancel", "comp"],
+  bb: ["hold", "down", "live", "term"],
+}
+
 function subprojectLabel(sub: Subproject) {
   return formatSubprojectLabel(sub)
 }
@@ -151,6 +159,7 @@ export default function SiteListPage() {
   }, [siteData, badgeByKey, selectedBadges])
 
   const includeStage = activeTab !== "deployed"
+  const allowedStatusKeys = PROJECT_STATUS_FILTERS[projectKey] ?? []
   const badgeFilters: FilterBarConfig[] = badges.length
     ? [{
         key: "status_badges",
@@ -158,7 +167,7 @@ export default function SiteListPage() {
         type: "badge",
         values: selectedBadges,
         options: badges
-          .filter((badge) => ["p_wait", "wip", "rect", "down", "comp", ...(includeStage ? ["stage"] : [])].includes(badge.key))
+          .filter((badge) => [...allowedStatusKeys, ...(includeStage ? ["stage"] : [])].includes(badge.key))
           .map((badge) => ({ label: badge.label, value: badge.key, color: badge.color })),
       }]
     : []
