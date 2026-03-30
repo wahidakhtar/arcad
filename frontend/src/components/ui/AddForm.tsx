@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import FieldRenderer, { type FieldDefinition } from "./FieldRenderer"
 
@@ -15,13 +15,13 @@ export default function AddForm({
   states = [],
   onSubmit,
   onLoadingChange,
-  formId,
+  submitRef,
 }: {
   fields: FieldDefinition[]
   states?: Array<{ id: number; label: string }>
   onSubmit: (data: Record<string, string | boolean>) => Promise<void>
   onLoadingChange?: (loading: boolean) => void
-  formId?: string
+  submitRef?: React.MutableRefObject<(() => void) | null>
 }) {
   const [form, setForm] = useState<Record<string, string | boolean>>(() => buildInitialForm(fields))
   const [error, setError] = useState("")
@@ -48,11 +48,20 @@ export default function AddForm({
     }
   }
 
+  useEffect(() => {
+    if (!submitRef) return
+    submitRef.current = () => { void handleSubmit() }
+    return () => {
+      submitRef.current = null
+    }
+  })
+
   return (
     <form
-      id={formId}
       className="grid gap-4 md:grid-cols-2"
-      onSubmit={handleSubmit}
+      onSubmit={(event) => {
+        event.preventDefault()
+      }}
     >
       {fields.map((field) => (
         <label key={field.key} className="block">

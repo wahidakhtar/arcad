@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams } from "react-router-dom"
 
 import { subscribe } from "../../hooks/useWebSocket"
@@ -58,7 +58,7 @@ function subprojectLabel(sub: Subproject) {
 }
 
 export default function SiteListPage() {
-  const addSiteFormId = "add-site-form"
+  const addSiteSubmitRef = useRef<(() => void) | null>(null)
   const { can, roles, projectKeys } = useAuth()
   const { projectKey = "mi" } = useParams()
   const [projectMeta, setProjectMeta] = useState<ProjectMeta | null>(null)
@@ -239,11 +239,13 @@ export default function SiteListPage() {
         size="lg"
         submitLabel={addModalTab === "site" ? "Add Site" : "Add Subproject"}
         onSubmit={() => {
-          if (addModalTab === "subproject") setAddTrigger((n) => n + 1)
+          if (addModalTab === "site") {
+            addSiteSubmitRef.current?.()
+            return
+          }
+          setAddTrigger((n) => n + 1)
         }}
         isSubmitting={submitting}
-        submitType={addModalTab === "site" ? "submit" : "button"}
-        submitForm={addModalTab === "site" ? addSiteFormId : undefined}
       >
         <>
           {showModalTabs && (
@@ -254,7 +256,7 @@ export default function SiteListPage() {
           )}
           {(!showModalTabs || addModalTab === "site") && (
             <AddForm
-              formId={addSiteFormId}
+              submitRef={addSiteSubmitRef}
               fields={formFields}
               states={states}
               onLoadingChange={setSubmitting}
