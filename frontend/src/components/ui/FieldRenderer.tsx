@@ -1,3 +1,5 @@
+import BadgeDropdown from "./BadgeDropdown"
+
 export type FieldDefinition = {
   key: string
   label: string
@@ -85,18 +87,23 @@ export default function FieldRenderer(props: FieldRendererProps) {
     if (value && typeof value === "object" && "label" in value) {
       const badge = value as { label: string; color?: string | null }
       return (
-        <span
-          className="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
-          style={{
-            backgroundColor: badge.color ? `${badge.color}22` : "rgba(139, 26, 26, 0.10)",
-            color: badge.color ?? "#8B1A1A",
-          }}
-        >
-          {badge.label}
-        </span>
+        <BadgeDropdown
+          badge={{ label: badge.label, color: badge.color ?? null }}
+          options={[]}
+          onSelect={() => {}}
+          disabled
+        />
       )
     }
-    return <span className="inline-flex rounded-full bg-jscolors-crimson/10 px-3 py-1 text-xs font-semibold text-jscolors-crimson">{String(value ?? "-")}</span>
+    return (
+      <BadgeDropdown
+        badge={value == null ? null : { label: String(value ?? "-"), color: null }}
+        fallback={String(value ?? "-")}
+        options={[]}
+        onSelect={() => {}}
+        disabled
+      />
+    )
   }
 
   if (typeof value === "boolean") {

@@ -12,21 +12,24 @@ export function BadgeChip({
   label,
   color,
   fallback = "-",
+  showDropdownMarker = false,
 }: {
   label?: string | null
   color?: string | null
   fallback?: string
+  showDropdownMarker?: boolean
 }) {
   const text = label ?? fallback
   return (
     <span
-      className="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+      className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold"
       style={{
         backgroundColor: color ? `${color}22` : "rgba(139, 26, 26, 0.10)",
         color: color ?? "#8B1A1A",
       }}
     >
       {text}
+      {showDropdownMarker ? <span className="text-[9px] leading-none opacity-70">▾</span> : null}
     </span>
   )
 }
@@ -71,7 +74,14 @@ export default function BadgeDropdown({
     return () => document.removeEventListener("mousedown", onDown)
   }, [open])
 
-  const chip = <BadgeChip label={badge?.label} color={badge?.color} fallback={fallback} />
+  const chip = (
+    <BadgeChip
+      label={badge?.label}
+      color={badge?.color}
+      fallback={fallback}
+      showDropdownMarker={!disabled && options.length > 0}
+    />
+  )
 
   if (disabled || !options.length) {
     return chip
