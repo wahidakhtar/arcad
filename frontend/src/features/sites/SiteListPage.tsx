@@ -58,6 +58,7 @@ function subprojectLabel(sub: Subproject) {
 }
 
 export default function SiteListPage() {
+  const addSiteFormId = "add-site-form"
   const { can, roles, projectKeys } = useAuth()
   const { projectKey = "mi" } = useParams()
   const [projectMeta, setProjectMeta] = useState<ProjectMeta | null>(null)
@@ -237,8 +238,12 @@ export default function SiteListPage() {
         onClose={() => { setOpenAddModal(false); setSubmitting(false) }}
         size="lg"
         submitLabel={addModalTab === "site" ? "Add Site" : "Add Subproject"}
-        onSubmit={() => setAddTrigger((n) => n + 1)}
+        onSubmit={() => {
+          if (addModalTab === "subproject") setAddTrigger((n) => n + 1)
+        }}
         isSubmitting={submitting}
+        submitType={addModalTab === "site" ? "submit" : "button"}
+        submitForm={addModalTab === "site" ? addSiteFormId : undefined}
       >
         <>
           {showModalTabs && (
@@ -249,9 +254,9 @@ export default function SiteListPage() {
           )}
           {(!showModalTabs || addModalTab === "site") && (
             <AddForm
+              formId={addSiteFormId}
               fields={formFields}
               states={states}
-              submitTrigger={addTrigger}
               onLoadingChange={setSubmitting}
               onSubmit={async (data) => {
                 const subId = typeof activeTab === "number" ? activeTab : 1

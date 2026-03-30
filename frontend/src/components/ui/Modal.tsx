@@ -15,6 +15,8 @@ type ModalProps = {
   isSubmitting?: boolean
   cancelLabel?: string
   hideCancel?: boolean
+  submitType?: "button" | "submit"
+  submitForm?: string
 }
 
 export default function Modal({
@@ -29,6 +31,8 @@ export default function Modal({
   isSubmitting = false,
   cancelLabel = "Cancel",
   hideCancel = false,
+  submitType = "button",
+  submitForm,
 }: ModalProps) {
   useEffect(() => {
     if (!isOpen) return
@@ -85,11 +89,12 @@ export default function Modal({
             </Button>
           )}
           <Button
-            type="button"
+            type={submitType}
+            form={submitForm}
             variant={submitVariant}
             className={hideCancel ? "w-full" : "flex-1"}
             disabled={isSubmitting}
-            onClick={onSubmit}
+            onClick={submitType === "button" ? onSubmit : undefined}
           >
             {submitLabel}
           </Button>

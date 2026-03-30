@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 
 import FieldRenderer, { type FieldDefinition } from "./FieldRenderer"
 
@@ -14,55 +14,45 @@ export default function AddForm({
   fields,
   states = [],
   onSubmit,
-  submitTrigger,
   onLoadingChange,
+  formId,
 }: {
   fields: FieldDefinition[]
   states?: Array<{ id: number; label: string }>
   onSubmit: (data: Record<string, string | boolean>) => Promise<void>
-  submitTrigger?: number
   onLoadingChange?: (loading: boolean) => void
+  formId?: string
 }) {
   const [form, setForm] = useState<Record<string, string | boolean>>(() => buildInitialForm(fields))
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const formRef = useRef(form)
-  useEffect(() => { formRef.current = form }, [form])
 
   function handleError(err: unknown) {
     const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
     setError(detail ?? "Failed to submit. Please try again.")
   }
 
-  useEffect(() => {
-    if (!submitTrigger) return
+  async function handleSubmit(event?: React.FormEvent<HTMLFormElement>) {
+    event?.preventDefault()
+    if (loading) return
     setError("")
     setLoading(true)
     onLoadingChange?.(true)
-    void onSubmit(formRef.current)
-      .catch(handleError)
-      .finally(() => {
-        setLoading(false)
-        onLoadingChange?.(false)
-      })
-  }, [submitTrigger, onSubmit, onLoadingChange])
+    try {
+      await onSubmit(form)
+    } catch (err) {
+      handleError(err)
+    } finally {
+      setLoading(false)
+      onLoadingChange?.(false)
+    }
+  }
 
   return (
     <form
+      id={formId}
       className="grid gap-4 md:grid-cols-2"
-      onSubmit={(event) => {
-        event.preventDefault()
-        if (loading) return
-        setError("")
-        setLoading(true)
-        onLoadingChange?.(true)
-        void onSubmit(form)
-          .catch(handleError)
-          .finally(() => {
-            setLoading(false)
-            onLoadingChange?.(false)
-          })
-      }}
+      onSubmit={handleSubmit}
     >
       {fields.map((field) => (
         <label key={field.key} className="block">
