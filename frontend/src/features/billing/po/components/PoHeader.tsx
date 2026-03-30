@@ -1,19 +1,15 @@
-import FieldRenderer from "../../../../components/ui/FieldRenderer"
 import { poProjectName } from "../../poHelpers"
 import type { PO } from "../../types"
 
 export default function PoHeader({ po }: { po: PO }) {
   return (
-    <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-      <div>
-        <h1 className="font-syne text-3xl font-semibold text-jscolors-crimson">{po.po_no || "-"}</h1>
+    <div>
+      <h1 className="font-syne text-3xl font-semibold text-jscolors-crimson">{poProjectName(po)}</h1>
+      {po.po_no ? (
         <p className="mt-2 text-sm text-jscolors-text/60">
-          Project: <span className="text-jscolors-text">{poProjectName(po)}</span>
+          <span className="text-jscolors-text">{po.po_no}</span>
         </p>
-      </div>
-      <div className="shrink-0">
-        <FieldRenderer type="badge" value={po.po_status} />
-      </div>
+      ) : null}
     </div>
   )
 }
