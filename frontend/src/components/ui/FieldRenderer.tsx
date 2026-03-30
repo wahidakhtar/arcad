@@ -1,4 +1,5 @@
 import BadgeDropdown from "./BadgeDropdown"
+import { formatDate } from "../../utils/format"
 
 export type FieldDefinition = {
   key: string
@@ -104,6 +105,14 @@ export default function FieldRenderer(props: FieldRendererProps) {
         disabled
       />
     )
+  }
+
+  if (type === "date" && typeof value === "string") {
+    return <span>{formatDate(value)}</span>
+  }
+
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}(T.*)?$/.test(value)) {
+    return <span>{formatDate(value.slice(0, 10))}</span>
   }
 
   if (typeof value === "boolean") {

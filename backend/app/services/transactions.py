@@ -11,6 +11,9 @@ from sqlalchemy import text
 from app.api.auth import UserContext, check_permission, user_project_ids
 from app.models.core import Badge
 from app.models.acc import Transaction
+from app.models.ops import SubconAssignment, Subcon
+from app.models.hr import User
+from app.services.common import get_recipient_type_id
 from app.schemas.transaction import TransactionCreate
 
 # Status keys that allow no further transitions
@@ -148,7 +151,27 @@ def create_transaction(db: Session, payload: TransactionCreate) -> Transaction:
     requested_status = db.execute(select(Badge).where(Badge.key == "req")).scalar_one_or_none()
     if requested_status is None:
         raise HTTPException(status_code=400, detail="Requested transaction status is not configured")
-    row = Transaction(request_date=date.today(), status_id=requested_status.id, **payload.model_dump())
+    payload_data = payload.model_dump()
+    if payload_data.get("recipient_type_id") is None and payload_data.get("recipient_id") is not None:
+        recipient_id = payload_data["recipient_id"]
+        site_id = payload_data.get("site_id")
+        project_id = payload_data.get("project_id")
+        if site_id is not None and project_id is not None:
+            subcon_match = db.execute(
+                select(SubconAssignment).where(
+                    SubconAssignment.project_id == project_id,
+                    SubconAssignment.site_id == site_id,
+                    SubconAssignment.subcon_id == recipient_id,
+                )
+            ).scalar_one_or_none()
+            if subcon_match is not None:
+                payload_data["recipient_type_id"] = get_recipient_type_id(db, "subcon")
+        if payload_data.get("recipient_type_id") is None and db.get(Subcon, recipient_id) is not None:
+            payload_data["recipient_type_id"] = get_recipient_type_id(db, "subcon")
+        if payload_data.get("recipient_type_id") is None and db.get(User, recipient_id) is not None:
+            payload_data["recipient_type_id"] = get_recipient_type_id(db, "user")
+
+    row = Transaction(request_date=date.today(), status_id=requested_status.id, **payload_data)
     db.add(row)
     db.commit()
     db.refresh(row)

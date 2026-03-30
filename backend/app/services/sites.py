@@ -39,6 +39,13 @@ FIELD_TYPE_OVERRIDES = {
     "ec": "number",
 }
 
+PROJECT_COMPLETION_FIELD = {
+    "mi": "completion_date",
+    "md": "dismantle_date",
+    "ma": "audit_date",
+    "mc": "cm_date",
+}
+
 BADGE_TYPE_BY_FIELD = {
     "status": "status",
     "po_status": "doc_status",
@@ -81,6 +88,41 @@ def _parse_number(value: Any) -> Optional[float]:
         return float(text_value)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"Invalid number value: {text_value}") from exc
+
+
+def _site_field_label(field_name: str) -> str:
+    labels = {
+        "receiving_date": "Receiving Date",
+        "permission_date": "Permission Date",
+        "completion_date": "Completion Date",
+        "dismantle_date": "Dismantle Date",
+        "audit_date": "Audit Date",
+        "cm_date": "CM Date",
+    }
+    return labels.get(field_name, field_name.replace("_", " ").title())
+
+
+def _validate_site_date_order(site: Any, project_key: str, payload: dict[str, Any]) -> None:
+    completion_field = PROJECT_COMPLETION_FIELD.get(project_key)
+    receiving_date = payload.get("receiving_date", getattr(site, "receiving_date", None))
+    permission_date = payload.get("permission_date", getattr(site, "permission_date", None))
+    completion_date = payload.get(completion_field, getattr(site, completion_field, None)) if completion_field else None
+
+    if receiving_date and permission_date and permission_date < receiving_date:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Permission Date cannot be earlier than Receiving Date. Edit/remove Receiving Date first.",
+        )
+    if permission_date and completion_date and completion_date < permission_date:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{_site_field_label(completion_field)} cannot be earlier than Permission Date. Edit/remove Permission Date first.",
+        )
+    if receiving_date and completion_date and completion_date < receiving_date:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{_site_field_label(completion_field)} cannot be earlier than Receiving Date. Edit/remove Receiving Date first.",
+        )
 
 
 def _parse_bool(value: Any) -> bool:
@@ -418,6 +460,7 @@ def update_site(db: Session, user: UserContext, project_key: str, site_id: int, 
     if apply_fn:
         normalized_data = apply_fn(site, normalized_data, db)
 
+    _validate_site_date_order(site, project_key, normalized_data)
     _normalize_identifier_fields(normalized_data)
     badges_dict = badge_map(db)
     _sync_site_active_flag(normalized_data, badges_dict, current_status_id=site.status_id)

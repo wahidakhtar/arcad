@@ -125,7 +125,7 @@ export default function useTransactionsPage() {
 
           return {
             id: tx.id,
-            recipient_label: tx.user_name ?? tx.subcon_name ?? "-",
+            recipient_label: tx.recipient_label ?? tx.user_name ?? tx.subcon_name ?? "-",
             project_label: project?.label ?? String(tx.project_id),
             ckt_id: siteMap.get(cktKey) ?? (tx.site_id ? String(tx.site_id) : "-"),
             tab_key: tx.site_id ? "site" : tx.user_name ? "salaried" : "others",

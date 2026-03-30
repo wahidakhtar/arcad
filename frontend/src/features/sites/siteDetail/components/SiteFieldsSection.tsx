@@ -1,5 +1,6 @@
 import DetailFieldCard from "../../../../components/ui/DetailFieldCard"
 import FieldRenderer from "../../../../components/ui/FieldRenderer"
+import { formatCurrency } from "../../../../utils/format"
 import {
   READ_ONLY_FIELDS,
   displayValueForField,
@@ -33,12 +34,19 @@ export default function SiteFieldsSection({
           const isReadOnly = READ_ONLY_FIELDS.has(field.key)
           const rawValue = draftValueForField(site, field)
           const isEmpty = field.type !== "bool" && (rawValue === "" || rawValue === null || rawValue === undefined)
+          const isFinancial = ["budget", "cost", "paid", "balance"].includes(field.key)
 
           return (
             <DetailFieldCard
               key={field.key}
               label={field.label}
-              value={<FieldRenderer field={field} value={displayValue} />}
+              value={isFinancial ? (
+                <span className="block text-right font-semibold tabular-nums text-jscolors-crimson">
+                  {formatCurrency(displayValue as string | number | null | undefined)}
+                </span>
+              ) : (
+                <FieldRenderer field={field} value={displayValue} />
+              )}
               onAdd={canSiteWrite && !isReadOnly && isEmpty ? () => onOpenField(field) : undefined}
               onEdit={canSiteWrite && !isReadOnly && !isEmpty ? () => onOpenField(field) : undefined}
             />

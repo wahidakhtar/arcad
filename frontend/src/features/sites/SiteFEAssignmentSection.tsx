@@ -4,6 +4,7 @@ import Button from "../../components/ui/Button"
 import EmptyState from "../../components/ui/EmptyState"
 import Modal from "../../components/ui/Modal"
 import { api } from "../../lib/api"
+import { formatCurrency } from "../../utils/format"
 import type { Badge, JobBucket, ProjectRow, SiteDetail, SubconRow, TransactionRow, TransitionRow } from "./siteDetailTypes"
 import { bucketLabel, transitionOptions } from "./siteDetailHelpers"
 import SiteTransactionCard from "./SiteTransactionCard"
@@ -118,6 +119,7 @@ export default function SiteFEAssignmentSection({
       await api.post("/transactions", {
         project_id: project.id,
         site_id: currentSite.id,
+        recipient_type_id: 2,
         recipient_id: txModal.subconId,
         bucket_key: txModal.bucketKey,
         type_id: Number(txModal.type_id),
@@ -258,13 +260,17 @@ export default function SiteFEAssignmentSection({
 
       <div className="space-y-3">
         {currentSite.subcon_rows.length ? currentSite.subcon_rows.map((row) => {
-          const rowTransactions = transactions.filter((transaction) => transaction.recipient_id === row.subcon_id && transaction.bucket_key === row.bucket_key)
+          const rowTransactions = transactions.filter((transaction) => transaction.recipient_id === row.subcon_id)
           return (
             <div key={`${row.assignment_id}-${row.bucket_key}`} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div>
                   <div className="text-sm font-semibold text-jscolors-text">{row.subcon_label} · {bucketLabel(jobBuckets, row.bucket_key)}</div>
-                  <div className="mt-1 text-sm text-jscolors-text/60">Cost {row.cost} • Paid {row.paid} • Balance {row.balance}</div>
+                  <div className="mt-2 flex flex-wrap gap-4 text-sm text-jscolors-text/60">
+                    <span className="tabular-nums">Cost <span className="font-semibold text-jscolors-text">{formatCurrency(row.cost)}</span></span>
+                    <span className="tabular-nums">Paid <span className="font-semibold text-jscolors-text">{formatCurrency(row.paid)}</span></span>
+                    <span className="tabular-nums">Balance <span className="font-semibold text-jscolors-text">{formatCurrency(row.balance)}</span></span>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   {canRequestWrite && (
@@ -307,9 +313,9 @@ export default function SiteFEAssignmentSection({
           )
         }) : <EmptyState text={subcons.length ? "No subcon assignments yet" : "No subcons available for this project"} />}
       </div>
-      {transactions.some((transaction) => !transaction.recipient_id || !transaction.bucket_key) ? (
+      {transactions.some((transaction) => !transaction.recipient_id) ? (
         <div className="mt-4 space-y-3">
-          {transactions.filter((transaction) => !transaction.recipient_id || !transaction.bucket_key).map((transaction) => (
+          {transactions.filter((transaction) => !transaction.recipient_id).map((transaction) => (
             <SiteTransactionCard
               key={transaction.id}
               row={transaction}
