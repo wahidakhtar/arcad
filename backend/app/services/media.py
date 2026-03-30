@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional
 from pathlib import Path
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,7 +17,7 @@ def _get_media_model(project_key: str):
         return MAMedia
     if project_key == "mc":
         return MCMedia
-    raise ValueError(f"Media not supported for project: {project_key}")
+    raise HTTPException(status_code=400, detail=f"Media not supported for project: {project_key}")
 
 
 def list_media(db: Session, project_key: str, site_id: int) -> list:

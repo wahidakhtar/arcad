@@ -303,7 +303,7 @@ def list_transaction_types(db: Session, user: UserContext) -> list[dict]:
 def create_subproject(db: Session, user: UserContext, project_key: str, batch_date: str, rows: list[dict]) -> dict:
     ensure_permission(user, db, project_key=project_key, tag="subproject", action="write")
     if project_key not in {"md", "ma", "mc"}:
-        raise ValueError("Subproject bulk upload is only supported for MD, MA, and MC")
+        raise HTTPException(status_code=400, detail="Subproject bulk upload is only supported for MD, MA, and MC projects.")
 
     subproject_model = get_subproject_model(project_key)
     site_model = get_site_model(project_key)
