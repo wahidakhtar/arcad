@@ -5,7 +5,7 @@ from typing import Any, Optional
 
 from fastapi import HTTPException
 from sqlalchemy import func, select, text
-from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.auth import UserContext, ensure_permission, user_project_ids
@@ -13,6 +13,9 @@ from app.models.acc import Transaction
 from app.models.core import Badge, IndianState, JobBucket, Project
 from app.models.ops import Subcon, SubconProject, Ticket
 from app.services.common import get_project_config, get_site_model, get_subproject_model
+import logging
+
+logger = logging.getLogger(__name__)
 
 FIELD_META: dict[str, dict[str, object]] = {
     "receiving_date": {"label": "Receiving Date", "type": "date", "list_view": True},
@@ -96,8 +99,12 @@ def _parse_state_id(db: Session, value: Any) -> Optional[int]:
 
 
 def _project_field_types(db: Session, project_key: str) -> dict[str, str]:
-    rows = db.execute(text(f"SELECT tag, type FROM schema_{project_key}.ui ORDER BY id")).mappings().all()
-    return {str(row["tag"]): str(row["type"]) for row in rows}
+    try:
+        rows = db.execute(text(f"SELECT key, type FROM schema_{project_key}.ui_fields ORDER BY id")).mappings().all()
+    except SQLAlchemyError as exc:
+        logger.exception("project_field_type_lookup failed project=%s", project_key)
+        raise HTTPException(status_code=500, detail="Field configuration error for project") from exc
+    return {str(row["key"]): str(row["type"]) for row in rows}
 
 
 def _normalize_bulk_row(db: Session, project_key: str, row: dict[str, Any], field_types: dict[str, str]) -> dict[str, Any]:

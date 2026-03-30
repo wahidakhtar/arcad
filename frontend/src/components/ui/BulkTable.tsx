@@ -32,13 +32,18 @@ export default function BulkTable({
   useEffect(() => {
     if (!submitTrigger) return
     const filteredRows = rowsRef.current.filter((row) => Object.values(row).some((v) => v !== "" && v !== false))
+    const payload = { batchDate: batchDateRef.current, rows: filteredRows }
+    console.log("SUBMIT PAYLOAD:", payload)
     setError("")
     setLoading(true)
     onLoadingChange?.(true)
-    void onSubmit({ batchDate: batchDateRef.current, rows: filteredRows })
+    void onSubmit(payload)
       .catch((err: unknown) => {
+        console.error("AddSubproject error:", err)
+        console.error("status:", (err as { response?: { status?: number } })?.response?.status)
+        console.error("data:", (err as { response?: { data?: { detail?: string } } })?.response?.data)
         const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        setError(detail ?? "Failed to submit. Please try again.")
+        setError(detail ?? "Failed to submit")
       })
       .finally(() => {
         setLoading(false)

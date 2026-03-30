@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.auth import UserContext, get_current_user, permission_required
@@ -54,4 +54,12 @@ def project_transaction_types(project_key: str, user: UserContext = Depends(perm
 
 @router.post("/subprojects")
 def create_subproject(payload: SubprojectCreate, user: UserContext = Depends(permission_required("subproject", "write")), db: Session = Depends(get_db)):
-    return project_service.create_subproject(db, user, payload.project_key, payload.batch_date, payload.rows)
+    try:
+        print("SUBPROJECT ROUTE: start")
+        sub = project_service.create_subproject(db, user, payload.project_key, payload.batch_date, payload.rows)
+        print("SUBPROJECT ROUTE: created", sub["id"])
+        return sub
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
