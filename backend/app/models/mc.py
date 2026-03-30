@@ -47,6 +47,7 @@ class MCSite(Base):
     wcc_status_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_core.badges.id"))
     po_number: Optional[Mapped[str]] = mapped_column(String(128))
     invoice_number: Optional[Mapped[str]] = mapped_column(String(128))
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     active_fe: Optional[Mapped[str]] = mapped_column(String(256))
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
@@ -70,4 +71,3 @@ class MCBadgeTransition(Base):
     type_id: Mapped[int] = mapped_column(ForeignKey("schema_core.transition_types.id"), nullable=False)
     from_id: Mapped[int] = mapped_column(ForeignKey("schema_core.badges.id"), nullable=False)
     to_id: Mapped[int] = mapped_column(ForeignKey("schema_core.badges.id"), nullable=False)
-

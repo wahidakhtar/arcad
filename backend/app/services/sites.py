@@ -18,6 +18,7 @@ from app.models.ops import Subcon, SubconAssignment, SubconProject
 from app.schemas.site import SubconAssignmentRequest, SiteOut
 from app.services.common import badge_map, get_project, get_project_config, get_site_model, get_subproject_model, model_to_dict
 from app.services import acc_rules
+from app.utils.normalization import normalize_identifier, validate_identifier
 
 logger = logging.getLogger(__name__)
 
@@ -186,6 +187,62 @@ def _normalize_site_payload(db: Session, project_key: str, data: dict[str, Any])
     return normalized
 
 
+def _normalize_identifier_fields(payload: dict[str, Any]) -> None:
+    for field_name in ("ckt_id", "po_number", "invoice_number"):
+        if field_name not in payload:
+            continue
+        payload[field_name] = normalize_identifier(payload.get(field_name))
+        try:
+            validate_identifier(payload.get(field_name))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def _sync_site_active_flag(
+    payload: dict[str, Any],
+    badges_dict: dict[int, Badge],
+    *,
+    current_status_id: Optional[int] = None,
+    default_active: bool = False,
+) -> None:
+    target_status_id = payload.get("status_id", current_status_id)
+    if target_status_id is None:
+        if default_active:
+            payload.setdefault("active", True)
+        return
+    target_status = badges_dict.get(int(target_status_id))
+    current_status = badges_dict.get(int(current_status_id)) if current_status_id is not None else None
+    if target_status and target_status.key == "comp":
+        payload["active"] = False
+    elif current_status and current_status.key == "comp" and (target_status is None or target_status.key != "comp"):
+        payload["active"] = True
+    elif default_active:
+        payload.setdefault("active", True)
+
+
+def _ensure_active_circuit_unique(
+    db: Session,
+    model: type,
+    *,
+    subproject_id: Optional[int],
+    ckt_id: Optional[str],
+    site_id: Optional[int] = None,
+    active: bool = True,
+) -> None:
+    if not active or subproject_id is None or not ckt_id:
+        return
+    query = select(model).where(
+        model.subproject_id == subproject_id,
+        model.ckt_id == ckt_id,
+        model.active.is_(True),
+    )
+    if site_id is not None:
+        query = query.where(model.id != site_id)
+    existing = db.execute(query).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(status_code=400, detail="Circuit already exists in this subproject")
+
+
 def _resolve_subproject_id(db: Session, project_key: str, requested_subproject_id: int) -> int:
     subproject_model = get_subproject_model(project_key)
     existing = db.get(subproject_model, requested_subproject_id)
@@ -296,6 +353,15 @@ def create_site(db: Session, user: UserContext, project_key: str, subproject_id:
     payload = {"subproject_id": resolved_subproject_id, **normalized_data}
     if "status_id" not in payload:
         payload["status_id"] = 20 if data.get("bulk") else 10
+    _normalize_identifier_fields(payload)
+    _sync_site_active_flag(payload, badge_map(db), default_active=True)
+    _ensure_active_circuit_unique(
+        db,
+        model,
+        subproject_id=payload.get("subproject_id"),
+        ckt_id=payload.get("ckt_id"),
+        active=bool(payload.get("active", True)),
+    )
     try:
         site = model(**payload)
         db.add(site)
@@ -404,6 +470,18 @@ def update_site(db: Session, user: UserContext, project_key: str, site_id: int, 
     if apply_fn:
         normalized_data = apply_fn(site, normalized_data, db)
 
+    _normalize_identifier_fields(normalized_data)
+    badges_dict = badge_map(db)
+    _sync_site_active_flag(normalized_data, badges_dict, current_status_id=site.status_id)
+    _ensure_active_circuit_unique(
+        db,
+        model,
+        subproject_id=int(normalized_data.get("subproject_id", site.subproject_id)),
+        ckt_id=normalized_data.get("ckt_id", site.ckt_id),
+        site_id=site.id,
+        active=bool(normalized_data.get("active", site.active)),
+    )
+
     # Apply all fields from normalized_data (including system-generated ones)
     for field_name, value in normalized_data.items():
         if hasattr(site, field_name):
@@ -418,7 +496,6 @@ def update_site(db: Session, user: UserContext, project_key: str, site_id: int, 
     result = model_to_dict(site)
 
     # ACC invoice trigger: check if site just reached comp
-    badges_dict = badge_map(db)
     status_obj = badges_dict.get(site.status_id)
     if status_obj and status_obj.key == "comp":
         acc_rules.maybe_create_site_invoice(db, project_key, project.id, site.id, site.subproject_id)

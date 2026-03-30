@@ -25,6 +25,10 @@ type FieldRendererProps =
 export default function FieldRenderer(props: FieldRendererProps) {
   if (props.mode === "input") {
     const { field, value, onChange, onFocus, className } = props
+    const sanitizeIdentifier = (nextValue: string) => {
+      if (!["ckt_id", "po_number", "invoice_number"].includes(field.key)) return nextValue
+      return nextValue.toUpperCase().replace(/[^A-Z0-9/-]/g, "")
+    }
     const inputClassName = className ?? "w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none transition focus:border-jscolors-crimson/40"
 
     if (field.type === "bool") {
@@ -48,7 +52,7 @@ export default function FieldRenderer(props: FieldRendererProps) {
         <select
           value={String(value ?? "")}
           onFocus={onFocus}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => onChange(sanitizeIdentifier(event.target.value))}
           className={inputClassName}
           required={field.required}
         >
@@ -67,7 +71,7 @@ export default function FieldRenderer(props: FieldRendererProps) {
         type={field.type === "date" ? "date" : field.type === "number" ? "number" : field.type === "password" ? "password" : "text"}
         value={String(value ?? "")}
         onFocus={onFocus}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => onChange(sanitizeIdentifier(event.target.value))}
         className={inputClassName}
         required={field.required}
       />

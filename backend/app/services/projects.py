@@ -14,6 +14,7 @@ from app.models.core import Badge, IndianState, JobBucket, Project
 from app.models.ops import Subcon, SubconProject, Ticket
 from app.services.common import get_project_config, get_site_model, get_subproject_model
 import logging
+from app.utils.normalization import normalize_identifier, validate_identifier
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +122,12 @@ def _normalize_bulk_row(db: Session, project_key: str, row: dict[str, Any], fiel
             payload[key] = _parse_number(value)
         else:
             payload[key] = None if value is None or str(value).strip() == "" else str(value).strip()
+    for field_name in ("ckt_id", "po_number", "invoice_number"):
+        payload[field_name] = normalize_identifier(payload.get(field_name))
+        try:
+            validate_identifier(payload.get(field_name))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     return payload
 
 
@@ -323,9 +330,15 @@ def create_subproject(db: Session, user: UserContext, project_key: str, batch_da
     subproject = subproject_model(batch_date=parsed_batch_date, bucket=False, active=True, version=1)
     db.add(subproject)
     db.flush()
+    seen_ckt_ids: set[str] = set()
 
     for row in rows:
         normalized_row = _normalize_bulk_row(db, project_key, row, field_types)
+        ckt_id = normalized_row.get("ckt_id")
+        if ckt_id:
+            if ckt_id in seen_ckt_ids:
+                raise HTTPException(status_code=400, detail="Circuit already exists in this subproject")
+            seen_ckt_ids.add(ckt_id)
         db.add(site_model(subproject_id=subproject.id, receiving_date=parsed_batch_date, status_id=stage_badge.id, **normalized_row))
 
     db.commit()

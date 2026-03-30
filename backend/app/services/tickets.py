@@ -38,12 +38,18 @@ def _apply_ticket_site_rules(db: Session, ticket: Ticket, closing: bool) -> None
 
     if project_key == "bb":
         site.status_id = by_key.get("live" if closing else "down", site.status_id)
+        if hasattr(site, "active"):
+            site.active = True
     else:
         if not closing:
             site.status_id = by_key.get("rect", site.status_id)
+            if hasattr(site, "active"):
+                site.active = True
         else:
             if _comp_condition_met(site, project_key):
                 site.status_id = by_key.get("comp", site.status_id)
+                if hasattr(site, "active"):
+                    site.active = False
                 try:
                     from app.services import acc_rules
                     from app.services.common import get_project
@@ -54,6 +60,8 @@ def _apply_ticket_site_rules(db: Session, ticket: Ticket, closing: bool) -> None
                     pass
             else:
                 site.status_id = by_key.get("wip", site.status_id)
+                if hasattr(site, "active"):
+                    site.active = True
 
     if hasattr(site, "version"):
         site.version = (site.version or 0) + 1
