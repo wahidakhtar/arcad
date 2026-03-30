@@ -15,27 +15,53 @@ export default function AddForm({
   states = [],
   onSubmit,
   submitTrigger,
+  onLoadingChange,
 }: {
   fields: FieldDefinition[]
   states?: Array<{ id: number; label: string }>
   onSubmit: (data: Record<string, string | boolean>) => Promise<void>
   submitTrigger?: number
+  onLoadingChange?: (loading: boolean) => void
 }) {
   const [form, setForm] = useState<Record<string, string | boolean>>(() => buildInitialForm(fields))
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
   const formRef = useRef(form)
   useEffect(() => { formRef.current = form }, [form])
 
+  function handleError(err: unknown) {
+    const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    setError(detail ?? "Failed to submit. Please try again.")
+  }
+
   useEffect(() => {
     if (!submitTrigger) return
+    setError("")
+    setLoading(true)
+    onLoadingChange?.(true)
     void onSubmit(formRef.current)
-  }, [submitTrigger, onSubmit])
+      .catch(handleError)
+      .finally(() => {
+        setLoading(false)
+        onLoadingChange?.(false)
+      })
+  }, [submitTrigger, onSubmit, onLoadingChange])
 
   return (
     <form
       className="grid gap-4 md:grid-cols-2"
       onSubmit={(event) => {
         event.preventDefault()
+        if (loading) return
+        setError("")
+        setLoading(true)
+        onLoadingChange?.(true)
         void onSubmit(form)
+          .catch(handleError)
+          .finally(() => {
+            setLoading(false)
+            onLoadingChange?.(false)
+          })
       }}
     >
       {fields.map((field) => (
@@ -53,6 +79,7 @@ export default function AddForm({
           />
         </label>
       ))}
+      {error && <p className="col-span-full text-sm text-red-600">{error}</p>}
     </form>
   )
 }

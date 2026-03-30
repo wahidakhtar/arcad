@@ -55,6 +55,7 @@ export default function UserDetailPage() {
   const [pwForm, setPwForm] = useState({ password: "", confirm_password: "" })
   const [pwSaving, setPwSaving] = useState(false)
   const [pwError, setPwError] = useState("")
+  const [actionError, setActionError] = useState("")
 
   // Assign Role modal
   const [roleModalOpen, setRoleModalOpen] = useState(false)
@@ -294,6 +295,7 @@ export default function UserDetailPage() {
         </div>
       </Modal>
 
+      {actionError && <p className="mb-4 text-sm text-red-600">{actionError}</p>}
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <section className="glass-panel p-6">
           <div className="flex items-start justify-between gap-2">
@@ -314,7 +316,15 @@ export default function UserDetailPage() {
                   type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={() => { void api.patch(`/users/${user.id}`, { active: !user.active }).then(() => reloadUser()) }}
+                  onClick={() => {
+                    setActionError("")
+                    void api.patch(`/users/${user.id}`, { active: !user.active })
+                      .then(() => reloadUser())
+                      .catch((err: unknown) => {
+                        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+                        setActionError(detail ?? "Action failed.")
+                      })
+                  }}
                 >
                   {user.active ? "Deactivate" : "Activate"}
                 </Button>
@@ -362,7 +372,15 @@ export default function UserDetailPage() {
                     type="button"
                     variant="secondary"
                     size="sm"
-                    onClick={() => { void api.delete(`/users/${user.id}/roles/${role.id}`).then(() => reloadUser()) }}
+                    onClick={() => {
+                      setActionError("")
+                      void api.delete(`/users/${user.id}/roles/${role.id}`)
+                        .then(() => reloadUser())
+                        .catch((err: unknown) => {
+                          const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+                          setActionError(detail ?? "Action failed.")
+                        })
+                    }}
                   >
                     Remove
                   </Button>

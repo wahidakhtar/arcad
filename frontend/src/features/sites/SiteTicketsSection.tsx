@@ -38,6 +38,7 @@ export default function SiteTicketsSection({
   const [form, setForm] = useState({ ticket_date: TODAY })
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState("")
+  const [closeErr, setCloseErr] = useState("")
 
   if (!canTicketRead && !canTicketWrite) return null
 
@@ -98,6 +99,7 @@ export default function SiteTicketsSection({
         ) : undefined}
       >
         <div className="space-y-3">
+          {closeErr && <p className="text-sm text-red-600">{closeErr}</p>}
           {tickets.length ? tickets.map((row) => (
             <div key={row.id} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
               <div className="flex items-center justify-between gap-3">
@@ -110,7 +112,15 @@ export default function SiteTicketsSection({
                     type="button"
                     variant="secondary"
                     className="shrink-0"
-                    onClick={() => { void api.patch(`/tickets/${row.id}/close`).then(() => onReload()) }}
+                    onClick={() => {
+                      setCloseErr("")
+                      void api.patch(`/tickets/${row.id}/close`)
+                        .then(() => onReload())
+                        .catch((err: unknown) => {
+                          const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+                          setCloseErr(detail ?? "Failed to close ticket.")
+                        })
+                    }}
                   >
                     Close
                   </Button>

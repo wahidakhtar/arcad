@@ -8,17 +8,21 @@ export default function BulkTable({
   columns,
   onSubmit,
   submitTrigger,
+  onLoadingChange,
 }: {
   columns: FieldDefinition[]
   states?: Array<{ id: number; label: string }>
   onSubmit: (payload: { batchDate: string; rows: Array<Record<string, string | boolean>> }) => Promise<void>
   submitTrigger?: number
+  onLoadingChange?: (loading: boolean) => void
 }) {
   const [batchDate, setBatchDate] = useState(TODAY)
   const [rows, setRows] = useState<Array<Record<string, string | boolean>>>(
     Array.from({ length: 8 }, () => Object.fromEntries(columns.map((column) => [column.key, ""]))),
   )
   const [focus, setFocus] = useState<{ rowIndex: number; columnIndex: number } | null>(null)
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
   const batchDateRef = useRef(batchDate)
   const rowsRef = useRef(rows)
@@ -28,8 +32,19 @@ export default function BulkTable({
   useEffect(() => {
     if (!submitTrigger) return
     const filteredRows = rowsRef.current.filter((row) => Object.values(row).some((v) => v !== "" && v !== false))
+    setError("")
+    setLoading(true)
+    onLoadingChange?.(true)
     void onSubmit({ batchDate: batchDateRef.current, rows: filteredRows })
-  }, [submitTrigger, onSubmit])
+      .catch((err: unknown) => {
+        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        setError(detail ?? "Failed to submit. Please try again.")
+      })
+      .finally(() => {
+        setLoading(false)
+        onLoadingChange?.(false)
+      })
+  }, [submitTrigger, onSubmit, onLoadingChange])
 
   function updateCell(rowIndex: number, key: string, value: string | boolean) {
     setRows((current) => current.map((row, index) => (index === rowIndex ? { ...row, [key]: value } : row)))
@@ -107,6 +122,8 @@ export default function BulkTable({
           </table>
         </div>
       </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      {loading && <p className="text-xs text-jscolors-text/50">Submitting…</p>}
     </div>
   )
 }
