@@ -13,8 +13,6 @@ type ModalProps = {
   onSubmit: () => void
   submitVariant?: "primary" | "danger"
   isSubmitting?: boolean
-  cancelLabel?: string
-  hideCancel?: boolean
 }
 
 export default function Modal({
@@ -27,8 +25,6 @@ export default function Modal({
   onSubmit,
   submitVariant = "primary",
   isSubmitting = false,
-  cancelLabel = "Cancel",
-  hideCancel = false,
 }: ModalProps) {
   useEffect(() => {
     if (!isOpen) return
@@ -72,22 +68,11 @@ export default function Modal({
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 flex gap-3 px-6 pt-4 pb-6">
-          {!hideCancel && (
-            <Button
-              type="button"
-              variant="ghost"
-              className="flex-1"
-              disabled={isSubmitting}
-              onClick={onClose}
-            >
-              {cancelLabel}
-            </Button>
-          )}
+        <div className="shrink-0 px-6 pt-4 pb-6">
           <Button
             type="button"
             variant={submitVariant}
-            className={hideCancel ? "w-full" : "flex-1"}
+            className="w-full"
             disabled={isSubmitting}
             onClick={onSubmit}
           >

@@ -1,34 +1,34 @@
-import { useEffect } from "react"
+import { Suspense, lazy, useEffect } from "react"
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom"
 
 import { useAuth } from "./context/AuthContext"
 import { useWebSocket } from "./hooks/useWebSocket"
 import { squirclePath } from "./lib/squircle"
 import PageLayout from "./components/layout/PageLayout"
-import DashboardPage from "./features/dashboard/DashboardPage"
-import LoginPage from "./features/auth/LoginPage"
-import SetupPage from "./features/auth/SetupPage"
-import PeoplePage from "./features/people/PeoplePage"
-import UserDetailPage from "./features/people/UserDetailPage"
-import ProjectsPage from "./features/projects/ProjectsPage"
-import SubprojectsPage from "./features/projects/SubprojectsPage"
-import OneOffProjectPage from "./features/projects/OneOffProjectPage"
-import SiteListPage from "./features/sites/SiteListPage"
-import SiteDetailPage from "./features/sites/SiteDetailPage"
-import TransactionsPage from "./features/transactions/TransactionsPage"
-import TransactionDetailPage from "./features/transactions/TransactionDetailPage"
-import PoListPage from "./features/billing/PoListPage"
-import RateCardPage from "./features/billing/RateCardPage"
-import RateHistoryPage from "./features/billing/RateHistoryPage"
-import PoDetailPage from "./features/billing/po/PoDetailPage"
-import TicketsPage from "./features/tickets/TicketsPage"
-import TicketDetailPage from "./features/tickets/TicketDetailPage"
-import UpdatesPage from "./features/updates/UpdatesPage"
-import AdminPage from "./features/admin/AdminPage"
-import SchemaBrowserPage from "./features/admin/schema-browser/SchemaBrowserPage"
-import ErrorLogPage from "./features/admin/error-log/ErrorLogPage"
-import SubconsPage from "./features/subcons/SubconsPage"
-import SubconDetailPage from "./features/subcons/SubconDetailPage"
+const DashboardPage = lazy(() => import("./features/dashboard/DashboardPage"))
+const LoginPage = lazy(() => import("./features/auth/LoginPage"))
+const SetupPage = lazy(() => import("./features/auth/SetupPage"))
+const PeoplePage = lazy(() => import("./features/people/PeoplePage"))
+const UserDetailPage = lazy(() => import("./features/people/UserDetailPage"))
+const ProjectsPage = lazy(() => import("./features/projects/ProjectsPage"))
+const SubprojectsPage = lazy(() => import("./features/projects/SubprojectsPage"))
+const OneOffProjectPage = lazy(() => import("./features/projects/OneOffProjectPage"))
+const SiteListPage = lazy(() => import("./features/sites/SiteListPage"))
+const SiteDetailPage = lazy(() => import("./features/sites/SiteDetailPage"))
+const TransactionsPage = lazy(() => import("./features/transactions/TransactionsPage"))
+const TransactionDetailPage = lazy(() => import("./features/transactions/TransactionDetailPage"))
+const PoListPage = lazy(() => import("./features/billing/PoListPage"))
+const RateCardPage = lazy(() => import("./features/billing/RateCardPage"))
+const RateHistoryPage = lazy(() => import("./features/billing/RateHistoryPage"))
+const PoDetailPage = lazy(() => import("./features/billing/po/PoDetailPage"))
+const TicketsPage = lazy(() => import("./features/tickets/TicketsPage"))
+const TicketDetailPage = lazy(() => import("./features/tickets/TicketDetailPage"))
+const UpdatesPage = lazy(() => import("./features/updates/UpdatesPage"))
+const AdminPage = lazy(() => import("./features/admin/AdminPage"))
+const SchemaBrowserPage = lazy(() => import("./features/admin/schema-browser/SchemaBrowserPage"))
+const ErrorLogPage = lazy(() => import("./features/admin/error-log/ErrorLogPage"))
+const SubconsPage = lazy(() => import("./features/subcons/SubconsPage"))
+const SubconDetailPage = lazy(() => import("./features/subcons/SubconDetailPage"))
 
 function PublicOnly({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -110,6 +110,7 @@ export default function App() {
   }, [])
 
   return (
+    <Suspense fallback={<div className="page-shell flex items-center justify-center font-syne text-2xl text-jscolors-crimson">ARCAD</div>}>
     <Routes>
       <Route
         path="/login"
@@ -157,5 +158,6 @@ export default function App() {
 
       <Route path="*" element={<Navigate to={setupRequired ? "/setup" : "/dashboard"} replace />} />
     </Routes>
+    </Suspense>
   )
 }

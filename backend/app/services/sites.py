@@ -324,7 +324,7 @@ def list_sites(
     page_size: int = 50,
     search: Optional[str] = None,
 ) -> dict:
-    get_project(db, project_key)
+    project = get_project(db, project_key)
     ensure_permission(user, db, project_key=project_key, tag="site", action="read")
     model = get_site_model(project_key)
     query = select(model).order_by(model.receiving_date.desc())
@@ -339,7 +339,10 @@ def list_sites(
     for row in rows:
         if exclude_staged and stage_badge_id is not None and row.status_id == stage_badge_id:
             continue
-        all_items.append({"id": row.id, "ckt_id": row.ckt_id, "status_key": badges[row.status_id].key, "receiving_date": row.receiving_date, "active_fe": getattr(row, "active_fe", None)})
+        item = {"id": row.id, "ckt_id": row.ckt_id, "status_key": badges[row.status_id].key, "receiving_date": row.receiving_date, "active_fe": getattr(row, "active_fe", None)}
+        financials = build_site_financials(db, project.id, project_key, row.id, model_to_dict(row))
+        item.update({"budget": financials["budget"], "cost": financials["cost"], "paid": financials["paid"], "balance": financials["balance"]})
+        all_items.append(item)
     total = len(all_items)
     page_size = max(1, page_size)
     pages = max(1, (total + page_size - 1) // page_size)

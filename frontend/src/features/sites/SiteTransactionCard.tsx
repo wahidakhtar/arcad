@@ -4,7 +4,7 @@ import BadgeDropdown, { type BadgeOption } from "../../components/ui/BadgeDropdo
 import ConfirmCancelTransactionModal from "../../components/ui/ConfirmCancelTransactionModal"
 import ExecutionDateModal from "../../components/ui/ExecutionDateModal"
 import { api } from "../../lib/api"
-import { formatCurrency } from "../../utils/format"
+import { formatCurrency, formatDate } from "../../utils/format"
 import type { Badge, TransactionRow, TransitionRow } from "./siteDetailTypes"
 import { txStatusLabel } from "./siteDetailHelpers"
 
@@ -114,7 +114,7 @@ export default function SiteTransactionCard({
         <div>
           <div className="text-sm font-semibold text-jscolors-text">{badges.get(row.type_id)?.label ?? "Transaction"} • {formatCurrency(row.amount)}</div>
           <div className="mt-1 text-sm text-jscolors-text/60">
-            {row.request_date}
+            {formatDate(row.request_date)}
             {row.bucket_key ? ` • ${row.bucket_key.toUpperCase()}` : ""}
             {row.remarks ? ` • ${row.remarks}` : ""}
           </div>

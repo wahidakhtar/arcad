@@ -58,6 +58,7 @@ export default function SiteFEAssignmentSection({
   onReload: () => Promise<void>
 }) {
   const assigneeLabel = jobBuckets.length ? "FE" : "Subcon"
+  const showBucketLabel = jobBuckets.length > 1
   const [assignmentForm, setAssignmentForm] = useState({ bucket_id: "", subcon_id: "" })
   const [assignModal, setAssignModal] = useState(false)
   const [assigning, setAssigning] = useState(false)
@@ -269,11 +270,12 @@ export default function SiteFEAssignmentSection({
       <div className="space-y-3">
         {currentSite.subcon_rows.length ? currentSite.subcon_rows.map((row) => {
           const rowTransactions = transactions.filter((transaction) => transaction.recipient_id === row.subcon_id)
+          const displayLabel = showBucketLabel ? `${row.subcon_label} · ${bucketLabel(jobBuckets, row.bucket_key)}` : row.subcon_label
           return (
             <div key={`${row.assignment_id}-${row.bucket_key}`} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-jscolors-text">{row.subcon_label} · {bucketLabel(jobBuckets, row.bucket_key)}</div>
+                  <div className="text-sm font-semibold text-jscolors-text">{displayLabel}</div>
                   <div className="mt-2 flex flex-wrap gap-4 text-sm text-jscolors-text/60">
                     <span className="tabular-nums">Cost <span className="font-semibold text-jscolors-text">{formatCurrency(row.cost)}</span></span>
                     <span className="tabular-nums">Paid <span className="font-semibold text-jscolors-text">{formatCurrency(row.paid)}</span></span>
@@ -285,7 +287,7 @@ export default function SiteFEAssignmentSection({
                     <Button
                       type="button"
                       variant="secondary"
-                      onClick={() => setTxModal({ open: true, subconId: row.subcon_id, bucketKey: row.bucket_key, subconLabel: `${row.subcon_label} · ${bucketLabel(jobBuckets, row.bucket_key)}`, type_id: "", amount: "", err: "" })}
+                      onClick={() => setTxModal({ open: true, subconId: row.subcon_id, bucketKey: row.bucket_key, subconLabel: displayLabel, type_id: "", amount: "", err: "" })}
                     >
                       Request
                     </Button>

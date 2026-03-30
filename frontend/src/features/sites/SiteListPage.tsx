@@ -14,6 +14,7 @@ import { useListPage } from "../../hooks/useListPage"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
 import { formatSubprojectLabel } from "../../lib/subprojects"
+import { formatCurrency } from "../../utils/format"
 
 type Badge = {
   id: number
@@ -32,6 +33,10 @@ type SiteRow = {
   city?: string
   status_key: string
   status_badge?: Badge
+  budget?: string | number
+  cost?: string | number
+  paid?: string | number
+  balance?: string | number
 }
 
 type UIField = {
@@ -42,6 +47,14 @@ type UIField = {
   form_view: boolean
   bulk_view: boolean
   section: string
+}
+
+type SiteColumn = {
+  key: string
+  label: string
+  type?: string
+  minWidth?: number
+  align?: "left" | "right"
 }
 
 type Subproject = { id: number; batch_date: string | null; bucket?: boolean }
@@ -70,7 +83,7 @@ export default function SiteListPage() {
   const { can, roles, projectKeys } = useAuth()
   const { projectKey = "mi" } = useParams()
   const [projectMeta, setProjectMeta] = useState<ProjectMeta | null>(null)
-  const [columns, setColumns] = useState<Array<{ key: string; label: string; type?: string; minWidth?: number }>>([])
+  const [columns, setColumns] = useState<SiteColumn[]>([])
   const [formFields, setFormFields] = useState<Array<{ key: string; label: string; type?: string }>>([])
   const [bulkFields, setBulkFields] = useState<Array<{ key: string; label: string; type?: string }>>([])
   const [search, setSearch] = useState("")
@@ -130,7 +143,7 @@ export default function SiteListPage() {
           ? { label: project.label, supports_subprojects: project.supports_subprojects, subprojects: project.subprojects ?? [] }
           : null,
       )
-      const listColumns = uiFields
+      const listColumns: SiteColumn[] = uiFields
         .filter((field) => field.list_view)
         .map((field) => ({
           key: field.key === "status" ? "status_badge" : field.key,
@@ -138,6 +151,13 @@ export default function SiteListPage() {
           type: field.type,
           minWidth: field.key === "ckt_id" ? 120 : field.key === "status" ? 140 : field.type === "date" ? 110 : 100,
         }))
+      if (projectKey !== "bb") {
+        listColumns.push(
+          { key: "cost", label: "Cost", minWidth: 120, align: "right" as const },
+          { key: "paid", label: "Paid", minWidth: 120, align: "right" as const },
+          { key: "balance", label: "Balance", minWidth: 120, align: "right" as const },
+        )
+      }
       setColumns(listColumns)
       setFormFields(uiFields.filter((f) => f.form_view).map(({ key, label, type }) => ({ key, label, type })))
       setBulkFields(uiFields.filter((f) => f.bulk_view).map(({ key, label, type }) => ({ key, label, type })))
@@ -233,7 +253,11 @@ export default function SiteListPage() {
           <div className="py-8 text-center text-sm text-jscolors-text/50">Loading sites...</div>
         ) : (
           <DataTable
-            columns={columns}
+            columns={columns.map((column) => (
+              column.key === "cost" || column.key === "paid" || column.key === "balance"
+                ? { ...column, render: (value: unknown) => <div className="text-right tabular-nums">{formatCurrency(value as number | string)}</div> }
+                : column
+            ))}
             rows={rows}
             rowHref={(row) => `/projects/${projectKey}/site/${row.id}`}
           />
