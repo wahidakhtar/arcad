@@ -561,16 +561,13 @@ def assign_subcon(db: Session, user: UserContext, project_key: str, site_id: int
     )
     subcon = _validate_subcon_for_project(db, project_id, payload.subcon_id)
     _validate_bucket_for_project(db, project_id, payload.bucket_id)
-    assignment_query = select(SubconAssignment).where(
-        SubconAssignment.project_id == project_id,
-        SubconAssignment.site_id == site_id,
-        SubconAssignment.active.is_(True),
-    )
-    if payload.bucket_id is None:
-        assignment_query = assignment_query.where(SubconAssignment.bucket_id.is_(None))
-    else:
-        assignment_query = assignment_query.where(SubconAssignment.bucket_id == payload.bucket_id)
-    existing_assignments = db.execute(assignment_query).scalars().all()
+    existing_assignments = db.execute(
+        select(SubconAssignment).where(
+            SubconAssignment.project_id == project_id,
+            SubconAssignment.site_id == site_id,
+            SubconAssignment.active.is_(True),
+        )
+    ).scalars().all()
     for existing in existing_assignments:
         existing.active = False
         existing.removed_at = datetime.now()

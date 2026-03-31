@@ -6,7 +6,7 @@ import Modal from "../../components/ui/Modal"
 import { api } from "../../lib/api"
 import { formatCurrency } from "../../utils/format"
 import type { Badge, JobBucket, ProjectRow, SiteDetail, SubconRow, TransactionRow, TransitionRow } from "./siteDetailTypes"
-import { bucketLabel, transitionOptions } from "./siteDetailHelpers"
+import { transitionOptions } from "./siteDetailHelpers"
 import SiteTransactionCard from "./SiteTransactionCard"
 
 type TxModal = { open: boolean; subconId: number; bucketKey: string; subconLabel: string; type_id: string; amount: string; err: string }
@@ -94,8 +94,7 @@ export default function SiteFEAssignmentSection({
   onReload: () => Promise<void>
 }) {
   const assigneeLabel = jobBuckets.length ? "FE" : "Subcon"
-  const showBucketLabel = jobBuckets.length > 1
-  const [assignmentForm, setAssignmentForm] = useState({ bucket_id: "", subcon_id: "" })
+  const [assignmentForm, setAssignmentForm] = useState({ subcon_id: "" })
   const [assignModal, setAssignModal] = useState(false)
   const [assigning, setAssigning] = useState(false)
   const [assignErr, setAssignErr] = useState("")
@@ -105,36 +104,21 @@ export default function SiteFEAssignmentSection({
   const [txSubmitting, setTxSubmitting] = useState(false)
 
   const reqTransitions = transitionOptions(transitions, "transaction_status", reqBadgeId ?? 0)
-  const selectedBucket = jobBuckets.length === 1
-    ? jobBuckets[0]
-    : (jobBuckets.find((bucket) => String(bucket.id) === assignmentForm.bucket_id) ?? null)
-  const alreadyAssigned = !!selectedBucket && currentSite.subcon_rows.some((row) => row.active && row.bucket_key === selectedBucket.key)
   const hasActiveAssignment = currentSite.subcon_rows.some((row) => row.active)
-  const allAssignableSlotsFilled = jobBuckets.length
-    ? jobBuckets.every((bucket) => currentSite.subcon_rows.some((row) => row.active && row.bucket_key === bucket.key))
-    : hasActiveAssignment
 
   async function assignSubcon() {
-    if (jobBuckets.length > 1 && !assignmentForm.bucket_id) {
-      setAssignErr("Job is required.")
-      return
-    }
     if (!assignmentForm.subcon_id) {
       setAssignErr(`${assigneeLabel} is required.`)
       return
     }
-    const bucketId = assignmentForm.bucket_id ? Number(assignmentForm.bucket_id) : (jobBuckets.length === 1 ? jobBuckets[0].id : null)
-    if (!bucketId && jobBuckets.length > 1) {
-      setAssignErr("Job is required.")
-      return
-    }
+    const bucketId = jobBuckets.length > 0 ? jobBuckets[0].id : null
     const payload = { bucket_id: bucketId, subcon_id: Number(assignmentForm.subcon_id) }
     const endpoint = `/sites/${projectKey}/${currentSite.id}/assignments`
     setAssigning(true)
     setAssignErr("")
     try {
       await api.post(endpoint, payload)
-      setAssignmentForm({ bucket_id: "", subcon_id: "" })
+      setAssignmentForm({ subcon_id: "" })
       setAssignModal(false)
       await onReload()
     } catch (error: unknown) {
@@ -199,10 +183,10 @@ export default function SiteFEAssignmentSection({
       action={
         <Button
           type="button"
-          disabled={allAssignableSlotsFilled}
+          disabled={hasActiveAssignment}
           onClick={() => {
-            if (allAssignableSlotsFilled) return
-            setAssignmentForm({ bucket_id: jobBuckets.length === 1 ? String(jobBuckets[0].id) : "", subcon_id: "" })
+            if (hasActiveAssignment) return
+            setAssignmentForm({ subcon_id: "" })
             setAssignErr("")
             setAssignModal(true)
           }}
@@ -245,18 +229,6 @@ export default function SiteFEAssignmentSection({
         isSubmitting={assigning}
       >
         <div className="space-y-4">
-          {jobBuckets.length > 1 && (
-            <SelectField
-              label="Job"
-              value={assignmentForm.bucket_id}
-              onChange={(value) => setAssignmentForm((current) => ({ ...current, bucket_id: value }))}
-              placeholder="Select Job"
-            >
-                {jobBuckets.map((bucket) => (
-                  <option key={bucket.id} value={bucket.id}>{bucket.label}</option>
-                ))}
-            </SelectField>
-          )}
           <SelectField
             label={assigneeLabel}
             value={assignmentForm.subcon_id}
@@ -267,7 +239,6 @@ export default function SiteFEAssignmentSection({
                 <option key={subcon.id} value={subcon.id}>{subcon.label}</option>
               ))}
           </SelectField>
-          {alreadyAssigned ? <p className="text-sm text-red-600">{`An active ${assigneeLabel} already exists for this bucket.`}</p> : null}
           {assignErr ? <p className="text-sm text-red-600">{assignErr}</p> : null}
         </div>
       </Modal>
@@ -320,7 +291,7 @@ export default function SiteFEAssignmentSection({
       <div className="space-y-3">
         {currentSite.subcon_rows.length ? currentSite.subcon_rows.map((row) => {
           const rowTransactions = transactions.filter((transaction) => transaction.recipient_id === row.subcon_id)
-          const displayLabel = showBucketLabel ? `${row.subcon_label} · ${bucketLabel(jobBuckets, row.bucket_key)}` : row.subcon_label
+          const displayLabel = row.subcon_label
           return (
             <div key={`${row.assignment_id}-${row.bucket_key}`} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
