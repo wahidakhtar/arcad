@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.config.calculator import RateCardRow, SubconAssignmentRow, TransactionRow, calculate_site_financials
 from app.models.acc import RateCard, Transaction
 from app.models.core import Job, JobBucket
+from app.models.md import MDOutcome
 from app.models.ops import Subcon, SubconAssignment
 from app.services.common import badge_map, get_project, get_project_config, get_site_model, model_to_dict
 
@@ -80,6 +81,12 @@ def get_site_projection(db: Session, project_key: str, site_id: int) -> dict[str
     if site is None:
         return None
     site_data = model_to_dict(site)
+    if project_key == "md":
+        site_data["outcome_label"] = None
+        outcome_id = site_data.get("outcome_id")
+        if outcome_id is not None:
+            outcome = db.get(MDOutcome, int(outcome_id))
+            site_data["outcome_label"] = outcome.label if outcome is not None else None
     financials = build_site_financials(db, project.id, project_key, site_id, site_data)
     badges = badge_map(db)
 

@@ -31,7 +31,7 @@ FIELD_META: dict[str, dict[str, object]] = {
     "edd": {"label": "EDD", "type": "date", "list_view": False},
     "followup_date": {"label": "Follow-up Date", "type": "date", "list_view": False},
     "visit_date": {"label": "Visit Date", "type": "date", "list_view": False},
-    "outcome": {"label": "Outcome", "type": "text", "list_view": False},
+    "outcome": {"label": "Outcome", "type": "dropdown", "list_view": False},
     "dismantle_date": {"label": "Dismantle Date", "type": "date", "list_view": False},
     "audit_date": {"label": "Audit Date", "type": "date", "list_view": False},
     "cm_date": {"label": "CM Date", "type": "date", "list_view": False},
@@ -301,12 +301,12 @@ def list_project_outcomes(db: Session, user: UserContext, project_key: str) -> l
     ensure_permission(user, db, project_key=project_key, tag="site", action="read")
     try:
         rows = db.execute(
-            text(f'SELECT label FROM schema_{project_key}.outcomes ORDER BY "order"')
+            text(f'SELECT id, label FROM schema_{project_key}.outcomes ORDER BY "order"')
         ).mappings().all()
     except (ProgrammingError, SQLAlchemyError):
         db.rollback()
         return []
-    return [{"value": row["label"], "label": row["label"]} for row in rows]
+    return [{"value": row["id"], "label": row["label"]} for row in rows]
 
 
 _EXCLUDED_TX_TYPE_KEYS = {"sal", "oth"}

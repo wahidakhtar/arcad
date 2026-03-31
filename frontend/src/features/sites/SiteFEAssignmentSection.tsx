@@ -94,7 +94,7 @@ export default function SiteFEAssignmentSection({
   onReload: () => Promise<void>
 }) {
   const assigneeLabel = jobBuckets.length ? "FE" : "Subcon"
-  const siteOutcome = String(currentSite.fields.outcome ?? "").trim().toLowerCase()
+  const siteOutcome = String(currentSite.fields.outcome_label ?? "").trim().toLowerCase()
   const hasMultipleBuckets = jobBuckets.length > 1
   const [assignmentForm, setAssignmentForm] = useState({ bucket_id: "", subcon_id: "" })
   const [assignModal, setAssignModal] = useState(false)

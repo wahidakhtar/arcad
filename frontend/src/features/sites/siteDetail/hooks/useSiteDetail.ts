@@ -13,6 +13,7 @@ import {
 import type {
   Badge,
   JobBucket,
+  OutcomeOption,
   ProjectRow,
   SiteDetail,
   StateRow,
@@ -44,7 +45,7 @@ export default function useSiteDetail() {
   const [transactions, setTransactions] = useState<TransactionRow[]>([])
   const [subcons, setSubcons] = useState<SubconRow[]>([])
   const [transactionTypes, setTransactionTypes] = useState<Badge[]>([])
-  const [outcomes, setOutcomes] = useState<Array<{ value: string; label: string }>>([])
+  const [outcomes, setOutcomes] = useState<OutcomeOption[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [editingField, setEditingField] = useState<EditingFieldState>(null)
@@ -120,7 +121,7 @@ export default function useSiteDetail() {
       )
       setSubcons((subconsResponse.data as SubconRow[]) ?? [])
       setTransactionTypes(Array.isArray(txTypesResponse.data) ? txTypesResponse.data as Badge[] : [])
-      setOutcomes(Array.isArray(outcomesResponse.data) ? outcomesResponse.data as Array<{ value: string; label: string }> : [])
+      setOutcomes(Array.isArray(outcomesResponse.data) ? outcomesResponse.data as OutcomeOption[] : [])
     } catch (err) {
       logError({
         error_type: "js_exception",
@@ -163,14 +164,18 @@ export default function useSiteDetail() {
   const visibleFields = useMemo(() => uiFields.filter((field) => canPermTag(field.tag)), [uiFields, canPermTag])
   const badgeFields = useMemo(() => visibleFields.filter((field) => field.type === "badge"), [visibleFields])
   const regularFields = useMemo(() => visibleFields.filter((field) => field.type !== "badge"), [visibleFields])
+  const regularFieldsWithOptions = useMemo(
+    () => regularFields.map((field) => (field.key === "outcome" ? { ...field, options: outcomes } : field)),
+    [outcomes, regularFields],
+  )
 
   const currentSite = site
-  const outcomeId = typeof currentSite?.fields.outcome === "number"
-    ? currentSite.fields.outcome
-    : typeof currentSite?.fields.outcome_id === "number"
-      ? currentSite.fields.outcome_id
+  const outcomeId = typeof currentSite?.fields.outcome_id === "number"
+    ? currentSite.fields.outcome_id
+    : typeof currentSite?.fields.outcome === "number"
+      ? currentSite.fields.outcome
       : null
-  const isAssetTransfer = outcomeId !== null && badgeById.get(outcomeId as number)?.label?.toLowerCase() === "asset transfer"
+  const isAssetTransfer = outcomeId !== null && outcomes.find((outcome) => outcome.value === outcomeId)?.label?.toLowerCase() === "asset tx"
 
   const openFieldEditor = useCallback((field: UIField) => {
     if (!currentSite) return
@@ -226,7 +231,7 @@ export default function useSiteDetail() {
     badgeById,
     stateById,
     badgeFields,
-    regularFields,
+    regularFields: regularFieldsWithOptions,
     editingField,
     editSaving,
     editError,

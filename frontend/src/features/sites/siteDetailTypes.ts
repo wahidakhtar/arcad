@@ -10,6 +10,11 @@ export type SiteDetail = {
   subcon_rows: Array<{ assignment_id: number; subcon_id: number; subcon_label: string; bucket_key: string; active: boolean; cost: string; paid: string; balance: string }>
 }
 
+export type OutcomeOption = {
+  value: number
+  label: string
+}
+
 export type UIField = {
   key: string
   label: string

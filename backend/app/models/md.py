@@ -38,7 +38,7 @@ class MDSite(Base):
     followup_date: Optional[Mapped[date]] = mapped_column(Date)
     state_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_core.indian_states.id"))
     visit_date: Optional[Mapped[date]] = mapped_column(Date)
-    outcome: Optional[Mapped[str]] = mapped_column(String(128))
+    outcome_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_md.outcomes.id"))
     dismantle_date: Optional[Mapped[date]] = mapped_column(Date)
     scrap_value: Optional[Mapped[Decimal]] = mapped_column(Numeric(12, 2))
     wcc_status_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_core.badges.id"))
@@ -66,3 +66,12 @@ class MDBadgeTransition(Base):
     type_id: Mapped[int] = mapped_column(ForeignKey("schema_core.transition_types.id"), nullable=False)
     from_id: Mapped[int] = mapped_column(ForeignKey("schema_core.badges.id"), nullable=False)
     to_id: Mapped[int] = mapped_column(ForeignKey("schema_core.badges.id"), nullable=False)
+
+
+class MDOutcome(Base):
+    __tablename__ = "outcomes"
+    __table_args__ = {"schema": "schema_md"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    label: Mapped[str] = mapped_column(Text, nullable=False)
+    order: Mapped[int] = mapped_column(Integer, nullable=False)

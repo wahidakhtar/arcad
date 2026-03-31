@@ -70,7 +70,7 @@ export default function SiteDetailPage() {
 
   function openVisitOutcomeEditor() {
     setVisitDateDraft((currentSite.fields.visit_date as string | null) ?? "")
-    setOutcomeDraft((currentSite.fields.outcome as string | null) ?? "")
+    setOutcomeDraft(String((currentSite.fields.outcome_id as number | null) ?? ""))
     setVisitOutcomeError("")
     setVisitOutcomeOpen(true)
   }
@@ -86,7 +86,7 @@ export default function SiteDetailPage() {
       await api.patch(`/sites/${projectKey}/${currentSite.id}`, {
         data: {
           visit_date: visitDateDraft,
-          outcome: outcomeDraft.trim(),
+          outcome: Number(outcomeDraft.trim()),
         },
       })
       setVisitOutcomeOpen(false)

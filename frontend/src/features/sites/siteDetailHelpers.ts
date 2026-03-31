@@ -42,6 +42,9 @@ export function displayValueForField(
   if (field.type === "dropdown" && field.key === "state_id" && typeof value === "number") {
     return stateById.get(value)?.label ?? value
   }
+  if (field.type === "dropdown" && typeof value === "number" && field.options?.length) {
+    return field.options.find((option) => Number(option.value) === value)?.label ?? value
+  }
   if (field.type === "badge" && typeof value === "number") {
     return badgeById.get(value)
   }

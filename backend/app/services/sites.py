@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.api.auth import UserContext, ensure_permission
 from app.models.core import Badge, IndianState, JobBucket
+from app.models.md import MDOutcome
 from app.models.ops import Subcon, SubconAssignment, SubconProject
 from app.schemas.site import SubconAssignmentRequest, SiteOut
 from app.services.common import badge_map, get_project, get_project_config, get_site_model, get_subproject_model, model_to_dict
@@ -181,6 +182,23 @@ def _parse_badge_id(db: Session, value: Any, badge_type: Optional[str]) -> Optio
     return badge.id
 
 
+def _parse_md_outcome_id(db: Session, value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    text_value = str(value).strip()
+    if not text_value:
+        return None
+    if text_value.isdigit():
+        outcome = db.get(MDOutcome, int(text_value))
+        if outcome is None:
+            raise HTTPException(status_code=400, detail="Unknown outcome")
+        return outcome.id
+    outcome = db.execute(select(MDOutcome).where(MDOutcome.label.ilike(text_value))).scalar_one_or_none()
+    if outcome is None:
+        raise HTTPException(status_code=400, detail=f"Unknown outcome: {text_value}")
+    return outcome.id
+
+
 def _resolve_site_field_key(model: type, field_name: str) -> str:
     if hasattr(model, field_name):
         return field_name
@@ -231,6 +249,8 @@ def _normalize_site_payload(db: Session, project_key: str, data: dict[str, Any])
         field_type = field_types.get(key, FIELD_TYPE_OVERRIDES.get(key, "text"))
         if resolved_key == "state_id":
             normalized[resolved_key] = _parse_state_id(db, value)
+        elif project_key == "md" and resolved_key == "outcome_id":
+            normalized[resolved_key] = _parse_md_outcome_id(db, value)
         elif field_type == "badge":
             normalized[resolved_key] = _parse_badge_id(db, value, BADGE_TYPE_BY_FIELD.get(key))
         elif field_type == "date":
@@ -462,6 +482,40 @@ def _update_active_subcon_label(db: Session, project_key: str, site_id: int, lab
     )
 
 
+def _remove_active_assignment_with_current_cost(
+    db: Session,
+    *,
+    project_id: int,
+    project_key: str,
+    site_id: int,
+    bucket_key: str,
+) -> None:
+    active_assignment = db.execute(
+        select(SubconAssignment).where(
+            SubconAssignment.project_id == project_id,
+            SubconAssignment.site_id == site_id,
+            SubconAssignment.active.is_(True),
+        )
+    ).scalar_one_or_none()
+    if active_assignment is None or active_assignment.bucket_id is None:
+        return
+    bucket = db.get(JobBucket, active_assignment.bucket_id)
+    if bucket is None or bucket.key != bucket_key:
+        return
+    projection = get_site_projection(db, project_key, site_id)
+    if projection is None:
+        return
+    current_row = next(
+        (row for row in projection.get("subcon_rows", []) if row["assignment_id"] == active_assignment.id and row["active"]),
+        None,
+    )
+    active_assignment.active = False
+    active_assignment.removed_at = datetime.now()
+    active_assignment.removed_cost = current_row["cost"] if current_row is not None else Decimal("0")
+    active_assignment.version = (active_assignment.version or 0) + 1
+    _update_active_subcon_label(db, project_key, site_id, None)
+
+
 def get_site(db: Session, user: UserContext, project_key: str, site_id: int) -> SiteOut:
     ensure_permission(user, db, project_key=project_key, tag="site", action="read")
     projection = get_site_projection(db, project_key, site_id)
@@ -508,6 +562,16 @@ def update_site(db: Session, user: UserContext, project_key: str, site_id: int, 
     _normalize_identifier_fields(normalized_data)
     badges_dict = badge_map(db)
     _sync_site_active_flag(normalized_data, badges_dict, current_status_id=site.status_id)
+    if project_key == "md" and "outcome_id" in normalized_data:
+        outcome = db.get(MDOutcome, normalized_data["outcome_id"]) if normalized_data["outcome_id"] is not None else None
+        if outcome is not None and outcome.label == "Dismantle":
+            _remove_active_assignment_with_current_cost(
+                db,
+                project_id=project.id,
+                project_key=project_key,
+                site_id=site.id,
+                bucket_key="bmdv",
+            )
     _ensure_active_circuit_unique(
         db,
         model,

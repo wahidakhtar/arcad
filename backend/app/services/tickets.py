@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.api.auth import UserContext, user_project_ids
 from app.models.core import Project
 from app.models.ops import Ticket
+from app.models.md import MDOutcome
 from app.services.common import badge_map, get_site_model
 
 logger = logging.getLogger("arcad.tickets")
@@ -46,7 +47,7 @@ def _apply_ticket_site_rules(db: Session, ticket: Ticket, closing: bool) -> None
             if hasattr(site, "active"):
                 site.active = True
         else:
-            if _comp_condition_met(site, project_key):
+            if _comp_condition_met(db, site, project_key):
                 site.status_id = by_key.get("comp", site.status_id)
                 if hasattr(site, "active"):
                     site.active = False
@@ -68,12 +69,16 @@ def _apply_ticket_site_rules(db: Session, ticket: Ticket, closing: bool) -> None
     db.commit()
 
 
-def _comp_condition_met(site, project_key: str) -> bool:
+def _comp_condition_met(db: Session, site, project_key: str) -> bool:
     """Check if site has met its completion condition."""
     if project_key == "mi":
         return getattr(site, "completion_date", None) is not None
     if project_key == "md":
-        return getattr(site, "dismantle_date", None) is not None or getattr(site, "outcome", None) == "Asset Tx"
+        outcome_id = getattr(site, "outcome_id", None)
+        if outcome_id is None:
+            return getattr(site, "dismantle_date", None) is not None
+        outcome = db.get(MDOutcome, int(outcome_id))
+        return getattr(site, "dismantle_date", None) is not None or (outcome is not None and outcome.label == "Asset Tx")
     if project_key == "ma":
         return getattr(site, "audit_date", None) is not None
     if project_key == "mc":
