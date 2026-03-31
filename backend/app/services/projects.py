@@ -228,6 +228,8 @@ def _normalize_bulk_row(
         else:
             payload[key] = None if value is None or str(value).strip() == "" else str(value).strip()
     for field_name in ("ckt_id", "po_number", "invoice_number"):
+        if field_name not in payload:
+            continue
         payload[field_name] = normalize_identifier(payload.get(field_name))
         try:
             validate_identifier(payload.get(field_name))
