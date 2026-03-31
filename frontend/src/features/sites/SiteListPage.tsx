@@ -101,6 +101,41 @@ export default function SiteListPage() {
       ? `/sites/${projectKey}?exclude_staged=true`
       : `/sites/${projectKey}?subproject_id=${activeTab}`
 
+  const loadMeta = useCallback(async () => {
+    setMetaError("")
+    const [badgesRes, uiFieldsRes, statesRes, projectsRes] = await Promise.all([
+      api.get("/badges", { params: { type: "status" } }),
+      api.get(`/projects/${projectKey}/ui-fields`),
+      api.get("/indian-states"),
+      api.get("/projects").catch(() => ({ data: [] })),
+    ])
+    const statusBadges = badgesRes.data as Badge[]
+    const uiFields = uiFieldsRes.data as UIField[]
+    const projects = projectsRes.data as Array<{
+      key: string; label: string; supports_subprojects: boolean; subprojects: Subproject[]
+    }>
+    const project = projects.find((p) => p.key === projectKey)
+    setBadges(statusBadges)
+    setStates(statesRes.data)
+    setProjectMeta(
+      project
+        ? { label: project.label, supports_subprojects: project.supports_subprojects, subprojects: project.subprojects ?? [] }
+        : null,
+    )
+    const listColumns: SiteColumn[] = uiFields
+      .filter((field) => field.list_view)
+      .map((field) => ({
+        key: field.key === "status" ? "status_badge" : field.key,
+        label: field.label,
+        type: field.type,
+        minWidth: field.key === "ckt_id" ? 120 : field.key === "status" ? 140 : field.type === "date" ? 110 : 100,
+        ...( ["cost", "paid", "balance"].includes(field.key) ? { align: "right" as const } : {}),
+      }))
+    setColumns(listColumns)
+    setFormFields(uiFields.filter((f) => f.form_view).map(({ key, label, type }) => ({ key, label, type })))
+    setBulkFields(uiFields.filter((f) => f.bulk_view).map(({ key, label, type }) => ({ key, label, type })))
+  }, [projectKey])
+
   const buildParams = useCallback(() => ({ search: search.trim() || undefined }), [search])
 
   const { data: siteData, loading, error, refetch, pagination, page: _page, setPage } = useListPage<SiteRow[]>({
@@ -123,42 +158,10 @@ export default function SiteListPage() {
   useEffect(() => {
     setActiveTab("deployed")
     setSelectedBadges([])
-    setMetaError("")
-    void Promise.all([
-      api.get("/badges", { params: { type: "status" } }),
-      api.get(`/projects/${projectKey}/ui-fields`),
-      api.get("/indian-states"),
-      api.get("/projects").catch(() => ({ data: [] })),
-    ]).then(([badgesRes, uiFieldsRes, statesRes, projectsRes]) => {
-      const statusBadges = badgesRes.data as Badge[]
-      const uiFields = uiFieldsRes.data as UIField[]
-      const projects = projectsRes.data as Array<{
-        key: string; label: string; supports_subprojects: boolean; subprojects: Subproject[]
-      }>
-      const project = projects.find((p) => p.key === projectKey)
-      setBadges(statusBadges)
-      setStates(statesRes.data)
-      setProjectMeta(
-        project
-          ? { label: project.label, supports_subprojects: project.supports_subprojects, subprojects: project.subprojects ?? [] }
-          : null,
-      )
-      const listColumns: SiteColumn[] = uiFields
-        .filter((field) => field.list_view)
-        .map((field) => ({
-          key: field.key === "status" ? "status_badge" : field.key,
-          label: field.label,
-          type: field.type,
-          minWidth: field.key === "ckt_id" ? 120 : field.key === "status" ? 140 : field.type === "date" ? 110 : 100,
-          ...( ["cost", "paid", "balance"].includes(field.key) ? { align: "right" as const } : {}),
-        }))
-      setColumns(listColumns)
-      setFormFields(uiFields.filter((f) => f.form_view).map(({ key, label, type }) => ({ key, label, type })))
-      setBulkFields(uiFields.filter((f) => f.bulk_view).map(({ key, label, type }) => ({ key, label, type })))
-    }).catch(() => {
+    void loadMeta().catch(() => {
       setMetaError("Unable to load page configuration. Please refresh.")
     })
-  }, [projectKey])
+  }, [loadMeta])
 
   // Reset badge filter on tab change
   useEffect(() => { setSelectedBadges([]) }, [activeTab])
@@ -299,7 +302,10 @@ export default function SiteListPage() {
               columns={bulkFields}
               onLoadingChange={setSubmitting}
               onSubmit={async ({ batchDate, rows: bulkRows }) => {
-                await api.post("/projects/subprojects", { project_key: projectKey, batch_date: batchDate, rows: bulkRows })
+                const response = await api.post("/projects/subprojects", { project_key: projectKey, batch_date: batchDate, rows: bulkRows })
+                const created = response.data as { id: number }
+                await loadMeta()
+                setActiveTab(created.id)
                 setOpenAddModal(false)
                 refetch()
               }}
@@ -310,4 +316,3 @@ export default function SiteListPage() {
     </>
   )
 }
-
