@@ -58,24 +58,18 @@ def list_sites(
 
 @router.post("/{project_key}")
 async def create_site(project_key: str, payload: SiteCreate, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
-    print("ROUTE: start")
     try:
-        print("ROUTE: before create_site")
         site = site_service.create_site(db, user, project_key, payload.subproject_id, payload.data)
-        print("ROUTE: after create_site", site["id"])
-
-        print("ROUTE: before broadcast")
         try:
             await ws_manager.broadcast({"type": "SITE_CREATED", "site_id": site["id"], "project_key": project_key})
         except Exception as exc:
             print("WS ERROR:", exc)
-
-        print("ROUTE: before return")
         return site
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()
-        print("ROUTE ERROR:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 

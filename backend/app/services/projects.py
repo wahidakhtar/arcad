@@ -74,6 +74,10 @@ def _parse_date(value: Any) -> Optional[date]:
     raise HTTPException(status_code=400, detail=f"Invalid date value: {text_value}")
 
 
+def _month_start(value: date) -> date:
+    return value.replace(day=1)
+
+
 def _parse_bool(value: Any) -> bool:
     text_value = "" if value is None else str(value).strip().lower()
     if text_value in {"", "0", "false", "no", "n", "not required", "not_required", "notrequired"}:
@@ -451,6 +455,7 @@ def create_subproject(db: Session, user: UserContext, project_key: str, batch_da
     parsed_batch_date = _parse_date(batch_date)
     if parsed_batch_date is None:
         raise HTTPException(status_code=400, detail="Receiving date is required")
+    normalized_batch_date = _month_start(parsed_batch_date)
     field_types = _project_field_types(db, project_key)
 
     seen_ckt_ids: set[str] = set()
@@ -477,13 +482,46 @@ def create_subproject(db: Session, user: UserContext, project_key: str, batch_da
     if errors:
         raise _bulk_validation_error("Please fix the highlighted cells and submit again.", errors)
 
-    subproject = subproject_model(batch_date=parsed_batch_date, bucket=False, active=True, version=1)
-    db.add(subproject)
-    db.flush()
+    subproject = db.execute(
+        select(subproject_model).where(
+            subproject_model.bucket.is_(False),
+            subproject_model.batch_date == normalized_batch_date,
+        )
+    ).scalar_one_or_none()
+    created = False
+    if subproject is None:
+        subproject = subproject_model(batch_date=normalized_batch_date, bucket=False, active=True, version=1)
+        db.add(subproject)
+        db.flush()
+        created = True
+
+    existing_ckt_ids = {
+        row[0]
+        for row in db.execute(
+            select(site_model.ckt_id).where(
+                site_model.subproject_id == subproject.id,
+                site_model.active.is_(True),
+            )
+        ).all()
+        if row[0]
+    }
+    duplicate_errors = [
+        {
+            "row_index": row_index,
+            "field": "ckt_id",
+            "value": normalized_row.get("ckt_id"),
+            "message": "Circuit already exists in this subproject",
+        }
+        for row_index, normalized_row in enumerate(normalized_rows)
+        if normalized_row.get("ckt_id") in existing_ckt_ids
+    ]
+    if duplicate_errors:
+        raise _bulk_validation_error("Please fix the highlighted cells and submit again.", duplicate_errors)
 
     for normalized_row in normalized_rows:
         db.add(site_model(subproject_id=subproject.id, receiving_date=parsed_batch_date, status_id=stage_badge.id, **normalized_row))
 
-    acc_rules.create_subproject_po(db, project_key, project.id, subproject.id)
+    if created:
+        acc_rules.create_subproject_po(db, project_key, project.id, subproject.id)
     db.commit()
     return {"id": subproject.id, "batch_date": subproject.batch_date, "site_count": len(rows)}

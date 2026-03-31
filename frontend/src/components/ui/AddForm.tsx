@@ -12,20 +12,26 @@ function buildInitialForm(fields: FieldDefinition[]): Record<string, string | bo
 
 export default function AddForm({
   fields,
+  initialValues,
   states = [],
   onSubmit,
   onLoadingChange,
   submitRef,
 }: {
   fields: FieldDefinition[]
+  initialValues?: Record<string, string | boolean>
   states?: Array<{ id: number; label: string }>
   onSubmit: (data: Record<string, string | boolean>) => Promise<void>
   onLoadingChange?: (loading: boolean) => void
   submitRef?: React.MutableRefObject<(() => void) | null>
 }) {
-  const [form, setForm] = useState<Record<string, string | boolean>>(() => buildInitialForm(fields))
+  const [form, setForm] = useState<Record<string, string | boolean>>(() => ({ ...buildInitialForm(fields), ...(initialValues ?? {}) }))
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    setForm({ ...buildInitialForm(fields), ...(initialValues ?? {}) })
+  }, [fields, initialValues])
 
   function handleError(err: unknown) {
     const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail

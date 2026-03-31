@@ -320,10 +320,12 @@ def _ensure_active_circuit_unique(
         raise HTTPException(status_code=400, detail="Circuit already exists in this subproject")
 
 
-def _resolve_subproject_id(db: Session, project_key: str, requested_subproject_id: int) -> int:
+def _resolve_subproject_id(db: Session, project_key: str, requested_subproject_id: int | None) -> int:
     subproject_model = get_subproject_model(project_key)
-    existing = db.get(subproject_model, requested_subproject_id)
-    if existing is not None:
+    if requested_subproject_id and requested_subproject_id > 0:
+        existing = db.get(subproject_model, requested_subproject_id)
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Subproject not found")
         return requested_subproject_id
 
     bucket = db.execute(select(subproject_model).where(subproject_model.bucket.is_(True))).scalar_one_or_none()
@@ -412,7 +414,7 @@ def list_sites(
     return {"items": all_items[offset: offset + page_size], "total": total, "page": page, "page_size": page_size, "pages": pages}
 
 
-def create_site(db: Session, user: UserContext, project_key: str, subproject_id: int, data: dict) -> dict:
+def create_site(db: Session, user: UserContext, project_key: str, subproject_id: int | None, data: dict) -> dict:
     ensure_permission(user, db, project_key=project_key, tag="site", action="write")
     model = get_site_model(project_key)
     project = get_project(db, project_key)

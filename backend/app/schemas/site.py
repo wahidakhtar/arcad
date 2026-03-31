@@ -14,7 +14,7 @@ class ProjectCreate(BaseModel):
 
 class SiteCreate(BaseModel):
     project_key: str
-    subproject_id: int
+    subproject_id: Optional[int] = None
     data: dict[str, Any]
 
 

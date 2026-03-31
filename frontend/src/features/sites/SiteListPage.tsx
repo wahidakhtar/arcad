@@ -47,6 +47,8 @@ type UIField = {
   form_view: boolean
   bulk_view: boolean
   section: string
+  required?: boolean
+  options?: Array<{ label: string; value: string | number }>
 }
 
 type SiteColumn = {
@@ -138,7 +140,7 @@ export default function SiteListPage() {
 
   const buildParams = useCallback(() => ({ search: search.trim() || undefined }), [search])
 
-  const { data: siteData, loading, error, refetch, pagination, page: _page, setPage } = useListPage<SiteRow[]>({
+  const { data: siteData, loading, error, refetch, pagination, setPage } = useListPage<SiteRow[]>({
     endpoint: baseEndpoint,
     pageSize: 50,
     buildParams,
@@ -202,6 +204,40 @@ export default function SiteListPage() {
   const showAddButton = showSiteAdd || showSubprojectAdd
   const showModalTabs = showSiteAdd && showSubprojectAdd
   const subprojectTabs = (projectMeta?.subprojects ?? []).filter((s) => !s.bucket)
+  const siteTargetSubprojects = useMemo(() => {
+    const all = projectMeta?.subprojects ?? []
+    const bucket = all.find((sub) => sub.bucket)
+    const monthly = all.filter((sub) => !sub.bucket)
+    return [...(bucket ? [bucket] : []), ...monthly]
+  }, [projectMeta])
+  const defaultSiteSubprojectId = useMemo(
+    () => String(siteTargetSubprojects.find((sub) => sub.bucket)?.id ?? ""),
+    [siteTargetSubprojects],
+  )
+  const siteFormInitialValues = useMemo(
+    () => (projectMeta?.supports_subprojects ? { subproject_id: defaultSiteSubprojectId } : undefined),
+    [defaultSiteSubprojectId, projectMeta?.supports_subprojects],
+  )
+  const siteFormFields = useMemo<Array<{ key: string; label: string; type?: string; required?: boolean; options?: Array<{ label: string; value: string | number }> }>>(
+    () => (
+      projectMeta?.supports_subprojects
+        ? [
+            {
+              key: "subproject_id",
+              label: "Subproject",
+              type: "dropdown",
+              required: true,
+              options: siteTargetSubprojects.map((sub) => ({
+                label: sub.bucket ? "Default Bucket" : subprojectLabel(sub),
+                value: sub.id,
+              })),
+            },
+            ...formFields,
+          ]
+        : formFields
+    ),
+    [formFields, projectMeta?.supports_subprojects, siteTargetSubprojects],
+  )
 
   function openAddHandler() {
     setAddModalTab(showSiteAdd ? "site" : "subproject")
@@ -286,12 +322,17 @@ export default function SiteListPage() {
           {(!showModalTabs || addModalTab === "site") && (
             <AddForm
               submitRef={addSiteSubmitRef}
-              fields={formFields}
+              fields={siteFormFields}
+              initialValues={siteFormInitialValues}
               states={states}
               onLoadingChange={setSubmitting}
               onSubmit={async (data) => {
-                const subId = typeof activeTab === "number" ? activeTab : 1
-                await api.post(`/sites/${projectKey}`, { project_key: projectKey, subproject_id: subId, data })
+                const selectedSubprojectId = projectMeta?.supports_subprojects
+                  ? Number(data.subproject_id || defaultSiteSubprojectId || 0)
+                  : 0
+                const siteData = { ...data }
+                delete siteData.subproject_id
+                await api.post(`/sites/${projectKey}`, { project_key: projectKey, subproject_id: selectedSubprojectId, data: siteData })
                 setOpenAddModal(false)
               }}
             />
