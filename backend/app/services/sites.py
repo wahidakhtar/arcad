@@ -335,6 +335,23 @@ def list_sites(
     rows = db.execute(query).scalars().all()
     badges = badge_map(db)
     stage_badge_id = next((bid for bid, b in badges.items() if b.key == "stage"), None)
+
+    # Batch-fetch PO and invoice statuses for all sites in this project
+    from app.models.acc import Invoice, PO
+    pos = db.execute(select(PO).where(PO.project_id == project.id)).scalars().all()
+    po_by_site: dict[int, PO] = {po.site_id: po for po in pos if po.site_id is not None}
+    po_ids = [po.id for po in pos if po.site_id is not None]
+    inv_status_by_po: dict[int, int] = {}
+    if po_ids:
+        for inv in db.execute(select(Invoice).where(Invoice.po_id.in_(po_ids)).order_by(Invoice.id.desc())).scalars().all():
+            inv_status_by_po.setdefault(inv.po_id, inv.invoice_status_id)
+
+    def _badge_dict(badge_id: int | None) -> dict | None:
+        if badge_id is None:
+            return None
+        b = badges.get(badge_id)
+        return {"id": badge_id, "label": b.label, "color": b.color} if b else None
+
     all_items = []
     for row in rows:
         if exclude_staged and stage_badge_id is not None and row.status_id == stage_badge_id:
@@ -342,6 +359,9 @@ def list_sites(
         item = {"id": row.id, "ckt_id": row.ckt_id, "status_key": badges[row.status_id].key, "receiving_date": row.receiving_date, "active_fe": getattr(row, "active_fe", None)}
         financials = build_site_financials(db, project.id, project_key, row.id, model_to_dict(row))
         item.update({"budget": financials["budget"], "cost": financials["cost"], "paid": financials["paid"], "balance": financials["balance"]})
+        po = po_by_site.get(row.id)
+        item["po_status"] = _badge_dict(po.po_status_id if po else None)
+        item["invoice_status"] = _badge_dict(inv_status_by_po.get(po.id) if po else None)
         all_items.append(item)
     total = len(all_items)
     page_size = max(1, page_size)

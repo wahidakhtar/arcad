@@ -151,13 +151,6 @@ export default function SiteListPage() {
           type: field.type,
           minWidth: field.key === "ckt_id" ? 120 : field.key === "status" ? 140 : field.type === "date" ? 110 : 100,
         }))
-      if (projectKey !== "bb") {
-        listColumns.push(
-          { key: "cost", label: "Cost", minWidth: 120, align: "right" as const },
-          { key: "paid", label: "Paid", minWidth: 120, align: "right" as const },
-          { key: "balance", label: "Balance", minWidth: 120, align: "right" as const },
-        )
-      }
       setColumns(listColumns)
       setFormFields(uiFields.filter((f) => f.form_view).map(({ key, label, type }) => ({ key, label, type })))
       setBulkFields(uiFields.filter((f) => f.bulk_view).map(({ key, label, type }) => ({ key, label, type })))
@@ -255,7 +248,7 @@ export default function SiteListPage() {
           <DataTable
             columns={columns.map((column) => (
               column.key === "cost" || column.key === "paid" || column.key === "balance"
-                ? { ...column, render: (value: unknown) => <div className="text-right tabular-nums">{formatCurrency(value as number | string)}</div> }
+                ? { ...column, render: (value: unknown) => <div className="text-right tabular-nums pr-4">{formatCurrency(value as number | string)}</div> }
                 : column
             ))}
             rows={rows}
