@@ -186,7 +186,7 @@ def list_ui_fields(db: Session, user: UserContext, project_key: str) -> list[dic
     rows = db.execute(
         text(
             f"SELECT uf.id, uf.key, uf.label, uf.list_view, uf.type, uf.form_view, uf.bulk_view, "
-            f"COALESCE(uf.perm_tag, t.tag) AS perm_tag "
+            f"t.tag AS perm_tag "
             f"FROM schema_{project_key}.ui_fields uf "
             f"JOIN schema_core.tags t ON t.id = uf.tag_id "
             f"ORDER BY uf.id"
