@@ -45,7 +45,7 @@ export default function FilterBar({
   if (!filters.length) return null
 
   return (
-    <div className="flex flex-wrap items-end gap-3">
+    <div className="flex min-w-0 flex-wrap items-start gap-3">
       {filters.map((filter) => {
         if (filter.type === "select") {
           return (
@@ -94,9 +94,9 @@ export default function FilterBar({
         // Badge filter — multi-select (values[]) or single-select (value) for backward compat
         const selected = filter.values ?? (filter.value ? [filter.value] : [])
         return (
-          <div key={filter.key} className="flex items-center gap-2">
+          <div key={filter.key} className="flex min-w-0 flex-1 flex-col gap-2">
             {filter.label ? <div className="text-sm font-medium text-jscolors-text/60">{filter.label}</div> : null}
-            <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <div className="flex max-w-full flex-wrap items-center gap-1.5">
               {filter.options.map((option) => {
                 const active = selected.includes(option.value)
                 return (
