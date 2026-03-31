@@ -98,6 +98,8 @@ def get_site_projection(db: Session, project_key: str, site_id: int) -> dict[str
         site_data["invoice_id"] = inv.id if inv else None
         site_data["invoice_number"] = inv.invoice_no if inv else None
         site_data["invoice_date"] = str(inv.invoice_date) if inv and inv.invoice_date else None
+        site_data["invoice_submission_date"] = str(inv.submission_date) if inv and inv.submission_date else None
+        site_data["invoice_settlement_date"] = str(inv.settlement_date) if inv and inv.settlement_date else None
         site_data["invoice_status_id"] = inv.invoice_status_id if inv else None
     else:
         site_data["po_id"] = None
@@ -107,6 +109,8 @@ def get_site_projection(db: Session, project_key: str, site_id: int) -> dict[str
         site_data["invoice_id"] = None
         site_data["invoice_number"] = None
         site_data["invoice_date"] = None
+        site_data["invoice_submission_date"] = None
+        site_data["invoice_settlement_date"] = None
         site_data["invoice_status_id"] = None
 
     return {

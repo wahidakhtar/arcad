@@ -37,7 +37,7 @@ export default function InvoiceTable({ invoices, onSaved }: { invoices: Invoice[
   const [draftSubmissionDate, setDraftSubmissionDate] = useState("")
   const [draftSettlementDate, setDraftSettlementDate] = useState("")
   const [saving, setSaving] = useState(false)
-  const [rejecting, setRejecting] = useState(false)
+  const [rejectingId, setRejectingId] = useState<number | null>(null)
   const [error, setError] = useState("")
 
   function openEdit(invoice: Invoice) {
@@ -76,23 +76,16 @@ export default function InvoiceTable({ invoices, onSaved }: { invoices: Invoice[
     }
   }
 
-  async function reject() {
-    if (!editingInvoice) return
-    setRejecting(true)
-    setError("")
+  async function reject(invoice: Invoice, e: React.MouseEvent) {
+    e.stopPropagation()
+    setRejectingId(invoice.id)
     try {
-      await rejectInvoice(editingInvoice.id)
-      setEditingInvoice(null)
+      await rejectInvoice(invoice.id)
       await onSaved()
-    } catch (err: unknown) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setError(detail ?? "Failed to reject invoice.")
     } finally {
-      setRejecting(false)
+      setRejectingId(null)
     }
   }
-
-  const isRaised = editingInvoice?.invoice_status?.label?.toLowerCase() === "raised"
 
   return (
     <section className="glass-panel p-6">
@@ -102,8 +95,27 @@ export default function InvoiceTable({ invoices, onSaved }: { invoices: Invoice[
           columns={[
             { key: "invoice_no", label: "Invoice Number", minWidth: 180 },
             { key: "invoice_date", label: "Invoice Date", minWidth: 130, type: "date" },
-            { key: "amount", label: "Amount", minWidth: 120 },
             { key: "invoice_status", label: "Status", type: "badge", minWidth: 160 },
+            {
+              key: "_reject",
+              label: "",
+              minWidth: 80,
+              render: (_: unknown, row: Record<string, unknown>) => {
+                const invoice = row as unknown as Invoice
+                const isRaised = invoice.invoice_status?.label?.toLowerCase() === "raised"
+                if (!isRaised) return null
+                return (
+                  <button
+                    type="button"
+                    onClick={(e) => void reject(invoice, e)}
+                    disabled={rejectingId === invoice.id}
+                    className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+                  >
+                    {rejectingId === invoice.id ? "..." : "Rejected"}
+                  </button>
+                )
+              },
+            },
           ]}
           rows={invoices as unknown as Record<string, unknown>[]}
           onRowClick={(row) => openEdit(row as unknown as Invoice)}
@@ -176,17 +188,6 @@ export default function InvoiceTable({ invoices, onSaved }: { invoices: Invoice[
           )}
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
-
-          {isRaised && (
-            <button
-              type="button"
-              onClick={() => void reject()}
-              disabled={rejecting}
-              className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:opacity-50"
-            >
-              {rejecting ? "Rejecting..." : "Reject Invoice"}
-            </button>
-          )}
         </div>
       </Modal>
     </section>

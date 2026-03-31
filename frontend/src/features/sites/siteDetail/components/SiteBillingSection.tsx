@@ -8,8 +8,26 @@ import type { SiteDetail } from "../../siteDetailTypes"
 
 const fieldCls = "w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
 
+type InvTab = "details" | "submission" | "settlement"
+
 function sanitizeDocNo(value: string): string {
   return value.toUpperCase().replace(/[^A-Z0-9/-]/g, "")
+}
+
+function TabPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-4 py-1.5 text-xs font-medium transition ${
+        active
+          ? "border-jscolors-crimson bg-jscolors-crimson text-white shadow-glow"
+          : "border-jscolors-crimson/20 bg-white text-jscolors-crimson hover:border-jscolors-crimson/40"
+      }`}
+    >
+      {children}
+    </button>
+  )
 }
 
 type Props = {
@@ -29,8 +47,11 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
   const [poError, setPoError] = useState("")
 
   const [editingInv, setEditingInv] = useState(false)
+  const [invTab, setInvTab] = useState<InvTab>("details")
   const [draftInvNo, setDraftInvNo] = useState("")
   const [draftInvDate, setDraftInvDate] = useState("")
+  const [draftSubmissionDate, setDraftSubmissionDate] = useState("")
+  const [draftSettlementDate, setDraftSettlementDate] = useState("")
   const [invSaving, setInvSaving] = useState(false)
   const [invError, setInvError] = useState("")
 
@@ -65,19 +86,28 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
   function openInvEditor() {
     setDraftInvNo((site.fields.invoice_number as string | null) ?? "")
     setDraftInvDate((site.fields.invoice_date as string | null) ?? "")
+    setDraftSubmissionDate((site.fields.invoice_submission_date as string | null) ?? "")
+    setDraftSettlementDate((site.fields.invoice_settlement_date as string | null) ?? "")
+    setInvTab("details")
     setInvError("")
     setEditingInv(true)
   }
 
   async function saveInv() {
     if (!draftInvNo.trim() || !draftInvDate) {
+      setInvTab("details")
       setInvError("Invoice Number and Invoice Date are both required.")
       return
     }
     setInvSaving(true)
     setInvError("")
     try {
-      await updateInvoice(invoiceId!, { invoice_no: draftInvNo, invoice_date: draftInvDate })
+      await updateInvoice(invoiceId!, {
+        invoice_no: draftInvNo,
+        invoice_date: draftInvDate,
+        submission_date: draftSubmissionDate || null,
+        settlement_date: draftSettlementDate || null,
+      })
       setEditingInv(false)
       await onSaved()
     } catch (err: unknown) {
@@ -95,13 +125,13 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
         <DetailFieldCard
           label="PO Number"
           value={<FieldRenderer value={site.fields.po_number} />}
-          onEdit={canWrite ? openPoEditor : undefined}
+          onEdit={canWrite && !!site.fields.po_number ? openPoEditor : undefined}
           onAdd={canWrite && !site.fields.po_number ? openPoEditor : undefined}
         />
         <DetailFieldCard
           label="PO Date"
           value={<FieldRenderer type="date" value={site.fields.po_date} />}
-          onEdit={canWrite ? openPoEditor : undefined}
+          onEdit={canWrite && !!site.fields.po_date ? openPoEditor : undefined}
           onAdd={canWrite && !site.fields.po_date ? openPoEditor : undefined}
         />
         {invoiceId ? (
@@ -109,7 +139,7 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
             <DetailFieldCard
               label="Invoice Number"
               value={<FieldRenderer value={site.fields.invoice_number} />}
-              onEdit={canWrite ? openInvEditor : undefined}
+              onEdit={canWrite && !!site.fields.invoice_number ? openInvEditor : undefined}
               onAdd={canWrite && !site.fields.invoice_number ? openInvEditor : undefined}
             />
             <DetailFieldCard
@@ -157,7 +187,7 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
 
       <Modal
         isOpen={editingInv}
-        title="Edit Invoice Details"
+        title="Invoice Details"
         onClose={() => { setEditingInv(false); setInvError("") }}
         size="sm"
         submitLabel="Save"
@@ -165,25 +195,60 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
         isSubmitting={invSaving}
       >
         <div className="space-y-4">
-          <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Invoice Number *</span>
-            <input
-              type="text"
-              value={draftInvNo}
-              onChange={(e) => setDraftInvNo(sanitizeDocNo(e.target.value))}
-              className={fieldCls}
-              placeholder="e.g. INV/2026/001"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Invoice Date *</span>
-            <input
-              type="date"
-              value={draftInvDate}
-              onChange={(e) => setDraftInvDate(e.target.value)}
-              className={fieldCls}
-            />
-          </label>
+          <div className="flex gap-2">
+            <TabPill active={invTab === "details"} onClick={() => setInvTab("details")}>Details</TabPill>
+            <TabPill active={invTab === "submission"} onClick={() => setInvTab("submission")}>Submission</TabPill>
+            <TabPill active={invTab === "settlement"} onClick={() => setInvTab("settlement")}>Settlement</TabPill>
+          </div>
+
+          {invTab === "details" && (
+            <>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Invoice Number *</span>
+                <input
+                  type="text"
+                  value={draftInvNo}
+                  onChange={(e) => setDraftInvNo(sanitizeDocNo(e.target.value))}
+                  className={fieldCls}
+                  placeholder="e.g. INV/2026/001"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Invoice Date *</span>
+                <input
+                  type="date"
+                  value={draftInvDate}
+                  onChange={(e) => setDraftInvDate(e.target.value)}
+                  className={fieldCls}
+                />
+              </label>
+            </>
+          )}
+
+          {invTab === "submission" && (
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Submission Date</span>
+              <input
+                type="date"
+                value={draftSubmissionDate}
+                onChange={(e) => setDraftSubmissionDate(e.target.value)}
+                className={fieldCls}
+              />
+            </label>
+          )}
+
+          {invTab === "settlement" && (
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Settlement Date</span>
+              <input
+                type="date"
+                value={draftSettlementDate}
+                onChange={(e) => setDraftSettlementDate(e.target.value)}
+                className={fieldCls}
+              />
+            </label>
+          )}
+
           {invError ? <p className="text-sm text-red-600">{invError}</p> : null}
         </div>
       </Modal>
