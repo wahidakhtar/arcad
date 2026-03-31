@@ -297,6 +297,18 @@ def list_project_subcons(db: Session, user: UserContext, project_key: str) -> li
     return [{"id": row.id, "label": row.name} for row in rows]
 
 
+def list_project_outcomes(db: Session, user: UserContext, project_key: str) -> list[dict]:
+    ensure_permission(user, db, project_key=project_key, tag="site", action="read")
+    try:
+        rows = db.execute(
+            text(f'SELECT label FROM schema_{project_key}.outcomes ORDER BY "order"')
+        ).mappings().all()
+    except (ProgrammingError, SQLAlchemyError):
+        db.rollback()
+        return []
+    return [{"value": row["label"], "label": row["label"]} for row in rows]
+
+
 _EXCLUDED_TX_TYPE_KEYS = {"sal", "oth"}
 
 

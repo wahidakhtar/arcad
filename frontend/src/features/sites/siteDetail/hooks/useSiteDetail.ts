@@ -44,6 +44,7 @@ export default function useSiteDetail() {
   const [transactions, setTransactions] = useState<TransactionRow[]>([])
   const [subcons, setSubcons] = useState<SubconRow[]>([])
   const [transactionTypes, setTransactionTypes] = useState<Badge[]>([])
+  const [outcomes, setOutcomes] = useState<Array<{ value: string; label: string }>>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [editingField, setEditingField] = useState<EditingFieldState>(null)
@@ -70,6 +71,7 @@ export default function useSiteDetail() {
         transactionsResponse,
         subconsResponse,
         txTypesResponse,
+        outcomesResponse,
       ] = await Promise.all([
         api.get(`/sites/${projectKey}/${siteId}`),
         api.get(`/projects/${projectKey}/ui-fields`),
@@ -83,6 +85,7 @@ export default function useSiteDetail() {
         api.get("/transactions").catch(() => empty),
         api.get(`/projects/${projectKey}/subcons`).catch(() => empty),
         api.get(`/projects/${projectKey}/transaction-types`).catch(() => empty),
+        api.get(`/projects/${projectKey}/outcomes`).catch(() => empty),
       ])
 
       const nextProjects = projectsResponse.data as ProjectRow[]
@@ -117,6 +120,7 @@ export default function useSiteDetail() {
       )
       setSubcons((subconsResponse.data as SubconRow[]) ?? [])
       setTransactionTypes(Array.isArray(txTypesResponse.data) ? txTypesResponse.data as Badge[] : [])
+      setOutcomes(Array.isArray(outcomesResponse.data) ? outcomesResponse.data as Array<{ value: string; label: string }> : [])
     } catch (err) {
       logError({
         error_type: "js_exception",
@@ -218,6 +222,7 @@ export default function useSiteDetail() {
     transactions,
     subcons,
     transactionTypes,
+    outcomes,
     badgeById,
     stateById,
     badgeFields,

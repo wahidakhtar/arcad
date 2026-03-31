@@ -34,6 +34,7 @@ export default function SiteDetailPage() {
     subcons,
     jobBuckets,
     transactionTypes,
+    outcomes,
     badges,
     transitions,
     badgeById,
@@ -178,13 +179,16 @@ export default function SiteDetailPage() {
             </label>
             <label className="block">
               <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Outcome *</span>
-              <input
-                type="text"
+              <select
                 value={outcomeDraft}
                 onChange={(event) => setOutcomeDraft(event.target.value)}
                 className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-jscolors-crimson/40"
-                placeholder="e.g. Dismantle"
-              />
+              >
+                <option value="">Select Outcome</option>
+                {outcomes.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
             </label>
             {visitOutcomeError ? <p className="text-sm text-red-600">{visitOutcomeError}</p> : null}
           </div>
