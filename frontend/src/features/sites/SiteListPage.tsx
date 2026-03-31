@@ -209,11 +209,11 @@ export default function SiteListPage() {
     <div className="space-y-3">
       {canSubprojectRead && subprojectTabs.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          <TabPill active={activeTab === "deployed"} onClick={() => setActiveTab("deployed")}>Deployed</TabPill>
+          <Button variant={activeTab === "deployed" ? "primary" : "secondary"} size="sm" onClick={() => setActiveTab("deployed")}>Deployed</Button>
           {subprojectTabs.map((sub) => (
-            <TabPill key={sub.id} active={activeTab === sub.id} onClick={() => setActiveTab(sub.id)}>
+            <Button key={sub.id} variant={activeTab === sub.id ? "primary" : "secondary"} size="sm" onClick={() => setActiveTab(sub.id)}>
               {subprojectLabel(sub)}
-            </TabPill>
+            </Button>
           ))}
         </div>
       )}
@@ -276,8 +276,8 @@ export default function SiteListPage() {
         <>
           {showModalTabs && (
             <div className="mb-5 flex gap-2">
-              <TabPill active={addModalTab === "site"} onClick={() => setAddModalTab("site")}>Add Site</TabPill>
-              <TabPill active={addModalTab === "subproject"} onClick={() => setAddModalTab("subproject")}>Add Subproject</TabPill>
+              <Button variant={addModalTab === "site" ? "primary" : "secondary"} size="sm" onClick={() => setAddModalTab("site")}>Add Site</Button>
+              <Button variant={addModalTab === "subproject" ? "primary" : "secondary"} size="sm" onClick={() => setAddModalTab("subproject")}>Add Subproject</Button>
             </div>
           )}
           {(!showModalTabs || addModalTab === "site") && (
@@ -311,18 +311,3 @@ export default function SiteListPage() {
   )
 }
 
-function TabPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full border px-5 py-2 text-sm font-medium transition ${
-        active
-          ? "border-jscolors-crimson bg-jscolors-crimson text-white shadow-glow"
-          : "border-jscolors-crimson/20 bg-white text-jscolors-crimson hover:border-jscolors-crimson/40"
-      }`}
-    >
-      {children}
-    </button>
-  )
-}

@@ -6,9 +6,20 @@ from sqlalchemy.orm import Session
 from app.api.auth import permission_required
 from app.core.database import get_db
 from app.core.ws_manager import manager as ws_manager
+from app.models.acc import PO
+from app.models.core import Project
 from app.schemas.billing import ActivatePORequest, InvoiceCreate, POCreate, POUpdate, RateCardCreate, StatusUpdate
 from app.services import billing as billing_service
 from app.services import acc_rules
+
+
+async def _broadcast_site_updated(db: Session, project_id: int, site_id: int | None) -> None:
+    """Emit SITE_UPDATED so any site detail page viewing this site refreshes in real-time."""
+    if not site_id:
+        return
+    project = db.get(Project, project_id)
+    if project:
+        await ws_manager.broadcast({"type": "SITE_UPDATED", "site_id": site_id, "project_key": project.key})
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -59,6 +70,7 @@ async def update_po(po_id: int, payload: POUpdate, db: Session = Depends(get_db)
     if result is None:
         raise HTTPException(status_code=404, detail="PO not found")
     await ws_manager.broadcast({"type": "PO_UPDATED", "po_id": po_id})
+    await _broadcast_site_updated(db, result["project_id"], result.get("site_id"))
     return result
 
 
@@ -66,6 +78,7 @@ async def update_po(po_id: int, payload: POUpdate, db: Session = Depends(get_db)
 async def update_po_status(po_id: int, payload: StatusUpdate, db: Session = Depends(get_db)):
     result = billing_service.update_po_status(db, po_id, payload.status_id)
     await ws_manager.broadcast({"type": "PO_UPDATED", "po_id": po_id})
+    await _broadcast_site_updated(db, result.project_id, result.site_id)
     return result
 
 
@@ -74,6 +87,7 @@ async def activate_po(po_id: int, payload: ActivatePORequest, db: Session = Depe
     po = acc_rules.activate_bb_po(db, po_id, payload.valid_from, payload.valid_to)
     db.commit()
     await ws_manager.broadcast({"type": "PO_UPDATED", "po_id": po_id})
+    await _broadcast_site_updated(db, po.project_id, po.site_id)
     return {"id": po.id, "valid_from": po.valid_from, "valid_to": po.valid_to, "po_status_id": po.po_status_id}
 
 
@@ -97,6 +111,10 @@ async def update_invoice(invoice_id: int, payload: dict, db: Session = Depends(g
         raise HTTPException(status_code=404, detail="Invoice not found")
     po_id = result.get("po_id") if isinstance(result, dict) else None
     await ws_manager.broadcast({"type": "INVOICE_UPDATED", "po_id": po_id})
+    if po_id:
+        po = db.get(PO, po_id)
+        if po:
+            await _broadcast_site_updated(db, po.project_id, po.site_id)
     return result
 
 
@@ -107,6 +125,10 @@ async def reject_invoice(invoice_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Invoice not found")
     po_id = result.get("po_id") if isinstance(result, dict) else None
     await ws_manager.broadcast({"type": "INVOICE_UPDATED", "po_id": po_id})
+    if po_id:
+        po = db.get(PO, po_id)
+        if po:
+            await _broadcast_site_updated(db, po.project_id, po.site_id)
     return result
 
 
@@ -115,6 +137,10 @@ async def update_invoice_status(invoice_id: int, payload: StatusUpdate, db: Sess
     result = billing_service.update_invoice_status(db, invoice_id, payload.status_id)
     po_id = result.get("po_id") if isinstance(result, dict) else getattr(result, "po_id", None)
     await ws_manager.broadcast({"type": "INVOICE_UPDATED", "po_id": po_id})
+    if po_id:
+        po = db.get(PO, po_id)
+        if po:
+            await _broadcast_site_updated(db, po.project_id, po.site_id)
     return result
 
 

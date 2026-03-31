@@ -1,5 +1,6 @@
 import { useState } from "react"
 
+import Button from "../../../../components/ui/Button"
 import DataTable from "../../../../components/ui/DataTable"
 import Modal from "../../../../components/ui/Modal"
 import { rejectInvoice, updateInvoice } from "../../../../services/billingService"
@@ -11,22 +12,6 @@ type Tab = "details" | "submission" | "settlement"
 
 function sanitizeDocNo(value: string): string {
   return value.toUpperCase().replace(/[^A-Z0-9/-]/g, "")
-}
-
-function TabPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full border px-4 py-1.5 text-xs font-medium transition ${
-        active
-          ? "border-jscolors-crimson bg-jscolors-crimson text-white shadow-glow"
-          : "border-jscolors-crimson/20 bg-white text-jscolors-crimson hover:border-jscolors-crimson/40"
-      }`}
-    >
-      {children}
-    </button>
-  )
 }
 
 export default function InvoiceTable({ invoices, onSaved }: { invoices: Invoice[]; onSaved: () => Promise<void> }) {
@@ -55,6 +40,16 @@ export default function InvoiceTable({ invoices, onSaved }: { invoices: Invoice[
     if (!draftNo.trim() || !draftInvDate) {
       setActiveTab("details")
       setError("Invoice Number and Invoice Date are both required.")
+      return
+    }
+    if (draftSubmissionDate && draftInvDate > draftSubmissionDate) {
+      setActiveTab("submission")
+      setError("Invoice date must be on or before submission date.")
+      return
+    }
+    if (draftSettlementDate && draftSubmissionDate && draftSubmissionDate > draftSettlementDate) {
+      setActiveTab("settlement")
+      setError("Submission date must be on or before settlement date.")
       return
     }
     setSaving(true)
@@ -95,6 +90,8 @@ export default function InvoiceTable({ invoices, onSaved }: { invoices: Invoice[
           columns={[
             { key: "invoice_no", label: "Invoice Number", minWidth: 180 },
             { key: "invoice_date", label: "Invoice Date", minWidth: 130, type: "date" },
+            { key: "submission_date", label: "Submission Date", minWidth: 130, type: "date" },
+            { key: "settlement_date", label: "Settlement Date", minWidth: 130, type: "date" },
             { key: "invoice_status", label: "Status", type: "badge", minWidth: 160 },
             {
               key: "_reject",
@@ -133,11 +130,17 @@ export default function InvoiceTable({ invoices, onSaved }: { invoices: Invoice[
         isSubmitting={saving}
       >
         <div className="space-y-4">
-          <div className="flex gap-2">
-            <TabPill active={activeTab === "details"} onClick={() => setActiveTab("details")}>Details</TabPill>
-            <TabPill active={activeTab === "submission"} onClick={() => setActiveTab("submission")}>Submission</TabPill>
-            <TabPill active={activeTab === "settlement"} onClick={() => setActiveTab("settlement")}>Settlement</TabPill>
-          </div>
+          {(() => {
+            const canSubmission = !!(editingInvoice?.invoice_no && editingInvoice?.invoice_date)
+            const canSettlement = !!editingInvoice?.submission_date
+            return (
+              <div className="flex gap-2">
+                <Button size="sm" variant={activeTab === "details" ? "primary" : "secondary"} onClick={() => setActiveTab("details")}>Details</Button>
+                <Button size="sm" variant={activeTab === "submission" ? "primary" : canSubmission ? "secondary" : "ghost"} disabled={!canSubmission} onClick={() => canSubmission && setActiveTab("submission")}>Submission</Button>
+                <Button size="sm" variant={activeTab === "settlement" ? "primary" : canSettlement ? "secondary" : "ghost"} disabled={!canSettlement} onClick={() => canSettlement && setActiveTab("settlement")}>Settlement</Button>
+              </div>
+            )
+          })()}
 
           {activeTab === "details" && (
             <>

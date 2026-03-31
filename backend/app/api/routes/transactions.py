@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.auth import UserContext, get_current_user, permission_required
 from app.core.database import get_db
 from app.core.ws_manager import manager as ws_manager
+from app.models.core import Project
 from app.schemas.transaction import StatusUpdate, TransactionCreate
 from app.services import transactions as transaction_service
 
@@ -44,6 +45,10 @@ def get_transaction(
 async def create_transaction(payload: TransactionCreate, db: Session = Depends(get_db)):
     result = transaction_service.create_transaction(db, payload)
     await ws_manager.broadcast({"type": "TRANSACTION_CREATED"})
+    if isinstance(result, dict) and result.get("site_id"):
+        project = db.get(Project, result["project_id"])
+        if project:
+            await ws_manager.broadcast({"type": "SITE_UPDATED", "site_id": result["site_id"], "project_key": project.key})
     return result
 
 
@@ -58,4 +63,8 @@ async def update_status(
         db, user, transaction_id, payload.status_id, payload.version, payload.execution_date
     )
     await ws_manager.broadcast({"type": "TRANSACTION_UPDATED", "transaction_id": transaction_id})
+    if isinstance(result, dict) and result.get("site_id"):
+        project = db.get(Project, result["project_id"])
+        if project:
+            await ws_manager.broadcast({"type": "SITE_UPDATED", "site_id": result["site_id"], "project_key": project.key})
     return result

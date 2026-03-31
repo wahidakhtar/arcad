@@ -1,15 +1,25 @@
+import { useEffect } from "react"
+
 import DataTable from "../../components/ui/DataTable"
 import FilterBar from "../../components/ui/FilterBar"
 import ListPageLayout from "../../components/layout/ListPageLayout"
+import { subscribe } from "../../hooks/useWebSocket"
 import { useListPage } from "../../hooks/useListPage"
 import FieldRenderer from "../../components/ui/FieldRenderer"
 import { poCircuitContext, poProjectName } from "./poHelpers"
 import type { PO } from "./types"
 
 export default function PoListPage() {
-  const { data, loading, error } = useListPage<PO[]>({
+  const { data, loading, error, refetch } = useListPage<PO[]>({
     endpoint: "/billing/pos",
   })
+
+  useEffect(() => {
+    const unsub1 = subscribe("PO_CREATED", () => { void refetch() })
+    const unsub2 = subscribe("PO_UPDATED", () => { void refetch() })
+    const unsub3 = subscribe("INVOICE_UPDATED", () => { void refetch() })
+    return () => { unsub1(); unsub2(); unsub3() }
+  }, [refetch])
 
   const rows = [...(data ?? [])].sort((a, b) => b.id - a.id)
   const tableRows = rows.map((row) => ({

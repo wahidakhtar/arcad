@@ -87,7 +87,7 @@ export default function SiteDetailPage() {
               setEditError("")
             }}
           />
-          <SiteBillingSection site={site} canWrite={can("billing", "write")} onSaved={loadPage} />
+          {can("billing", "read") && <SiteBillingSection site={site} canWrite={can("billing", "write")} onSaved={loadPage} />}
         </div>
 
         <Modal
@@ -128,6 +128,8 @@ export default function SiteDetailPage() {
             canTicketWrite={can("ticket", "write")}
             projectId={project?.id}
             siteId={site.id}
+            statusKey={site.status_key}
+            projectKey={projectKey}
             onReload={loadPage}
           />
           <SiteFEAssignmentSection

@@ -25,6 +25,8 @@ export default function SiteTicketsSection({
   canTicketWrite,
   projectId,
   siteId,
+  statusKey,
+  projectKey,
   onReload,
 }: {
   tickets: TicketRow[]
@@ -32,6 +34,8 @@ export default function SiteTicketsSection({
   canTicketWrite: boolean
   projectId: number | undefined
   siteId: number
+  statusKey: string
+  projectKey: string
   onReload: () => Promise<void>
 }) {
   const [showModal, setShowModal] = useState(false)
@@ -94,9 +98,14 @@ export default function SiteTicketsSection({
 
       <ActionPanel
         title="Tickets"
-        action={canTicketWrite ? (
-          <Button type="button" onClick={openModal}>Add Ticket</Button>
-        ) : undefined}
+        action={canTicketWrite ? (() => {
+          const hasOpenTicket = tickets.some((t) => !t.closing_date)
+          const canAddTicket = !hasOpenTicket && (
+            (projectKey === "bb" && statusKey === "live") ||
+            (projectKey !== "bb" && statusKey === "comp")
+          )
+          return <Button type="button" variant={canAddTicket ? "primary" : "ghost"} disabled={!canAddTicket} onClick={openModal}>Add Ticket</Button>
+        })() : undefined}
       >
         <div className="space-y-3">
           {closeErr && <p className="text-sm text-red-600">{closeErr}</p>}

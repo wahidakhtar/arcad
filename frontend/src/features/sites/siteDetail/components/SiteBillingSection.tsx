@@ -1,5 +1,6 @@
 import { useState } from "react"
 
+import Button from "../../../../components/ui/Button"
 import DetailFieldCard from "../../../../components/ui/DetailFieldCard"
 import FieldRenderer from "../../../../components/ui/FieldRenderer"
 import Modal from "../../../../components/ui/Modal"
@@ -10,24 +11,15 @@ const fieldCls = "w-full rounded-2xl border border-jscolors-crimson/15 bg-white 
 
 type InvTab = "details" | "submission" | "settlement"
 
-function sanitizeDocNo(value: string): string {
-  return value.toUpperCase().replace(/[^A-Z0-9/-]/g, "")
+const COMPLETION_DATE_KEY: Record<string, string> = {
+  mi: "completion_date",
+  md: "dismantle_date",
+  ma: "audit_date",
+  mc: "cm_date",
 }
 
-function TabPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full border px-4 py-1.5 text-xs font-medium transition ${
-        active
-          ? "border-jscolors-crimson bg-jscolors-crimson text-white shadow-glow"
-          : "border-jscolors-crimson/20 bg-white text-jscolors-crimson hover:border-jscolors-crimson/40"
-      }`}
-    >
-      {children}
-    </button>
-  )
+function sanitizeDocNo(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9/-]/g, "")
 }
 
 type Props = {
@@ -97,6 +89,23 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
     if (!draftInvNo.trim() || !draftInvDate) {
       setInvTab("details")
       setInvError("Invoice Number and Invoice Date are both required.")
+      return
+    }
+    const completionDateKey = COMPLETION_DATE_KEY[site.project_key]
+    const completionDate = completionDateKey ? (site.fields[completionDateKey] as string | null) : null
+    if (completionDate && draftInvDate && completionDate > draftInvDate) {
+      setInvTab("details")
+      setInvError("Invoice date must be on or after completion date.")
+      return
+    }
+    if (draftSubmissionDate && draftInvDate > draftSubmissionDate) {
+      setInvTab("submission")
+      setInvError("Invoice date must be on or before submission date.")
+      return
+    }
+    if (draftSettlementDate && draftSubmissionDate && draftSubmissionDate > draftSettlementDate) {
+      setInvTab("settlement")
+      setInvError("Submission date must be on or before settlement date.")
       return
     }
     setInvSaving(true)
@@ -195,11 +204,17 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
         isSubmitting={invSaving}
       >
         <div className="space-y-4">
-          <div className="flex gap-2">
-            <TabPill active={invTab === "details"} onClick={() => setInvTab("details")}>Details</TabPill>
-            <TabPill active={invTab === "submission"} onClick={() => setInvTab("submission")}>Submission</TabPill>
-            <TabPill active={invTab === "settlement"} onClick={() => setInvTab("settlement")}>Settlement</TabPill>
-          </div>
+          {(() => {
+            const canSubmission = !!(site.fields.invoice_number && site.fields.invoice_date)
+            const canSettlement = !!site.fields.invoice_submission_date
+            return (
+              <div className="flex gap-2">
+                <Button size="sm" variant={invTab === "details" ? "primary" : "secondary"} onClick={() => setInvTab("details")}>Details</Button>
+                <Button size="sm" variant={invTab === "submission" ? "primary" : canSubmission ? "secondary" : "ghost"} disabled={!canSubmission} onClick={() => canSubmission && setInvTab("submission")}>Submission</Button>
+                <Button size="sm" variant={invTab === "settlement" ? "primary" : canSettlement ? "secondary" : "ghost"} disabled={!canSettlement} onClick={() => canSettlement && setInvTab("settlement")}>Settlement</Button>
+              </div>
+            )
+          })()}
 
           {invTab === "details" && (
             <>
