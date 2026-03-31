@@ -64,6 +64,8 @@ def create_subproject(payload: SubprojectCreate, user: UserContext = Depends(per
         sub = project_service.create_subproject(db, user, payload.project_key, payload.batch_date, payload.rows)
         print("SUBPROJECT ROUTE: created", sub["id"])
         return sub
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import difflib
+import re
 from typing import Any, Optional
 
 from fastapi import HTTPException
@@ -17,6 +19,15 @@ import logging
 from app.utils.normalization import normalize_identifier, validate_identifier
 
 logger = logging.getLogger(__name__)
+
+STATE_ALIASES = {
+    "orissa": "Odisha",
+    "pondicherry": "Puducherry",
+    "uttaranchal": "Uttarakhand",
+    "chattisgarh": "Chhattisgarh",
+    "andaman and nicobar": "Andaman and Nicobar Islands",
+    "dadra and nagar haveli and daman and diu": "Dadra and Nagar Haveli and Daman and Diu",
+}
 
 FIELD_META: dict[str, dict[str, object]] = {
     "receiving_date": {"label": "Receiving Date", "type": "date", "list_view": True},
@@ -99,6 +110,72 @@ def _parse_state_id(db: Session, value: Any) -> Optional[int]:
     return match.id
 
 
+def _normalize_state_token(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+
+
+def _suggest_state_label(db: Session, value: str) -> str | None:
+    states = db.execute(select(IndianState)).scalars().all()
+    normalized_to_label = { _normalize_state_token(state.label): state.label for state in states }
+    normalized_to_label.update({ _normalize_state_token(state.key): state.label for state in states })
+    target = _normalize_state_token(value)
+    if not target:
+        return None
+    alias_match = STATE_ALIASES.get(target)
+    if alias_match:
+        return alias_match
+    matches = difflib.get_close_matches(target, list(normalized_to_label.keys()), n=1, cutoff=0.82)
+    if not matches:
+        return None
+    return normalized_to_label[matches[0]]
+
+
+def _state_id_from_text(db: Session, value: Any) -> tuple[Optional[int], str | None]:
+    if value is None:
+        return None, None
+    text_value = str(value).strip()
+    if not text_value:
+        return None, None
+    if text_value.isdigit():
+        return int(text_value), None
+
+    states = db.execute(select(IndianState)).scalars().all()
+    target = _normalize_state_token(text_value)
+    for state in states:
+        if target in {_normalize_state_token(state.label), _normalize_state_token(state.key)}:
+            return state.id, None
+
+    suggestion = _suggest_state_label(db, text_value)
+    return None, suggestion
+
+
+def _bulk_validation_error(message: str, errors: list[dict[str, Any]]) -> HTTPException:
+    grouped: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for error in errors:
+        suggestion = error.get("suggestion")
+        if not suggestion:
+            continue
+        key = (error["field"], str(error.get("value", "")), suggestion)
+        entry = grouped.setdefault(
+            key,
+            {
+                "field": error["field"],
+                "from_value": error.get("value", ""),
+                "to_value": suggestion,
+                "count": 0,
+            },
+        )
+        entry["count"] += 1
+    return HTTPException(
+        status_code=400,
+        detail={
+            "message": message,
+            "errors": errors,
+            "fixes": sorted(grouped.values(), key=lambda item: (-item["count"], item["field"], item["from_value"])),
+        },
+    )
+
+
 def _project_field_types(db: Session, project_key: str) -> dict[str, str]:
     try:
         rows = db.execute(text(f"SELECT key, type FROM schema_{project_key}.ui_fields ORDER BY id")).mappings().all()
@@ -108,18 +185,46 @@ def _project_field_types(db: Session, project_key: str) -> dict[str, str]:
     return {str(row["key"]): str(row["type"]) for row in rows}
 
 
-def _normalize_bulk_row(db: Session, project_key: str, row: dict[str, Any], field_types: dict[str, str]) -> dict[str, Any]:
+def _normalize_bulk_row(
+    db: Session,
+    project_key: str,
+    row: dict[str, Any],
+    field_types: dict[str, str],
+    *,
+    row_index: int,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     payload: dict[str, Any] = {}
+    errors: list[dict[str, Any]] = []
     for key, value in row.items():
         field_type = field_types.get(key, str(FIELD_META.get(key, {}).get("type", "text")))
         if key == "state_id":
-            payload[key] = _parse_state_id(db, value)
+            state_id, suggestion = _state_id_from_text(db, value)
+            payload[key] = state_id
+            if str(value or "").strip() and state_id is None:
+                errors.append(
+                    {
+                        "row_index": row_index,
+                        "field": key,
+                        "value": str(value).strip(),
+                        "message": f"Unknown state: {str(value).strip()}",
+                        "suggestion": suggestion,
+                    }
+                )
         elif field_type == "bool":
-            payload[key] = _parse_bool(value)
+            try:
+                payload[key] = _parse_bool(value)
+            except HTTPException as exc:
+                errors.append({"row_index": row_index, "field": key, "value": value, "message": exc.detail})
         elif field_type == "date":
-            payload[key] = _parse_date(value)
+            try:
+                payload[key] = _parse_date(value)
+            except HTTPException as exc:
+                errors.append({"row_index": row_index, "field": key, "value": value, "message": exc.detail})
         elif field_type == "number":
-            payload[key] = _parse_number(value)
+            try:
+                payload[key] = _parse_number(value)
+            except HTTPException as exc:
+                errors.append({"row_index": row_index, "field": key, "value": value, "message": exc.detail})
         else:
             payload[key] = None if value is None or str(value).strip() == "" else str(value).strip()
     for field_name in ("ckt_id", "po_number", "invoice_number"):
@@ -127,8 +232,10 @@ def _normalize_bulk_row(db: Session, project_key: str, row: dict[str, Any], fiel
         try:
             validate_identifier(payload.get(field_name))
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return payload
+            errors.append({"row_index": row_index, "field": field_name, "value": payload.get(field_name), "message": str(exc)})
+    if not payload.get("ckt_id"):
+        errors.append({"row_index": row_index, "field": "ckt_id", "value": payload.get("ckt_id"), "message": "Circuit ID is required"})
+    return payload, errors
 
 
 def create_project(db: Session, user: UserContext, key: str, label: str) -> dict:
@@ -340,18 +447,35 @@ def create_subproject(db: Session, user: UserContext, project_key: str, batch_da
         raise HTTPException(status_code=400, detail="Receiving date is required")
     field_types = _project_field_types(db, project_key)
 
-    subproject = subproject_model(batch_date=parsed_batch_date, bucket=False, active=True, version=1)
-    db.add(subproject)
-    db.flush()
     seen_ckt_ids: set[str] = set()
+    normalized_rows: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
 
-    for row in rows:
-        normalized_row = _normalize_bulk_row(db, project_key, row, field_types)
+    for row_index, row in enumerate(rows):
+        normalized_row, row_errors = _normalize_bulk_row(db, project_key, row, field_types, row_index=row_index)
+        errors.extend(row_errors)
         ckt_id = normalized_row.get("ckt_id")
         if ckt_id:
             if ckt_id in seen_ckt_ids:
-                raise HTTPException(status_code=400, detail="Circuit already exists in this subproject")
+                errors.append(
+                    {
+                        "row_index": row_index,
+                        "field": "ckt_id",
+                        "value": ckt_id,
+                        "message": "Circuit already exists in this subproject upload",
+                    }
+                )
             seen_ckt_ids.add(ckt_id)
+        normalized_rows.append(normalized_row)
+
+    if errors:
+        raise _bulk_validation_error("Please fix the highlighted cells and submit again.", errors)
+
+    subproject = subproject_model(batch_date=parsed_batch_date, bucket=False, active=True, version=1)
+    db.add(subproject)
+    db.flush()
+
+    for normalized_row in normalized_rows:
         db.add(site_model(subproject_id=subproject.id, receiving_date=parsed_batch_date, status_id=stage_badge.id, **normalized_row))
 
     db.commit()
