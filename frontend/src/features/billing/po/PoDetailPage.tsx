@@ -24,14 +24,6 @@ export default function PoDetailPage() {
               <FieldRenderer type="badge" value={po.po_status} />
             </div>
           </div>
-          {po.invoice_status && po.site_status_key === "comp" ? (
-            <div className="shrink-0 rounded-[18px] border border-jscolors-crimson/10 bg-white px-3 py-2">
-              <div className="text-[9px] font-semibold uppercase tracking-[0.2em] text-jscolors-text/40">Invoice Status</div>
-              <div className="mt-2">
-                <FieldRenderer type="badge" value={po.invoice_status} />
-              </div>
-            </div>
-          ) : null}
         </div>
       }
       title={<PoHeader po={po} />}

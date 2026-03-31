@@ -36,6 +36,7 @@ class POUpdate(BaseModel):
 class InvoiceCreate(BaseModel):
     po_id: int
     invoice_no: Optional[str] = None
+    invoice_date: Optional[date] = None
     submission_date: Optional[date] = None
     settlement_date: Optional[date] = None
     invoice_status_id: int
@@ -45,6 +46,7 @@ class InvoiceOut(BaseModel):
     id: int
     po_id: int
     invoice_no: Optional[str]
+    invoice_date: Optional[date]
     submission_date: Optional[date]
     settlement_date: Optional[date]
     invoice_status_id: int

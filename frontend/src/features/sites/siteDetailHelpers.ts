@@ -1,6 +1,7 @@
 import type { Badge, JobBucket, SiteDetail, StateRow, TransitionRow, UIField } from "./siteDetailTypes"
 
 export const READ_ONLY_FIELDS = new Set(["budget", "cost", "paid", "balance", "active_fe", "po_number", "invoice_number"])
+export const BILLING_FIELDS = new Set(["po_number", "invoice_number"])
 
 export const DOC_BADGE_FIELDS = new Set(["wcc_status", "fsr_status", "report_status", "tx_copy_status"])
 export const TODAY = new Date().toISOString().slice(0, 10)

@@ -31,6 +31,7 @@ export type Invoice = {
   id: number
   po_id: number
   invoice_no: string | null
+  invoice_date: string | null
   period_from: string | null
   period_to: string | null
   submission_date: string | null

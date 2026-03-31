@@ -71,13 +71,13 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
 
   async function saveInv() {
     if (!draftInvNo.trim() || !draftInvDate) {
-      setInvError("Invoice Number and Date are both required.")
+      setInvError("Invoice Number and Invoice Date are both required.")
       return
     }
     setInvSaving(true)
     setInvError("")
     try {
-      await updateInvoice(invoiceId!, { invoice_no: draftInvNo, submission_date: draftInvDate })
+      await updateInvoice(invoiceId!, { invoice_no: draftInvNo, invoice_date: draftInvDate })
       setEditingInv(false)
       await onSaved()
     } catch (err: unknown) {
@@ -115,7 +115,7 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
             <DetailFieldCard
               label="Invoice Date"
               value={<FieldRenderer type="date" value={site.fields.invoice_date} />}
-              onEdit={canWrite ? openInvEditor : undefined}
+              onEdit={canWrite && !!site.fields.invoice_date ? openInvEditor : undefined}
               onAdd={canWrite && !site.fields.invoice_date ? openInvEditor : undefined}
             />
           </>
@@ -176,7 +176,7 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Submission Date *</span>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Invoice Date *</span>
             <input
               type="date"
               value={draftInvDate}

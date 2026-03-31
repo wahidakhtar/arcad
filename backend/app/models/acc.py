@@ -36,6 +36,7 @@ class Invoice(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     po_id: Mapped[int] = mapped_column(ForeignKey("schema_acc.pos.id"), nullable=False)
     invoice_no: Optional[Mapped[str]] = mapped_column(String(128))
+    invoice_date: Optional[Mapped[date]] = mapped_column(Date)
     period_from: Optional[Mapped[date]] = mapped_column(Date)
     period_to: Optional[Mapped[date]] = mapped_column(Date)
     submission_date: Optional[Mapped[date]] = mapped_column(Date)

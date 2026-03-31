@@ -2,6 +2,7 @@ import DetailFieldCard from "../../../../components/ui/DetailFieldCard"
 import FieldRenderer from "../../../../components/ui/FieldRenderer"
 import { formatCurrency } from "../../../../utils/format"
 import {
+  BILLING_FIELDS,
   READ_ONLY_FIELDS,
   displayValueForField,
   draftValueForField,
@@ -29,7 +30,7 @@ export default function SiteFieldsSection({
     <section className="glass-panel p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Details</p>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
-        {fields.map((field) => {
+        {fields.filter((field) => !BILLING_FIELDS.has(field.key)).map((field) => {
           const displayValue = displayValueForField(site, field, badgeById, stateById)
           const isReadOnly = READ_ONLY_FIELDS.has(field.key)
           const isCompleted = site.status_key === "comp"

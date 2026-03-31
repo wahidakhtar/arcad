@@ -177,6 +177,7 @@ def _serialize_invoice(invoice: Invoice, status_label: str | None, status_color:
         "id": invoice.id,
         "po_id": invoice.po_id,
         "invoice_no": invoice.invoice_no,
+        "invoice_date": invoice.invoice_date,
         "period_from": invoice.period_from,
         "period_to": invoice.period_to,
         "submission_date": invoice.submission_date,
@@ -313,13 +314,17 @@ def update_invoice(db: Session, invoice_id: int, data: dict) -> dict | None:
         return None
     if "invoice_no" in data:
         row.invoice_no = data["invoice_no"] or None
+    if "invoice_date" in data:
+        row.invoice_date = data["invoice_date"] or None
     if "submission_date" in data:
         row.submission_date = data["submission_date"] or None
-    # Auto-advance: Pending → Raised when invoice number is entered
-    if row.invoice_no and row.invoice_status_id == _badge_id_by_key(db, "doc_status", "pend"):
-        rsd_id = _badge_id_by_key(db, "doc_status", "rsd")
-        if rsd_id is not None:
-            row.invoice_status_id = rsd_id
+    if "settlement_date" in data:
+        row.settlement_date = data["settlement_date"] or None
+    # Auto-advance: Pending → Generated when invoice_no AND invoice_date are both set
+    if row.invoice_no and row.invoice_date and row.invoice_status_id == _badge_id_by_key(db, "doc_status", "pend"):
+        gen_id = _badge_id_by_key(db, "doc_status", "gen")
+        if gen_id is not None:
+            row.invoice_status_id = gen_id
     row.version = (row.version or 0) + 1
     db.commit()
     result = db.execute(
@@ -336,6 +341,26 @@ def update_invoice_status(db: Session, invoice_id: int, status_id: int) -> Invoi
     db.commit()
     db.refresh(row)
     return row
+
+
+def reject_invoice(db: Session, invoice_id: int) -> dict | None:
+    row = db.get(Invoice, invoice_id)
+    if row is None:
+        return None
+    rej_id = _badge_id_by_key(db, "doc_status", "rej")
+    if rej_id is None:
+        return None
+    row.invoice_status_id = rej_id
+    row.invoice_date = None
+    row.submission_date = None
+    row.version = (row.version or 0) + 1
+    db.commit()
+    result = db.execute(
+        select(Invoice, Badge.label.label("status_label"), Badge.color.label("status_color"))
+        .join(Badge, Badge.id == Invoice.invoice_status_id)
+        .where(Invoice.id == invoice_id)
+    ).one()
+    return _serialize_invoice(result.Invoice, result.status_label, result.status_color)
 
 
 def list_po_updates(db: Session, po_id: int) -> list[dict]:
