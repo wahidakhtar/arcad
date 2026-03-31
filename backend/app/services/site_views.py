@@ -91,14 +91,22 @@ def get_site_projection(db: Session, project_key: str, site_id: int) -> dict[str
         inv = db.execute(
             select(Invoice).where(Invoice.po_id == po.id).order_by(Invoice.id.desc())
         ).scalars().first()
+        site_data["po_id"] = po.id
         site_data["po_number"] = po.po_no
+        site_data["po_date"] = str(po.po_date) if po.po_date else None
         site_data["po_status_id"] = po.po_status_id
+        site_data["invoice_id"] = inv.id if inv else None
         site_data["invoice_number"] = inv.invoice_no if inv else None
+        site_data["invoice_date"] = str(inv.submission_date) if inv and inv.submission_date else None
         site_data["invoice_status_id"] = inv.invoice_status_id if inv else None
     else:
+        site_data["po_id"] = None
         site_data["po_number"] = None
+        site_data["po_date"] = None
         site_data["po_status_id"] = None
+        site_data["invoice_id"] = None
         site_data["invoice_number"] = None
+        site_data["invoice_date"] = None
         site_data["invoice_status_id"] = None
 
     return {

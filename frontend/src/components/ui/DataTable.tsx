@@ -17,6 +17,7 @@ type DataTableProps<T extends Record<string, unknown>> = {
   columns: Column[]
   rows: T[]
   rowHref?: (row: T) => string
+  onRowClick?: (row: T) => void
   getRowClassName?: (row: T) => string
   gridTemplateColumns?: string
   loading?: boolean
@@ -28,6 +29,7 @@ export default function DataTable<T extends Record<string, unknown>>({
   columns,
   rows,
   rowHref,
+  onRowClick,
   getRowClassName,
   gridTemplateColumns: gridTemplateColumnsProp,
   loading,
@@ -77,9 +79,10 @@ export default function DataTable<T extends Record<string, unknown>>({
               : <div className="px-5 py-8 text-center text-sm text-jscolors-text/50">No results.</div>
           )}
           {!loading && rowsWithMeta.map(({ row, isFirstInGroup }, index) => {
+            const isClickable = !!(rowHref || onRowClick)
             const content = (
               <div
-                className="grid gap-4 border-b border-jscolors-crimson/8 px-5 py-4 transition hover:bg-jscolors-gold/10"
+                className={`grid gap-4 border-b border-jscolors-crimson/8 px-5 py-4 transition hover:bg-jscolors-gold/10${isClickable ? " cursor-pointer" : ""}`}
                 style={{ gridTemplateColumns }}
               >
                 {columns.map((column) => (
@@ -104,14 +107,21 @@ export default function DataTable<T extends Record<string, unknown>>({
               </div>
             )
             const extraCls = getRowClassName?.(row) ?? ""
-            if (!rowHref) {
-              return <div key={index} className={extraCls}>{content}</div>
+            if (rowHref) {
+              return (
+                <Link key={index} to={rowHref(row)} className={`block ${extraCls}`}>
+                  {content}
+                </Link>
+              )
             }
-            return (
-              <Link key={index} to={rowHref(row)} className={`block ${extraCls}`}>
-                {content}
-              </Link>
-            )
+            if (onRowClick) {
+              return (
+                <div key={index} className={extraCls} onClick={() => onRowClick(row)} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && onRowClick(row)}>
+                  {content}
+                </div>
+              )
+            }
+            return <div key={index} className={extraCls}>{content}</div>
           })}
         </div>
 

@@ -283,6 +283,13 @@ def update_po_status(db: Session, po_id: int, status_id: int) -> PO:
     return row
 
 
+def _badge_id_by_key(db: Session, badge_type: str, key: str) -> int | None:
+    row = db.execute(
+        select(Badge).where(Badge.type == badge_type, Badge.key == key)
+    ).scalar_one_or_none()
+    return row.id if row else None
+
+
 def update_po(db: Session, po_id: int, data: dict) -> dict | None:
     row = db.get(PO, po_id)
     if row is None:
@@ -291,6 +298,11 @@ def update_po(db: Session, po_id: int, data: dict) -> dict | None:
         row.po_no = data["po_no"]
     if "po_date" in data:
         row.po_date = data["po_date"]
+    # Auto-advance: Pending → Received when PO number is entered
+    if row.po_no and row.po_status_id == _badge_id_by_key(db, "doc_status", "pend"):
+        rec_id = _badge_id_by_key(db, "doc_status", "rec")
+        if rec_id is not None:
+            row.po_status_id = rec_id
     db.commit()
     return get_po(db, po_id)
 
@@ -303,6 +315,11 @@ def update_invoice(db: Session, invoice_id: int, data: dict) -> dict | None:
         row.invoice_no = data["invoice_no"] or None
     if "submission_date" in data:
         row.submission_date = data["submission_date"] or None
+    # Auto-advance: Pending → Raised when invoice number is entered
+    if row.invoice_no and row.invoice_status_id == _badge_id_by_key(db, "doc_status", "pend"):
+        rsd_id = _badge_id_by_key(db, "doc_status", "rsd")
+        if rsd_id is not None:
+            row.invoice_status_id = rsd_id
     row.version = (row.version or 0) + 1
     db.commit()
     result = db.execute(

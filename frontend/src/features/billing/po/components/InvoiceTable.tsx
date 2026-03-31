@@ -55,22 +55,9 @@ export default function InvoiceTable({ invoices, onSaved }: { invoices: Invoice[
             { key: "submission_date", label: "Date", minWidth: 130, type: "date" },
             { key: "amount", label: "Amount", minWidth: 120 },
             { key: "invoice_status", label: "Status", type: "badge", minWidth: 160 },
-            {
-              key: "_edit",
-              label: "",
-              minWidth: 80,
-              render: (_: unknown, row: Record<string, unknown>) => (
-                <button
-                  type="button"
-                  onClick={(e) => { e.preventDefault(); openEdit(row as unknown as Invoice) }}
-                  className="text-xs font-medium text-jscolors-crimson hover:underline"
-                >
-                  Edit
-                </button>
-              ),
-            },
           ]}
           rows={invoices as unknown as Record<string, unknown>[]}
+          onRowClick={(row) => openEdit(row as unknown as Invoice)}
           emptyState={<span className="text-sm text-jscolors-text/40">No invoices yet.</span>}
         />
       </div>

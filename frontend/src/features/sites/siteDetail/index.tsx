@@ -6,6 +6,7 @@ import { optionsForField } from "../siteDetailHelpers"
 import SiteFEAssignmentSection from "../SiteFEAssignmentSection"
 import SiteTicketsSection from "../SiteTicketsSection"
 import SiteUpdatesSection from "../SiteUpdatesSection"
+import SiteBillingSection from "./components/SiteBillingSection"
 import SiteFieldsSection from "./components/SiteFieldsSection"
 import SiteHeader from "./components/SiteHeader"
 import useSiteDetail from "./hooks/useSiteDetail"
@@ -86,6 +87,7 @@ export default function SiteDetailPage() {
               setEditError("")
             }}
           />
+          <SiteBillingSection site={site} canWrite={can("billing", "write")} onSaved={loadPage} />
         </div>
 
         <Modal
