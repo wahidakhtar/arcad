@@ -163,6 +163,8 @@ def create_transaction(db: Session, payload: TransactionCreate) -> Transaction:
     if requested_status is None:
         raise HTTPException(status_code=400, detail="Requested transaction status is not configured")
     payload_data = payload.model_dump()
+    recharge_validity = payload_data.pop("recharge_validity", None)
+    recharge_uom = payload_data.pop("recharge_uom", None)
     if payload_data.get("recipient_type_id") is None and payload_data.get("recipient_id") is not None:
         recipient_id = payload_data["recipient_id"]
         site_id = payload_data.get("site_id")
@@ -182,8 +184,42 @@ def create_transaction(db: Session, payload: TransactionCreate) -> Transaction:
         if payload_data.get("recipient_type_id") is None and db.get(User, recipient_id) is not None:
             payload_data["recipient_type_id"] = get_recipient_type_id(db, "user")
 
+    type_badge = db.get(Badge, payload_data["type_id"])
+    is_bb_recharge = (
+        type_badge is not None
+        and type_badge.key == "rec"
+        and payload_data.get("project_id") == acc_rules._bb_project_id(db)
+    )
+
+    if is_bb_recharge:
+        from app.models.bb import BBSite
+
+        site_id = payload_data.get("site_id")
+        if site_id is None:
+            raise HTTPException(status_code=400, detail="site_id is required for BB recharge requests")
+        if db.get(BBSite, site_id) is None:
+            raise HTTPException(status_code=404, detail="BB site not found")
+        if recharge_validity is None or recharge_uom is None:
+            raise HTTPException(status_code=400, detail="recharge_validity and recharge_uom are required for BB recharge requests")
+        if recharge_validity <= 0:
+            raise HTTPException(status_code=400, detail="recharge_validity must be greater than 0")
+        if recharge_uom not in {"months", "days"}:
+            raise HTTPException(status_code=400, detail="recharge_uom must be 'months' or 'days'")
+        if acc_rules._is_bb_site_terminated(db, site_id):
+            raise HTTPException(status_code=400, detail="Cannot request recharge for a terminated BB site")
+
     row = Transaction(request_date=date.today(), status_id=requested_status.id, **payload_data)
     db.add(row)
+    db.flush()
+    if is_bb_recharge:
+        acc_rules.create_bb_recharge_request(
+            db,
+            row.id,
+            payload_data["site_id"],
+            row.amount,
+            recharge_validity,
+            recharge_uom == "months",
+        )
     db.commit()
     db.refresh(row)
     return row
@@ -260,8 +296,11 @@ def update_status(
             detail="Transaction was modified by another user",
         )
 
-    if target_key == "exct" and type_badge is not None and type_badge.key == "rec" and updated.project_id == acc_rules._bb_project_id(db):
-        acc_rules.sync_bb_recharge_for_executed_transaction(db, updated)
+    if type_badge is not None and type_badge.key == "rec" and updated.project_id == acc_rules._bb_project_id(db):
+        if target_key == "exct":
+            acc_rules.sync_bb_recharge_for_executed_transaction(db, updated)
+        elif target_key in {"rej", "cancel"}:
+            acc_rules.clear_bb_recharge_request(db, updated.id)
 
     db.commit()
     db.refresh(updated)

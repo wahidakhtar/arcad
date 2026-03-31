@@ -257,8 +257,10 @@ export default function SiteDetailPage() {
           {projectKey === "bb" ? (
             <BBRechargeSection
               siteId={site.id}
+              projectId={project?.id}
               recharges={recharges}
               transactions={transactions}
+              transactionTypes={transactionTypes}
               badgeById={badgeById}
               transitions={transitions}
               reqBadgeId={reqBadgeId}

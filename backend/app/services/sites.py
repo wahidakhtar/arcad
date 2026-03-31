@@ -838,7 +838,7 @@ def list_recharges(db: Session, user: UserContext, site_id: int) -> list[dict]:
     from app.models.bb import Recharge
     ensure_permission(user, db, project_key="bb", tag="site", action="read")
     rows = db.execute(
-        select(Recharge).where(Recharge.site_id == site_id).order_by(Recharge.date.desc())
+        select(Recharge).where(Recharge.site_id == site_id, Recharge.date.is_not(None)).order_by(Recharge.date.desc())
     ).scalars().all()
     return [
         {
@@ -890,7 +890,8 @@ def create_recharge(db: Session, user: UserContext, site_id: int, recharge_date:
 def create_recharge_request(db: Session, user: UserContext, site_id: int, amount, validity: int, uom: str) -> dict:
     from app.models.bb import BBSite, Termination
     from app.models.core import Badge
-    from app.models.acc import Transaction
+    from app.schemas.transaction import TransactionCreate
+    from app.services import transactions as transaction_service
 
     ensure_permission(user, db, project_key="bb", tag="request", action="write")
     site = db.get(BBSite, site_id)
@@ -904,26 +905,21 @@ def create_recharge_request(db: Session, user: UserContext, site_id: int, amount
         raise HTTPException(status_code=400, detail="validity must be greater than 0")
 
     type_badge = db.execute(select(Badge).where(Badge.type == "transaction", Badge.key == "rec")).scalar_one_or_none()
-    status_badge = db.execute(select(Badge).where(Badge.key == "req")).scalar_one_or_none()
-    if type_badge is None or status_badge is None:
+    if type_badge is None:
         raise HTTPException(status_code=500, detail="Recharge transaction badges are not configured")
 
-    tx = Transaction(
-        request_date=date.today(),
-        recipient_type_id=None,
-        recipient_id=None,
-        type_id=type_badge.id,
-        project_id=get_project(db, "bb").id,
-        site_id=site_id,
-        amount=amount,
-        status_id=status_badge.id,
-        execution_date=None,
-        remarks=f"Recharge request • {validity} {'months' if uom == 'months' else 'days'}",
-        version=1,
+    tx = transaction_service.create_transaction(
+        db,
+        TransactionCreate(
+            project_id=get_project(db, "bb").id,
+            site_id=site_id,
+            recipient_type_id=None,
+            recipient_id=None,
+            type_id=type_badge.id,
+            amount=amount,
+            remarks=f"Recharge request • {validity} {'months' if uom == 'months' else 'days'}",
+            recharge_validity=validity,
+            recharge_uom=uom,
+        ),
     )
-    db.add(tx)
-    db.flush()
-    acc_rules.create_bb_recharge_request(db, tx.id, site_id, validity, uom == "months")
-    db.commit()
-    db.refresh(tx)
     return model_to_dict(tx)

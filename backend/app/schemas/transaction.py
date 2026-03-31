@@ -15,6 +15,8 @@ class TransactionCreate(BaseModel):
     type_id: int
     amount: Decimal
     remarks: Optional[str] = None
+    recharge_validity: Optional[int] = None
+    recharge_uom: Optional[str] = None
 
 
 class StatusUpdate(BaseModel):

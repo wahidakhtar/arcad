@@ -58,7 +58,7 @@ class Recharge(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     site_id: Mapped[int] = mapped_column(ForeignKey("schema_bb.sites.id"), nullable=False)
-    date: Mapped[date] = mapped_column(Date, nullable=False)
+    date: Optional[Mapped[date]] = mapped_column(Date, nullable=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     validity: Mapped[int] = mapped_column(Integer, nullable=False)
     months: Mapped[bool] = mapped_column(Boolean, nullable=False)

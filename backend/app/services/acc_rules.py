@@ -4,7 +4,7 @@ import logging
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models.acc import Invoice, PO
@@ -156,34 +156,54 @@ def activate_bb_po(db: Session, po_id: int, valid_from: date, valid_to: date) ->
     return sync_bb_po_activation(db, po)
 
 
-def create_bb_recharge_request(db: Session, transaction_id: int, site_id: int, validity: int, months: bool) -> None:
-    from app.models.bb import RechargeRequest
+def create_bb_recharge_request(db: Session, transaction_id: int, site_id: int, amount, validity: int, months: bool) -> None:
+    from app.models.bb import Recharge, RechargeRequest
 
+    recharge = Recharge(
+        site_id=site_id,
+        date=None,
+        amount=amount,
+        validity=validity,
+        months=months,
+        next_recharge_date=None,
+    )
+    db.add(recharge)
+    db.flush()
     row = RechargeRequest(
         transaction_id=transaction_id,
         site_id=site_id,
         validity=validity,
         months=months,
-        recharge_id=None,
+        recharge_id=recharge.id,
         created_at=datetime.now(timezone.utc),
     )
     db.add(row)
     db.flush()
 
 
+def clear_bb_recharge_request(db: Session, transaction_id: int) -> None:
+    from app.models.bb import Recharge, RechargeRequest
+
+    request_row = db.execute(select(RechargeRequest).where(RechargeRequest.transaction_id == transaction_id)).scalar_one_or_none()
+    if request_row is None:
+        return
+
+    recharge_id = request_row.recharge_id
+    db.execute(delete(RechargeRequest).where(RechargeRequest.id == request_row.id))
+    if recharge_id is not None:
+        db.execute(delete(Recharge).where(Recharge.id == recharge_id, Recharge.date.is_(None)))
+
+
 def sync_bb_recharge_for_executed_transaction(db: Session, tx) -> None:
-    from fastapi import HTTPException
     from app.models.bb import Recharge, RechargeRequest
 
     request_row = db.execute(select(RechargeRequest).where(RechargeRequest.transaction_id == tx.id)).scalar_one_or_none()
     if request_row is None:
         return
-    if request_row.recharge_id is not None:
-        return
     if tx.execution_date is None:
-        raise HTTPException(status_code=400, detail="execution_date is required for recharge execution")
+        return
     if _is_bb_site_terminated(db, request_row.site_id):
-        raise HTTPException(status_code=400, detail="Cannot execute recharge for a terminated BB site")
+        return
 
     if request_row.months:
         month = tx.execution_date.month - 1 + request_row.validity
@@ -194,17 +214,25 @@ def sync_bb_recharge_for_executed_transaction(db: Session, tx) -> None:
     else:
         next_recharge_date = tx.execution_date + timedelta(days=request_row.validity)
 
-    recharge = Recharge(
-        site_id=request_row.site_id,
-        date=tx.execution_date,
-        amount=tx.amount,
-        validity=request_row.validity,
-        months=request_row.months,
-        next_recharge_date=next_recharge_date,
-    )
-    db.add(recharge)
-    db.flush()
-    request_row.recharge_id = recharge.id
+    recharge = db.get(Recharge, request_row.recharge_id) if request_row.recharge_id is not None else None
+    if recharge is None:
+        recharge = Recharge(
+            site_id=request_row.site_id,
+            date=None,
+            amount=tx.amount,
+            validity=request_row.validity,
+            months=request_row.months,
+            next_recharge_date=None,
+        )
+        db.add(recharge)
+        db.flush()
+        request_row.recharge_id = recharge.id
+
+    recharge.amount = tx.amount
+    recharge.date = tx.execution_date
+    recharge.validity = request_row.validity
+    recharge.months = request_row.months
+    recharge.next_recharge_date = next_recharge_date
 
 
 def ensure_bb_placeholder_invoices(db: Session, *, as_of: date | None = None) -> int:

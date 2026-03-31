@@ -24,8 +24,10 @@ function ActionPanel({ title, action, children }: { title: string; action?: Reac
 
 export default function BBRechargeSection({
   siteId,
+  projectId,
   recharges,
   transactions,
+  transactionTypes,
   badgeById,
   transitions,
   reqBadgeId,
@@ -36,8 +38,10 @@ export default function BBRechargeSection({
   onReload,
 }: {
   siteId: number
+  projectId?: number
   recharges: RechargeRow[]
   transactions: TransactionRow[]
+  transactionTypes: Badge[]
   badgeById: Map<number, Badge>
   transitions: TransitionRow[]
   reqBadgeId: number | undefined
@@ -55,19 +59,28 @@ export default function BBRechargeSection({
   const [err, setErr] = useState("")
 
   const reqTransitions = transitionOptions(transitions, "transaction_status", reqBadgeId ?? 0)
+  const rechargeTypeId = transactionTypes.find((type) => type.key === "rec")?.id
   const rechargeTransactions = useMemo(
     () => transactions.filter((transaction) => badgeById.get(transaction.type_id)?.key === "rec"),
     [badgeById, transactions],
   )
 
   async function submitRequest() {
+    if (!projectId || !rechargeTypeId) {
+      setErr("Recharge transaction type is not configured.")
+      return
+    }
     setSubmitting(true)
     setErr("")
     try {
-      await api.post(`/sites/bb/${siteId}/recharge-requests`, {
+      await api.post("/transactions", {
+        project_id: projectId,
+        site_id: siteId,
         amount: Number(amount),
-        validity: Number(validity),
-        uom,
+        type_id: rechargeTypeId,
+        remarks: `Recharge request • ${Number(validity)} ${uom}`,
+        recharge_validity: Number(validity),
+        recharge_uom: uom,
       })
       setOpen(false)
       setAmount("")
