@@ -11,20 +11,24 @@ import type { Badge, SiteDetail, StateRow, UIField } from "../../siteDetailTypes
 
 type SiteFieldsSectionProps = {
   site: SiteDetail
+  projectKey: string
   fields: UIField[]
   badgeById: Map<number, Badge>
   stateById: Map<number, StateRow>
   canSiteWrite: boolean
   onOpenField: (field: UIField) => void
+  onOpenVisitOutcome: () => void
 }
 
 export default function SiteFieldsSection({
   site,
+  projectKey,
   fields,
   badgeById,
   stateById,
   canSiteWrite,
   onOpenField,
+  onOpenVisitOutcome,
 }: SiteFieldsSectionProps) {
   return (
     <section className="glass-panel p-6">
@@ -38,6 +42,8 @@ export default function SiteFieldsSection({
           const isEmpty = field.type !== "bool" && (rawValue === "" || rawValue === null || rawValue === undefined)
           const isFinancial = ["budget", "cost", "paid", "balance"].includes(field.key)
           const canEdit = canSiteWrite && !isReadOnly && !isCompleted
+          const isVisitOutcomeField = projectKey === "md" && (field.key === "visit_date" || field.key === "outcome")
+          const openEditor = isVisitOutcomeField ? onOpenVisitOutcome : () => onOpenField(field)
 
           return (
             <DetailFieldCard
@@ -50,8 +56,8 @@ export default function SiteFieldsSection({
               ) : (
                 <FieldRenderer field={field} value={displayValue} />
               )}
-              onAdd={canEdit && isEmpty ? () => onOpenField(field) : undefined}
-              onEdit={canEdit && !isEmpty ? () => onOpenField(field) : undefined}
+              onAdd={canEdit && isEmpty ? openEditor : undefined}
+              onEdit={canEdit && !isEmpty ? openEditor : undefined}
             />
           )
         })}

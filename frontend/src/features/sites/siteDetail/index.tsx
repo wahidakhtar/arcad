@@ -1,7 +1,10 @@
+import { useState } from "react"
+
 import DetailPageLayout from "../../../components/layout/DetailPageLayout"
 import FieldRenderer from "../../../components/ui/FieldRenderer"
 import Modal from "../../../components/ui/Modal"
 import { useAuth } from "../../../context/AuthContext"
+import { api } from "../../../lib/api"
 import { optionsForField } from "../siteDetailHelpers"
 import SiteFEAssignmentSection from "../SiteFEAssignmentSection"
 import SiteTicketsSection from "../SiteTicketsSection"
@@ -13,6 +16,11 @@ import useSiteDetail from "./hooks/useSiteDetail"
 
 export default function SiteDetailPage() {
   const { can } = useAuth()
+  const [visitOutcomeOpen, setVisitOutcomeOpen] = useState(false)
+  const [visitDateDraft, setVisitDateDraft] = useState("")
+  const [outcomeDraft, setOutcomeDraft] = useState("")
+  const [visitOutcomeSaving, setVisitOutcomeSaving] = useState(false)
+  const [visitOutcomeError, setVisitOutcomeError] = useState("")
   const {
     projectKey,
     site,
@@ -48,6 +56,7 @@ export default function SiteDetailPage() {
   if (loading) return <div className="p-6 text-jscolors-text/50">Loading site details...</div>
   if (error) return <div className="p-6 text-red-600">{error}</div>
   if (!site) return <div className="p-6 text-jscolors-text/50">Site not found.</div>
+  const currentSite = site
 
   const canSiteWrite = can("site", "write")
   const canRequestWrite = can("request", "write")
@@ -57,6 +66,37 @@ export default function SiteDetailPage() {
   const canReadAccUpdates = can("acc_update", "read")
   const cancelBadgeId = badges.find((badge) => badge.key === "cancel")?.id
   const reqBadgeId = badges.find((badge) => badge.key === "req")?.id
+
+  function openVisitOutcomeEditor() {
+    setVisitDateDraft((currentSite.fields.visit_date as string | null) ?? "")
+    setOutcomeDraft((currentSite.fields.outcome as string | null) ?? "")
+    setVisitOutcomeError("")
+    setVisitOutcomeOpen(true)
+  }
+
+  async function saveVisitOutcome() {
+    if (!visitDateDraft || !outcomeDraft.trim()) {
+      setVisitOutcomeError("Visit Date and Outcome are both required.")
+      return
+    }
+    setVisitOutcomeSaving(true)
+    setVisitOutcomeError("")
+    try {
+      await api.patch(`/sites/${projectKey}/${currentSite.id}`, {
+        data: {
+          visit_date: visitDateDraft,
+          outcome: outcomeDraft.trim(),
+        },
+      })
+      setVisitOutcomeOpen(false)
+      await loadPage()
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setVisitOutcomeError(detail ?? "Failed to update visit details.")
+    } finally {
+      setVisitOutcomeSaving(false)
+    }
+  }
 
   return (
     <DetailPageLayout
@@ -78,6 +118,7 @@ export default function SiteDetailPage() {
         <div className="grid gap-6 2xl:grid-cols-[1.05fr_0.95fr]">
           <SiteFieldsSection
             site={site}
+            projectKey={projectKey}
             fields={regularFields}
             badgeById={badgeById}
             stateById={stateById}
@@ -86,6 +127,7 @@ export default function SiteDetailPage() {
               openFieldEditor(field)
               setEditError("")
             }}
+            onOpenVisitOutcome={openVisitOutcomeEditor}
           />
           {can("billing", "read") && <SiteBillingSection site={site} canWrite={can("billing", "write")} onSaved={loadPage} />}
         </div>
@@ -110,6 +152,42 @@ export default function SiteDetailPage() {
               {editError ? <p className="text-sm text-red-600">{editError}</p> : null}
             </div>
           ) : null}
+        </Modal>
+
+        <Modal
+          isOpen={visitOutcomeOpen}
+          title="Visit & Outcome"
+          onClose={() => {
+            setVisitOutcomeOpen(false)
+            setVisitOutcomeError("")
+          }}
+          size="sm"
+          submitLabel="Save"
+          onSubmit={() => void saveVisitOutcome()}
+          isSubmitting={visitOutcomeSaving}
+        >
+          <div className="space-y-4">
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Visit Date *</span>
+              <input
+                type="date"
+                value={visitDateDraft}
+                onChange={(event) => setVisitDateDraft(event.target.value)}
+                className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-jscolors-crimson/40"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Outcome *</span>
+              <input
+                type="text"
+                value={outcomeDraft}
+                onChange={(event) => setOutcomeDraft(event.target.value)}
+                className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-jscolors-crimson/40"
+                placeholder="e.g. Dismantle"
+              />
+            </label>
+            {visitOutcomeError ? <p className="text-sm text-red-600">{visitOutcomeError}</p> : null}
+          </div>
         </Modal>
 
         <section className="grid gap-6">

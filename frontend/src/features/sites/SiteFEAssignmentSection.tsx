@@ -11,6 +11,7 @@ import SiteTransactionCard from "./SiteTransactionCard"
 
 type TxModal = { open: boolean; subconId: number; bucketKey: string; subconLabel: string; type_id: string; amount: string; err: string }
 type RemoveModal = { open: boolean; assignment_id: number; subcon_label: string; final_cost: string; err: string }
+const selectCls = "w-full appearance-none rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 pr-11 text-sm outline-none transition focus:border-jscolors-crimson/40"
 
 function ActionPanel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
@@ -21,6 +22,41 @@ function ActionPanel({ title, action, children }: { title: string; action?: Reac
       </div>
       <div className="mt-5">{children}</div>
     </section>
+  )
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  children,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  children: ReactNode
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">{label}</span>
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={selectCls}
+        >
+          <option value="">{placeholder}</option>
+          {children}
+        </select>
+        <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-jscolors-text/45">
+          <svg viewBox="0 0 16 16" className="h-4 w-4 fill-current" aria-hidden="true">
+            <path d="M4.2 6.1a.75.75 0 0 1 1.06.04L8 9.08l2.74-2.94a.75.75 0 1 1 1.1 1.02l-3.3 3.54a.75.75 0 0 1-1.08 0L4.16 7.16a.75.75 0 0 1 .04-1.06Z" />
+          </svg>
+        </span>
+      </div>
+    </label>
   )
 }
 
@@ -74,11 +110,24 @@ export default function SiteFEAssignmentSection({
     : (jobBuckets.find((bucket) => String(bucket.id) === assignmentForm.bucket_id) ?? null)
   const alreadyAssigned = !!selectedBucket && currentSite.subcon_rows.some((row) => row.active && row.bucket_key === selectedBucket.key)
   const hasActiveAssignment = currentSite.subcon_rows.some((row) => row.active)
+  const allAssignableSlotsFilled = jobBuckets.length
+    ? jobBuckets.every((bucket) => currentSite.subcon_rows.some((row) => row.active && row.bucket_key === bucket.key))
+    : hasActiveAssignment
 
   async function assignSubcon() {
-    if (!assignmentForm.subcon_id) return
+    if (jobBuckets.length > 1 && !assignmentForm.bucket_id) {
+      setAssignErr("Job is required.")
+      return
+    }
+    if (!assignmentForm.subcon_id) {
+      setAssignErr(`${assigneeLabel} is required.`)
+      return
+    }
     const bucketId = assignmentForm.bucket_id ? Number(assignmentForm.bucket_id) : (jobBuckets.length === 1 ? jobBuckets[0].id : null)
-    if (!bucketId && jobBuckets.length > 1) return
+    if (!bucketId && jobBuckets.length > 1) {
+      setAssignErr("Job is required.")
+      return
+    }
     const payload = { bucket_id: bucketId, subcon_id: Number(assignmentForm.subcon_id) }
     const endpoint = `/sites/${projectKey}/${currentSite.id}/assignments`
     setAssigning(true)
@@ -150,9 +199,9 @@ export default function SiteFEAssignmentSection({
       action={
         <Button
           type="button"
-          disabled={hasActiveAssignment}
+          disabled={allAssignableSlotsFilled}
           onClick={() => {
-            if (hasActiveAssignment) return
+            if (allAssignableSlotsFilled) return
             setAssignmentForm({ bucket_id: jobBuckets.length === 1 ? String(jobBuckets[0].id) : "", subcon_id: "" })
             setAssignErr("")
             setAssignModal(true)
@@ -197,33 +246,27 @@ export default function SiteFEAssignmentSection({
       >
         <div className="space-y-4">
           {jobBuckets.length > 1 && (
-            <label className="block">
-              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Bucket</span>
-              <select
-                value={assignmentForm.bucket_id}
-                onChange={(event) => setAssignmentForm((current) => ({ ...current, bucket_id: event.target.value }))}
-                className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-              >
-                <option value="">Select Bucket</option>
+            <SelectField
+              label="Job"
+              value={assignmentForm.bucket_id}
+              onChange={(value) => setAssignmentForm((current) => ({ ...current, bucket_id: value }))}
+              placeholder="Select Job"
+            >
                 {jobBuckets.map((bucket) => (
                   <option key={bucket.id} value={bucket.id}>{bucket.label}</option>
                 ))}
-              </select>
-            </label>
+            </SelectField>
           )}
-          <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">{assigneeLabel}</span>
-            <select
-              value={assignmentForm.subcon_id}
-              onChange={(event) => setAssignmentForm((current) => ({ ...current, subcon_id: event.target.value }))}
-              className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
-            >
-              <option value="">{`Select ${assigneeLabel}`}</option>
+          <SelectField
+            label={assigneeLabel}
+            value={assignmentForm.subcon_id}
+            onChange={(value) => setAssignmentForm((current) => ({ ...current, subcon_id: value }))}
+            placeholder={`Select ${assigneeLabel}`}
+          >
               {subcons.map((subcon) => (
                 <option key={subcon.id} value={subcon.id}>{subcon.label}</option>
               ))}
-            </select>
-          </label>
+          </SelectField>
           {alreadyAssigned ? <p className="text-sm text-red-600">{`An active ${assigneeLabel} already exists for this bucket.`}</p> : null}
           {assignErr ? <p className="text-sm text-red-600">{assignErr}</p> : null}
         </div>
@@ -240,19 +283,26 @@ export default function SiteFEAssignmentSection({
       >
         <div className="space-y-4">
           <p className="text-sm text-jscolors-text/60">{txModal.subconLabel}</p>
-          <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Type</span>
-            <select
-              value={txModal.type_id}
-              onChange={(event) => setTxModal((current) => ({ ...current, type_id: event.target.value }))}
-              className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
-            >
-              <option value="">Select Type</option>
-              {transactionTypes.map((type) => (
-                <option key={type.id} value={type.id}>{type.label}</option>
-              ))}
-            </select>
-          </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Type</span>
+              <div className="relative">
+                <select
+                  value={txModal.type_id}
+                  onChange={(event) => setTxModal((current) => ({ ...current, type_id: event.target.value }))}
+                  className={selectCls}
+                >
+                  <option value="">Select Type</option>
+                  {transactionTypes.map((type) => (
+                    <option key={type.id} value={type.id}>{type.label}</option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-jscolors-text/45">
+                  <svg viewBox="0 0 16 16" className="h-4 w-4 fill-current" aria-hidden="true">
+                    <path d="M4.2 6.1a.75.75 0 0 1 1.06.04L8 9.08l2.74-2.94a.75.75 0 1 1 1.1 1.02l-3.3 3.54a.75.75 0 0 1-1.08 0L4.16 7.16a.75.75 0 0 1 .04-1.06Z" />
+                  </svg>
+                </span>
+              </div>
+            </label>
           <label className="block">
             <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Amount</span>
             <input

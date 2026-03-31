@@ -107,11 +107,27 @@ def _validate_site_date_order(site: Any, project_key: str, payload: dict[str, An
     receiving_date = payload.get("receiving_date", getattr(site, "receiving_date", None))
     permission_date = payload.get("permission_date", getattr(site, "permission_date", None))
     completion_date = payload.get(completion_field, getattr(site, completion_field, None)) if completion_field else None
+    visit_date = payload.get("visit_date", getattr(site, "visit_date", None))
 
     if receiving_date and permission_date and permission_date < receiving_date:
         raise HTTPException(
             status_code=400,
             detail=f"Permission Date cannot be earlier than Receiving Date. Edit/remove Receiving Date first.",
+        )
+    if project_key == "md" and permission_date and visit_date and visit_date < permission_date:
+        raise HTTPException(
+            status_code=400,
+            detail="Visit Date cannot be earlier than Permission Date. Edit/remove Permission Date first.",
+        )
+    if project_key == "md" and receiving_date and visit_date and visit_date < receiving_date:
+        raise HTTPException(
+            status_code=400,
+            detail="Visit Date cannot be earlier than Receiving Date. Edit/remove Receiving Date first.",
+        )
+    if project_key == "md" and visit_date and completion_date and completion_date < visit_date:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{_site_field_label(completion_field)} cannot be earlier than Visit Date. Edit/remove Visit Date first.",
         )
     if permission_date and completion_date and completion_date < permission_date:
         raise HTTPException(
@@ -545,13 +561,16 @@ def assign_subcon(db: Session, user: UserContext, project_key: str, site_id: int
     )
     subcon = _validate_subcon_for_project(db, project_id, payload.subcon_id)
     _validate_bucket_for_project(db, project_id, payload.bucket_id)
-    existing_assignments = db.execute(
-        select(SubconAssignment).where(
-            SubconAssignment.project_id == project_id,
-            SubconAssignment.site_id == site_id,
-            SubconAssignment.active.is_(True),
-        )
-    ).scalars().all()
+    assignment_query = select(SubconAssignment).where(
+        SubconAssignment.project_id == project_id,
+        SubconAssignment.site_id == site_id,
+        SubconAssignment.active.is_(True),
+    )
+    if payload.bucket_id is None:
+        assignment_query = assignment_query.where(SubconAssignment.bucket_id.is_(None))
+    else:
+        assignment_query = assignment_query.where(SubconAssignment.bucket_id == payload.bucket_id)
+    existing_assignments = db.execute(assignment_query).scalars().all()
     for existing in existing_assignments:
         existing.active = False
         existing.removed_at = datetime.now()

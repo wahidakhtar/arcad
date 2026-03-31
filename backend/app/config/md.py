@@ -50,10 +50,12 @@ def apply_md_rules(site, payload: dict, db) -> dict:
         if height is None:
             raise HTTPException(status_code=400, detail="Height must be set before entering permission date")
 
-    # 2. visit_date requires outcome in same payload
-    if "visit_date" in payload and payload["visit_date"] is not None:
-        if "outcome" not in payload or not payload["outcome"]:
-            raise HTTPException(status_code=400, detail="outcome is required when setting visit date")
+    # 2. visit_date and outcome must exist together
+    if "visit_date" in payload or "outcome" in payload:
+        next_visit_date = payload.get("visit_date", site.visit_date)
+        next_outcome = payload.get("outcome", site.outcome)
+        if bool(next_visit_date) != bool(next_outcome):
+            raise HTTPException(status_code=400, detail="Visit date and outcome must be entered together")
 
     # 3. dismantle_date (first time) requires scrap_value
     if "dismantle_date" in payload and payload["dismantle_date"] is not None and site.dismantle_date is None:

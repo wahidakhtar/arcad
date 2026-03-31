@@ -185,7 +185,8 @@ def list_ui_fields(db: Session, user: UserContext, project_key: str) -> list[dic
         return []
     rows = db.execute(
         text(
-            f"SELECT uf.id, uf.key, uf.label, uf.list_view, uf.type, uf.form_view, uf.bulk_view, t.tag "
+            f"SELECT uf.id, uf.key, uf.label, uf.list_view, uf.type, uf.form_view, uf.bulk_view, "
+            f"COALESCE(uf.perm_tag, t.tag) AS perm_tag "
             f"FROM schema_{project_key}.ui_fields uf "
             f"JOIN schema_core.tags t ON t.id = uf.tag_id "
             f"ORDER BY uf.id"
@@ -200,7 +201,7 @@ def list_ui_fields(db: Session, user: UserContext, project_key: str) -> list[dic
             "type": row["type"],
             "form_view": row["form_view"],
             "bulk_view": row["bulk_view"],
-            "tag": row["tag"],
+            "tag": row["perm_tag"],
         }
         for row in rows
     ]
