@@ -72,7 +72,7 @@ const PROJECT_STATUS_FILTERS: Record<string, string[]> = {
   md: ["wip", "p_wait", "rect", "cancel", "comp"],
   ma: ["wip", "p_wait", "cancel", "comp"],
   mc: ["wip", "p_wait", "p_iss", "a_wait", "rect", "cancel", "comp"],
-  bb: ["hold", "down", "live", "term"],
+  bb: ["down", "live", "term"],
 }
 
 function subprojectLabel(sub: Subproject) {

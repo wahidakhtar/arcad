@@ -14,11 +14,13 @@ function sanitizeDocNo(value: string): string {
   return value.toUpperCase().replace(/[^A-Z0-9/-]/g, "")
 }
 
-export default function InvoiceTable({ invoices, onSaved }: { invoices: Invoice[]; onSaved: () => Promise<void> }) {
+export default function InvoiceTable({ invoices, isBB, onSaved }: { invoices: Invoice[]; isBB: boolean; onSaved: () => Promise<void> }) {
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>("details")
   const [draftNo, setDraftNo] = useState("")
   const [draftInvDate, setDraftInvDate] = useState("")
+  const [draftPeriodFrom, setDraftPeriodFrom] = useState("")
+  const [draftPeriodTo, setDraftPeriodTo] = useState("")
   const [draftSubmissionDate, setDraftSubmissionDate] = useState("")
   const [draftSettlementDate, setDraftSettlementDate] = useState("")
   const [saving, setSaving] = useState(false)
@@ -28,6 +30,8 @@ export default function InvoiceTable({ invoices, onSaved }: { invoices: Invoice[
   function openEdit(invoice: Invoice) {
     setDraftNo(invoice.invoice_no ?? "")
     setDraftInvDate(invoice.invoice_date ?? "")
+    setDraftPeriodFrom(invoice.period_from ?? "")
+    setDraftPeriodTo(invoice.period_to ?? "")
     setDraftSubmissionDate(invoice.submission_date ?? "")
     setDraftSettlementDate(invoice.settlement_date ?? "")
     setActiveTab("details")
@@ -37,9 +41,9 @@ export default function InvoiceTable({ invoices, onSaved }: { invoices: Invoice[
 
   async function save() {
     if (!editingInvoice) return
-    if (!draftNo.trim() || !draftInvDate) {
+    if (!draftNo.trim() || !draftInvDate || (isBB && (!draftPeriodFrom || !draftPeriodTo))) {
       setActiveTab("details")
-      setError("Invoice Number and Invoice Date are both required.")
+      setError(isBB ? "Invoice Number, Invoice Date, Period From, and Period To are all required." : "Invoice Number and Invoice Date are both required.")
       return
     }
     if (draftSubmissionDate && draftInvDate > draftSubmissionDate) {
@@ -58,6 +62,8 @@ export default function InvoiceTable({ invoices, onSaved }: { invoices: Invoice[
       await updateInvoice(editingInvoice.id, {
         invoice_no: draftNo,
         invoice_date: draftInvDate,
+        period_from: isBB ? draftPeriodFrom : null,
+        period_to: isBB ? draftPeriodTo : null,
         submission_date: draftSubmissionDate || null,
         settlement_date: draftSettlementDate || null,
       })
@@ -90,6 +96,10 @@ export default function InvoiceTable({ invoices, onSaved }: { invoices: Invoice[
           columns={[
             { key: "invoice_no", label: "Invoice Number", minWidth: 180 },
             { key: "invoice_date", label: "Invoice Date", minWidth: 130, type: "date" },
+            ...(isBB ? [
+              { key: "period_from", label: "Period From", minWidth: 130, type: "date" },
+              { key: "period_to", label: "Period To", minWidth: 130, type: "date" },
+            ] : []),
             { key: "submission_date", label: "Submission Date", minWidth: 130, type: "date" },
             { key: "settlement_date", label: "Settlement Date", minWidth: 130, type: "date" },
             { key: "invoice_status", label: "Status", type: "badge", minWidth: 160 },
@@ -163,6 +173,18 @@ export default function InvoiceTable({ invoices, onSaved }: { invoices: Invoice[
                   className={fieldCls}
                 />
               </label>
+              {isBB ? (
+                <>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Period From *</span>
+                    <input type="date" value={draftPeriodFrom} onChange={(e) => setDraftPeriodFrom(e.target.value)} className={fieldCls} />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Period To *</span>
+                    <input type="date" value={draftPeriodTo} onChange={(e) => setDraftPeriodTo(e.target.value)} className={fieldCls} />
+                  </label>
+                </>
+              ) : null}
             </>
           )}
 

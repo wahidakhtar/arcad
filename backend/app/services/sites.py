@@ -430,10 +430,15 @@ def create_site(db: Session, user: UserContext, project_key: str, subproject_id:
         badges = badge_map(db)
         stage_badge_id = next((badge_id for badge_id, badge in badges.items() if badge.key == "stage"), None)
         permission_wait_badge_id = next((badge_id for badge_id, badge in badges.items() if badge.key == "p_wait"), None)
+        down_badge_id = next((badge_id for badge_id, badge in badges.items() if badge.key == "down"), None)
         payload["status_id"] = (
-            stage_badge_id
-            if data.get("bulk") or not getattr(resolved_subproject, "bucket", False)
-            else permission_wait_badge_id
+            down_badge_id
+            if project_key == "bb"
+            else (
+                stage_badge_id
+                if data.get("bulk") or not getattr(resolved_subproject, "bucket", False)
+                else permission_wait_badge_id
+            )
         )
         if payload["status_id"] is None:
             raise HTTPException(status_code=500, detail="Required site badges are not configured")
@@ -842,7 +847,7 @@ def list_recharges(db: Session, user: UserContext, site_id: int) -> list[dict]:
             "date": r.date,
             "amount": r.amount,
             "validity": r.validity,
-            "uom": r.uom,
+            "uom": "months" if r.months else "days",
             "next_recharge_date": r.next_recharge_date,
         }
         for r in rows
@@ -850,11 +855,13 @@ def list_recharges(db: Session, user: UserContext, site_id: int) -> list[dict]:
 
 
 def create_recharge(db: Session, user: UserContext, site_id: int, recharge_date: date, amount, validity: int, uom: str) -> dict:
-    from app.models.bb import Recharge, BBSite
+    from app.models.bb import Recharge, BBSite, Termination
     ensure_permission(user, db, project_key="bb", tag="site", action="write")
     site = db.get(BBSite, site_id)
     if site is None:
         raise HTTPException(status_code=404, detail="BB site not found")
+    if db.get(Termination, site_id) is not None:
+        raise HTTPException(status_code=400, detail="Cannot add recharge for a terminated BB site")
     if uom not in ("months", "days"):
         raise HTTPException(status_code=400, detail="uom must be 'months' or 'days'")
     next_recharge_date = _calc_next_recharge_date(recharge_date, validity, uom)
@@ -863,7 +870,7 @@ def create_recharge(db: Session, user: UserContext, site_id: int, recharge_date:
         date=recharge_date,
         amount=amount,
         validity=validity,
-        uom=uom,
+        months=(uom == "months"),
         next_recharge_date=next_recharge_date,
     )
     db.add(row)
@@ -875,6 +882,48 @@ def create_recharge(db: Session, user: UserContext, site_id: int, recharge_date:
         "date": row.date,
         "amount": row.amount,
         "validity": row.validity,
-        "uom": row.uom,
+        "uom": "months" if row.months else "days",
         "next_recharge_date": row.next_recharge_date,
     }
+
+
+def create_recharge_request(db: Session, user: UserContext, site_id: int, amount, validity: int, uom: str) -> dict:
+    from app.models.bb import BBSite, Termination
+    from app.models.core import Badge
+    from app.models.acc import Transaction
+
+    ensure_permission(user, db, project_key="bb", tag="request", action="write")
+    site = db.get(BBSite, site_id)
+    if site is None:
+        raise HTTPException(status_code=404, detail="BB site not found")
+    if db.get(Termination, site_id) is not None:
+        raise HTTPException(status_code=400, detail="Cannot request recharge for a terminated BB site")
+    if uom not in {"months", "days"}:
+        raise HTTPException(status_code=400, detail="uom must be 'months' or 'days'")
+    if validity <= 0:
+        raise HTTPException(status_code=400, detail="validity must be greater than 0")
+
+    type_badge = db.execute(select(Badge).where(Badge.type == "transaction", Badge.key == "rec")).scalar_one_or_none()
+    status_badge = db.execute(select(Badge).where(Badge.key == "req")).scalar_one_or_none()
+    if type_badge is None or status_badge is None:
+        raise HTTPException(status_code=500, detail="Recharge transaction badges are not configured")
+
+    tx = Transaction(
+        request_date=date.today(),
+        recipient_type_id=None,
+        recipient_id=None,
+        type_id=type_badge.id,
+        project_id=get_project(db, "bb").id,
+        site_id=site_id,
+        amount=amount,
+        status_id=status_badge.id,
+        execution_date=None,
+        remarks=f"Recharge request • {validity} {'months' if uom == 'months' else 'days'}",
+        version=1,
+    )
+    db.add(tx)
+    db.flush()
+    acc_rules.create_bb_recharge_request(db, tx.id, site_id, validity, uom == "months")
+    db.commit()
+    db.refresh(tx)
+    return model_to_dict(tx)

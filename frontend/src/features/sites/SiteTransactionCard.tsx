@@ -77,7 +77,7 @@ export default function SiteTransactionCard({
         void handleTransition(toId)
       } else {
         setPendingExctId(toId)
-        setExecModalTitle(typeKey === "ref" ? "Refund Date" : "Execution Date")
+        setExecModalTitle(typeKey === "ref" ? "Refund Date" : typeKey === "rec" ? "Recharge Date" : "Execution Date")
         setShowExecModal(true)
       }
     } else {

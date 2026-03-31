@@ -7,10 +7,10 @@ export const getPoById = (id: number) =>
 export const getInvoicesByPoId = (poId: number) =>
   api.get<Invoice[]>("/billing/invoices", { params: { po_id: poId } })
 
-export const updatePo = (id: number, data: { po_no?: string | null; po_date?: string | null }) =>
+export const updatePo = (id: number, data: { po_no?: string | null; po_date?: string | null; valid_from?: string | null; valid_to?: string | null }) =>
   api.patch<PO>(`/billing/pos/${id}`, data)
 
-export const updateInvoice = (id: number, data: { invoice_no?: string | null; invoice_date?: string | null; submission_date?: string | null; settlement_date?: string | null }) =>
+export const updateInvoice = (id: number, data: { invoice_no?: string | null; invoice_date?: string | null; period_from?: string | null; period_to?: string | null; submission_date?: string | null; settlement_date?: string | null }) =>
   api.patch(`/billing/invoices/${id}`, data)
 
 export const rejectInvoice = (id: number) =>

@@ -59,21 +59,26 @@ configure_logging()
 
 
 async def _daily_expiry_loop() -> None:
-    """Run expire_bb_pos once per day at midnight IST (UTC+5:30)."""
+    """Run BB rollover jobs once per day at midnight IST (UTC+5:30)."""
     IST_OFFSET = timedelta(hours=5, minutes=30)
     while True:
         now_ist = datetime.now(timezone.utc) + IST_OFFSET
         # Seconds until next midnight IST
         next_midnight = (now_ist + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
         sleep_secs = (next_midnight - now_ist).total_seconds()
-        _scheduler_log.info("expire_bb_pos: next run in %.0f seconds", sleep_secs)
+        _scheduler_log.info("bb_rollover: next run in %.0f seconds", sleep_secs)
         await asyncio.sleep(sleep_secs)
         try:
             db = next(get_db())
-            expired = acc_rules.expire_bb_pos(db)
-            _scheduler_log.info("expire_bb_pos: expired %d POs", expired)
+            result = acc_rules.run_bb_daily_rollover(db)
+            _scheduler_log.info(
+                "bb_rollover: invoice_placeholders=%d po_placeholders=%d expired_pos=%d",
+                result["invoice_placeholders"],
+                result["po_placeholders"],
+                result["expired_pos"],
+            )
         except Exception:
-            _scheduler_log.exception("expire_bb_pos scheduler error")
+            _scheduler_log.exception("bb_rollover scheduler error")
 
 
 @asynccontextmanager

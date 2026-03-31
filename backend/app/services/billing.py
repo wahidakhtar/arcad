@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.acc import Invoice, PO, RateCard
 from app.models.core import Badge, Job, Project
 from app.models.updates import Update
+from app.services import acc_rules
 from app.services.common import format_subproject_label, get_site_model, get_subproject_model
 from app.schemas.billing import InvoiceCreate, POCreate, RateCardCreate
 
@@ -295,12 +299,24 @@ def update_po(db: Session, po_id: int, data: dict) -> dict | None:
     row = db.get(PO, po_id)
     if row is None:
         return None
+    is_bb_po = row.project_id == acc_rules._bb_project_id(db)
     if "po_no" in data:
         row.po_no = data["po_no"]
     if "po_date" in data:
         row.po_date = data["po_date"]
+    if "valid_from" in data:
+        row.valid_from = data["valid_from"]
+    if "valid_to" in data:
+        row.valid_to = data["valid_to"]
+    if is_bb_po:
+        if any(key in data for key in ("po_no", "po_date", "valid_from", "valid_to")):
+            if not row.po_no or row.po_date is None or row.valid_from is None or row.valid_to is None:
+                raise HTTPException(status_code=400, detail="PO Number, PO Date, Valid From, and Valid To are all required.")
+            if row.valid_from > row.valid_to:
+                raise HTTPException(status_code=400, detail="Valid From cannot be later than Valid To.")
+            acc_rules.sync_bb_po_activation(db, row)
     # Auto-advance: Pending → Received when PO number is entered
-    if row.po_no and row.po_status_id == _badge_id_by_key(db, "doc_status", "pend"):
+    if row.po_no and not is_bb_po and row.po_status_id == _badge_id_by_key(db, "doc_status", "pend"):
         rec_id = _badge_id_by_key(db, "doc_status", "rec")
         if rec_id is not None:
             row.po_status_id = rec_id
@@ -312,16 +328,44 @@ def update_invoice(db: Session, invoice_id: int, data: dict) -> dict | None:
     row = db.get(Invoice, invoice_id)
     if row is None:
         return None
+    po = db.get(PO, row.po_id)
+    is_bb_invoice = po is not None and po.project_id == acc_rules._bb_project_id(db)
     if "invoice_no" in data:
         row.invoice_no = data["invoice_no"] or None
     if "invoice_date" in data:
         row.invoice_date = data["invoice_date"] or None
+    if "period_from" in data:
+        row.period_from = data["period_from"] or None
+    if "period_to" in data:
+        row.period_to = data["period_to"] or None
     if "submission_date" in data:
         row.submission_date = data["submission_date"] or None
     if "settlement_date" in data:
         row.settlement_date = data["settlement_date"] or None
+    if is_bb_invoice:
+        if not po or po.valid_from is None or po.valid_to is None:
+            raise HTTPException(status_code=400, detail="PO validity must be set before editing BB invoices.")
+        if not row.invoice_no or row.invoice_date is None or row.period_from is None or row.period_to is None:
+            raise HTTPException(status_code=400, detail="Invoice Number, Invoice Date, Period From, and Period To are all required.")
+        if row.period_from > row.period_to:
+            raise HTTPException(status_code=400, detail="Period From cannot be later than Period To.")
+        if row.period_to > po.valid_to:
+            raise HTTPException(status_code=400, detail="Invoice Period To cannot be later than PO Valid To.")
+        previous = db.execute(
+            select(Invoice)
+            .where(Invoice.po_id == row.po_id, Invoice.id != row.id)
+            .order_by(Invoice.period_to.desc().nullslast(), Invoice.id.desc())
+        ).scalars().all()
+        previous_completed = [invoice for invoice in previous if invoice.period_to is not None]
+        if previous_completed:
+            latest_previous = previous_completed[0]
+            expected_period_from = latest_previous.period_to + timedelta(days=1)
+            if row.period_from != expected_period_from:
+                raise HTTPException(status_code=400, detail=f"Invoice Period From must be {expected_period_from.isoformat()}.")
+        elif row.period_from != po.valid_from:
+            raise HTTPException(status_code=400, detail=f"First invoice Period From must be {po.valid_from.isoformat()}.")
     # Auto-advance: Pending → Generated when invoice_no AND invoice_date are both set
-    if row.invoice_no and row.invoice_date and row.invoice_status_id == _badge_id_by_key(db, "doc_status", "pend"):
+    if row.invoice_no and row.invoice_date and (not is_bb_invoice or row.period_from is not None and row.period_to is not None) and row.invoice_status_id == _badge_id_by_key(db, "doc_status", "pend"):
         gen_id = _badge_id_by_key(db, "doc_status", "gen")
         if gen_id is not None:
             row.invoice_status_id = gen_id

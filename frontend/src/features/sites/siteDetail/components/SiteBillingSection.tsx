@@ -31,10 +31,13 @@ type Props = {
 export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
   const poId = site.fields.po_id as number | null | undefined
   const invoiceId = site.fields.invoice_id as number | null | undefined
+  const isBB = site.project_key === "bb"
 
   const [editingPo, setEditingPo] = useState(false)
   const [draftPoNo, setDraftPoNo] = useState("")
   const [draftPoDate, setDraftPoDate] = useState("")
+  const [draftPoValidFrom, setDraftPoValidFrom] = useState("")
+  const [draftPoValidTo, setDraftPoValidTo] = useState("")
   const [poSaving, setPoSaving] = useState(false)
   const [poError, setPoError] = useState("")
 
@@ -42,6 +45,8 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
   const [invTab, setInvTab] = useState<InvTab>("details")
   const [draftInvNo, setDraftInvNo] = useState("")
   const [draftInvDate, setDraftInvDate] = useState("")
+  const [draftPeriodFrom, setDraftPeriodFrom] = useState("")
+  const [draftPeriodTo, setDraftPeriodTo] = useState("")
   const [draftSubmissionDate, setDraftSubmissionDate] = useState("")
   const [draftSettlementDate, setDraftSettlementDate] = useState("")
   const [invSaving, setInvSaving] = useState(false)
@@ -52,19 +57,26 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
   function openPoEditor() {
     setDraftPoNo((site.fields.po_number as string | null) ?? "")
     setDraftPoDate((site.fields.po_date as string | null) ?? "")
+    setDraftPoValidFrom((site.fields.po_valid_from as string | null) ?? "")
+    setDraftPoValidTo((site.fields.po_valid_to as string | null) ?? "")
     setPoError("")
     setEditingPo(true)
   }
 
   async function savePo() {
-    if (!draftPoNo.trim() || !draftPoDate) {
-      setPoError("PO Number and Date are both required.")
+    if (!draftPoNo.trim() || !draftPoDate || (isBB && (!draftPoValidFrom || !draftPoValidTo))) {
+      setPoError(isBB ? "PO Number, PO Date, Valid From, and Valid To are all required." : "PO Number and Date are both required.")
       return
     }
     setPoSaving(true)
     setPoError("")
     try {
-      await updatePo(poId!, { po_no: draftPoNo, po_date: draftPoDate })
+      await updatePo(poId!, {
+        po_no: draftPoNo,
+        po_date: draftPoDate,
+        valid_from: isBB ? draftPoValidFrom : null,
+        valid_to: isBB ? draftPoValidTo : null,
+      })
       setEditingPo(false)
       await onSaved()
     } catch (err: unknown) {
@@ -78,6 +90,8 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
   function openInvEditor() {
     setDraftInvNo((site.fields.invoice_number as string | null) ?? "")
     setDraftInvDate((site.fields.invoice_date as string | null) ?? "")
+    setDraftPeriodFrom((site.fields.invoice_period_from as string | null) ?? "")
+    setDraftPeriodTo((site.fields.invoice_period_to as string | null) ?? "")
     setDraftSubmissionDate((site.fields.invoice_submission_date as string | null) ?? "")
     setDraftSettlementDate((site.fields.invoice_settlement_date as string | null) ?? "")
     setInvTab("details")
@@ -86,9 +100,9 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
   }
 
   async function saveInv() {
-    if (!draftInvNo.trim() || !draftInvDate) {
+    if (!draftInvNo.trim() || !draftInvDate || (isBB && (!draftPeriodFrom || !draftPeriodTo))) {
       setInvTab("details")
-      setInvError("Invoice Number and Invoice Date are both required.")
+      setInvError(isBB ? "Invoice Number, Invoice Date, Period From, and Period To are all required." : "Invoice Number and Invoice Date are both required.")
       return
     }
     const completionDateKey = COMPLETION_DATE_KEY[site.project_key]
@@ -114,6 +128,8 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
       await updateInvoice(invoiceId!, {
         invoice_no: draftInvNo,
         invoice_date: draftInvDate,
+        period_from: isBB ? draftPeriodFrom : null,
+        period_to: isBB ? draftPeriodTo : null,
         submission_date: draftSubmissionDate || null,
         settlement_date: draftSettlementDate || null,
       })
@@ -143,6 +159,22 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
           onEdit={canWrite && !!site.fields.po_date ? openPoEditor : undefined}
           onAdd={canWrite && !site.fields.po_date ? openPoEditor : undefined}
         />
+        {isBB ? (
+          <>
+            <DetailFieldCard
+              label="Valid From"
+              value={<FieldRenderer type="date" value={site.fields.po_valid_from} />}
+              onEdit={canWrite ? openPoEditor : undefined}
+              onAdd={canWrite && !site.fields.po_valid_from ? openPoEditor : undefined}
+            />
+            <DetailFieldCard
+              label="Valid To"
+              value={<FieldRenderer type="date" value={site.fields.po_valid_to} />}
+              onEdit={canWrite ? openPoEditor : undefined}
+              onAdd={canWrite && !site.fields.po_valid_to ? openPoEditor : undefined}
+            />
+          </>
+        ) : null}
         {invoiceId ? (
           <>
             <DetailFieldCard
@@ -157,6 +189,22 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
               onEdit={canWrite && !!site.fields.invoice_date ? openInvEditor : undefined}
               onAdd={canWrite && !site.fields.invoice_date ? openInvEditor : undefined}
             />
+            {isBB ? (
+              <>
+                <DetailFieldCard
+                  label="Period From"
+                  value={<FieldRenderer type="date" value={site.fields.invoice_period_from} />}
+                  onEdit={canWrite ? openInvEditor : undefined}
+                  onAdd={canWrite && !site.fields.invoice_period_from ? openInvEditor : undefined}
+                />
+                <DetailFieldCard
+                  label="Period To"
+                  value={<FieldRenderer type="date" value={site.fields.invoice_period_to} />}
+                  onEdit={canWrite ? openInvEditor : undefined}
+                  onAdd={canWrite && !site.fields.invoice_period_to ? openInvEditor : undefined}
+                />
+              </>
+            ) : null}
           </>
         ) : null}
       </div>
@@ -190,6 +238,28 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
               className={fieldCls}
             />
           </label>
+          {isBB ? (
+            <>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Valid From *</span>
+                <input
+                  type="date"
+                  value={draftPoValidFrom}
+                  onChange={(e) => setDraftPoValidFrom(e.target.value)}
+                  className={fieldCls}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Valid To *</span>
+                <input
+                  type="date"
+                  value={draftPoValidTo}
+                  onChange={(e) => setDraftPoValidTo(e.target.value)}
+                  className={fieldCls}
+                />
+              </label>
+            </>
+          ) : null}
           {poError ? <p className="text-sm text-red-600">{poError}</p> : null}
         </div>
       </Modal>
@@ -237,6 +307,28 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
                   className={fieldCls}
                 />
               </label>
+              {isBB ? (
+                <>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Period From *</span>
+                    <input
+                      type="date"
+                      value={draftPeriodFrom}
+                      onChange={(e) => setDraftPeriodFrom(e.target.value)}
+                      className={fieldCls}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Period To *</span>
+                    <input
+                      type="date"
+                      value={draftPeriodTo}
+                      onChange={(e) => setDraftPeriodTo(e.target.value)}
+                      className={fieldCls}
+                    />
+                  </label>
+                </>
+              ) : null}
             </>
           )}
 

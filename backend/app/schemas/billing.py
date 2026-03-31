@@ -31,6 +31,8 @@ class POOut(BaseModel):
 class POUpdate(BaseModel):
     po_no: Optional[str] = None
     po_date: Optional[date] = None
+    valid_from: Optional[date] = None
+    valid_to: Optional[date] = None
 
 
 class InvoiceCreate(BaseModel):

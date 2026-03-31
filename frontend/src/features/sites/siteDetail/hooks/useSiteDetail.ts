@@ -15,6 +15,7 @@ import type {
   JobBucket,
   OutcomeOption,
   ProjectRow,
+  RechargeRow,
   SiteDetail,
   StateRow,
   SubconRow,
@@ -46,6 +47,7 @@ export default function useSiteDetail() {
   const [subcons, setSubcons] = useState<SubconRow[]>([])
   const [transactionTypes, setTransactionTypes] = useState<Badge[]>([])
   const [outcomes, setOutcomes] = useState<OutcomeOption[]>([])
+  const [recharges, setRecharges] = useState<RechargeRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [editingField, setEditingField] = useState<EditingFieldState>(null)
@@ -73,6 +75,7 @@ export default function useSiteDetail() {
         subconsResponse,
         txTypesResponse,
         outcomesResponse,
+        rechargeResponse,
       ] = await Promise.all([
         api.get(`/sites/${projectKey}/${siteId}`),
         api.get(`/projects/${projectKey}/ui-fields`),
@@ -87,6 +90,7 @@ export default function useSiteDetail() {
         api.get(`/projects/${projectKey}/subcons`).catch(() => empty),
         api.get(`/projects/${projectKey}/transaction-types`).catch(() => empty),
         api.get(`/projects/${projectKey}/outcomes`).catch(() => empty),
+        projectKey === "bb" ? api.get(`/sites/bb/${numericSiteId}/recharges`).catch(() => empty) : Promise.resolve(empty),
       ])
 
       const nextProjects = projectsResponse.data as ProjectRow[]
@@ -122,6 +126,7 @@ export default function useSiteDetail() {
       setSubcons((subconsResponse.data as SubconRow[]) ?? [])
       setTransactionTypes(Array.isArray(txTypesResponse.data) ? txTypesResponse.data as Badge[] : [])
       setOutcomes(Array.isArray(outcomesResponse.data) ? outcomesResponse.data as OutcomeOption[] : [])
+      setRecharges(projectKey === "bb" && Array.isArray(rechargeResponse.data) ? rechargeResponse.data as RechargeRow[] : [])
     } catch (err) {
       logError({
         error_type: "js_exception",
@@ -228,6 +233,7 @@ export default function useSiteDetail() {
     subcons,
     transactionTypes,
     outcomes,
+    recharges,
     badgeById,
     stateById,
     badgeFields,

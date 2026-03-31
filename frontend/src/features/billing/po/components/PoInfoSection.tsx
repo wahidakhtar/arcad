@@ -13,28 +13,33 @@ function sanitizeDocNo(value: string): string {
 }
 
 export default function PoInfoSection({ po, onSaved }: { po: PO; onSaved: () => Promise<void> }) {
+  const isBB = po.project_name?.toLowerCase() === "broadband" || po.project_label?.toLowerCase() === "broadband"
   const [editing, setEditing] = useState(false)
   const [draftNo, setDraftNo] = useState("")
   const [draftDate, setDraftDate] = useState("")
+  const [draftValidFrom, setDraftValidFrom] = useState("")
+  const [draftValidTo, setDraftValidTo] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
 
   function openEditor() {
     setDraftNo(po.po_no ?? "")
     setDraftDate(po.po_date ?? "")
+    setDraftValidFrom(po.valid_from ?? "")
+    setDraftValidTo(po.valid_to ?? "")
     setError("")
     setEditing(true)
   }
 
   async function save() {
-    if (!draftNo.trim() || !draftDate) {
-      setError("PO Number and Date are both required.")
+    if (!draftNo.trim() || !draftDate || (isBB && (!draftValidFrom || !draftValidTo))) {
+      setError(isBB ? "PO Number, PO Date, Valid From, and Valid To are all required." : "PO Number and Date are both required.")
       return
     }
     setSaving(true)
     setError("")
     try {
-      await updatePo(po.id, { po_no: draftNo, po_date: draftDate })
+      await updatePo(po.id, { po_no: draftNo, po_date: draftDate, valid_from: isBB ? draftValidFrom : null, valid_to: isBB ? draftValidTo : null })
       setEditing(false)
       await onSaved()
     } catch (err: unknown) {
@@ -51,6 +56,12 @@ export default function PoInfoSection({ po, onSaved }: { po: PO; onSaved: () => 
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <DetailFieldCard label="PO Number" value={<FieldRenderer value={po.po_no} />} onEdit={openEditor} />
         <DetailFieldCard label="PO Date" value={<FieldRenderer value={po.po_date} />} onEdit={openEditor} />
+        {isBB ? (
+          <>
+            <DetailFieldCard label="Valid From" value={<FieldRenderer type="date" value={po.valid_from} />} onEdit={openEditor} />
+            <DetailFieldCard label="Valid To" value={<FieldRenderer type="date" value={po.valid_to} />} onEdit={openEditor} />
+          </>
+        ) : null}
       </div>
 
       <Modal
@@ -82,6 +93,18 @@ export default function PoInfoSection({ po, onSaved }: { po: PO; onSaved: () => 
               className={fieldCls}
             />
           </label>
+          {isBB ? (
+            <>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Valid From *</span>
+                <input type="date" value={draftValidFrom} onChange={(e) => setDraftValidFrom(e.target.value)} className={fieldCls} />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Valid To *</span>
+                <input type="date" value={draftValidTo} onChange={(e) => setDraftValidTo(e.target.value)} className={fieldCls} />
+              </label>
+            </>
+          ) : null}
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
         </div>
       </Modal>

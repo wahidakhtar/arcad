@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from datetime import timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -101,10 +102,14 @@ def get_site_projection(db: Session, project_key: str, site_id: int) -> dict[str
         site_data["po_id"] = po.id
         site_data["po_number"] = po.po_no
         site_data["po_date"] = str(po.po_date) if po.po_date else None
+        site_data["po_valid_from"] = str(po.valid_from) if po.valid_from else None
+        site_data["po_valid_to"] = str(po.valid_to) if po.valid_to else None
         site_data["po_status_id"] = po.po_status_id
         site_data["invoice_id"] = inv.id if inv else None
         site_data["invoice_number"] = inv.invoice_no if inv else None
         site_data["invoice_date"] = str(inv.invoice_date) if inv and inv.invoice_date else None
+        site_data["invoice_period_from"] = str(inv.period_from) if inv and inv.period_from else None
+        site_data["invoice_period_to"] = str(inv.period_to) if inv and inv.period_to else None
         site_data["invoice_submission_date"] = str(inv.submission_date) if inv and inv.submission_date else None
         site_data["invoice_settlement_date"] = str(inv.settlement_date) if inv and inv.settlement_date else None
         site_data["invoice_status_id"] = inv.invoice_status_id if inv else None
@@ -112,13 +117,44 @@ def get_site_projection(db: Session, project_key: str, site_id: int) -> dict[str
         site_data["po_id"] = None
         site_data["po_number"] = None
         site_data["po_date"] = None
+        site_data["po_valid_from"] = None
+        site_data["po_valid_to"] = None
         site_data["po_status_id"] = None
         site_data["invoice_id"] = None
         site_data["invoice_number"] = None
         site_data["invoice_date"] = None
+        site_data["invoice_period_from"] = None
+        site_data["invoice_period_to"] = None
         site_data["invoice_submission_date"] = None
         site_data["invoice_settlement_date"] = None
         site_data["invoice_status_id"] = None
+
+    if project_key == "bb":
+        from app.models.bb import Recharge
+
+        active_po = db.execute(
+            select(PO).where(PO.project_id == project.id, PO.site_id == site_id).order_by(PO.valid_to.desc().nullslast(), PO.id.desc())
+        ).scalars().first()
+        active_invoice = None
+        if active_po is not None:
+            active_invoice = db.execute(
+                select(Invoice).where(Invoice.po_id == active_po.id).order_by(Invoice.period_to.desc().nullslast(), Invoice.id.desc())
+            ).scalars().first()
+        last_recharge = db.execute(
+            select(Recharge).where(Recharge.site_id == site_id).order_by(Recharge.date.desc(), Recharge.id.desc())
+        ).scalars().first()
+        next_invoice_date = None
+        if active_invoice is not None and active_invoice.period_to is not None and active_po is not None and active_po.valid_to and active_invoice.period_to < active_po.valid_to:
+            next_invoice_date = active_invoice.period_to + timedelta(days=1)
+        elif active_po is not None and active_invoice is None and active_po.valid_from is not None:
+            next_invoice_date = active_po.valid_from
+
+        site_data["active_po_number"] = active_po.po_no if active_po else None
+        site_data["active_invoice_number"] = active_invoice.invoice_no if active_invoice else None
+        site_data["active_invoice_status"] = active_invoice.invoice_status_id if active_invoice else None
+        site_data["last_recharge_date"] = str(last_recharge.date) if last_recharge else None
+        site_data["next_recharge_date"] = str(last_recharge.next_recharge_date) if last_recharge and last_recharge.next_recharge_date else None
+        site_data["next_invoice_date"] = str(next_invoice_date) if next_invoice_date else None
 
     return {
         "id": site.id,

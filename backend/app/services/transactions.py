@@ -14,6 +14,7 @@ from app.models.acc import Transaction
 from app.models.ops import SubconAssignment, Subcon
 from app.models.hr import User
 from app.services.common import get_recipient_type_id
+from app.services import acc_rules
 from app.schemas.transaction import TransactionCreate
 
 # Status keys that allow no further transitions
@@ -258,6 +259,9 @@ def update_status(
             status_code=409,
             detail="Transaction was modified by another user",
         )
+
+    if target_key == "exct" and type_badge is not None and type_badge.key == "rec" and updated.project_id == acc_rules._bb_project_id(db):
+        acc_rules.sync_bb_recharge_for_executed_transaction(db, updated)
 
     db.commit()
     db.refresh(updated)

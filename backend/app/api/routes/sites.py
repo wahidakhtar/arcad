@@ -12,7 +12,7 @@ from decimal import Decimal
 from app.api.auth import UserContext, get_current_user, permission_required
 from app.core.database import get_db
 from app.core.ws_manager import manager as ws_manager
-from app.schemas.site import SubconAssignmentRequest, FERemovalRequest, SiteCreate, SiteOut, SiteUpdate
+from app.schemas.site import FERemovalRequest, RechargeRequestCreate, SiteCreate, SiteOut, SiteUpdate, SubconAssignmentRequest
 from app.services import sites as sites_service
 from app.services import sites as site_service
 
@@ -123,6 +123,19 @@ def create_recharge(
     db: Session = Depends(get_db),
 ):
     return sites_service.create_recharge(db, user, site_id, payload.date, payload.amount, payload.validity, payload.uom)
+
+
+@router.post("/bb/{site_id}/recharge-requests", dependencies=[Depends(permission_required("request", "write"))])
+async def create_recharge_request(
+    site_id: int,
+    payload: RechargeRequestCreate,
+    user: UserContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    result = sites_service.create_recharge_request(db, user, site_id, payload.amount, payload.validity, payload.uom)
+    await ws_manager.broadcast({"type": "TRANSACTION_CREATED"})
+    await ws_manager.broadcast({"type": "SITE_UPDATED", "site_id": site_id, "project_key": "bb"})
+    return result
 
 
 @router.post("/bb/{site_id}/terminations", dependencies=[Depends(permission_required("site", "write"))])

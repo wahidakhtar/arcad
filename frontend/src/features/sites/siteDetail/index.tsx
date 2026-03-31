@@ -7,6 +7,7 @@ import Modal from "../../../components/ui/Modal"
 import { useAuth } from "../../../context/AuthContext"
 import { api } from "../../../lib/api"
 import { optionsForField } from "../siteDetailHelpers"
+import BBRechargeSection from "../BBRechargeSection"
 import SiteFEAssignmentSection from "../SiteFEAssignmentSection"
 import SiteTicketsSection from "../SiteTicketsSection"
 import SiteUpdatesSection from "../SiteUpdatesSection"
@@ -39,6 +40,7 @@ export default function SiteDetailPage() {
     jobBuckets,
     transactionTypes,
     outcomes,
+    recharges,
     badges,
     transitions,
     badgeById,
@@ -252,6 +254,21 @@ export default function SiteDetailPage() {
             projectKey={projectKey}
             onReload={loadPage}
           />
+          {projectKey === "bb" ? (
+            <BBRechargeSection
+              siteId={site.id}
+              recharges={recharges}
+              transactions={transactions}
+              badgeById={badgeById}
+              transitions={transitions}
+              reqBadgeId={reqBadgeId}
+              cancelBadgeId={cancelBadgeId}
+              canRequestWrite={canRequestWrite}
+              canTransactionWrite={canTransactionWrite}
+              statusKey={site.status_key}
+              onReload={loadPage}
+            />
+          ) : null}
           <SiteFEAssignmentSection
             currentSite={site}
             projectKey={projectKey}

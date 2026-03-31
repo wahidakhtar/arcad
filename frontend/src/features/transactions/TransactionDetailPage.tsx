@@ -146,7 +146,7 @@ export default function TransactionDetailPage() {
                       setExecModal({
                         open: true,
                         toId: t.to_id,
-                        title: typeBadge?.key === "ref" ? "Refund Date" : "Execution Date",
+                        title: typeBadge?.key === "ref" ? "Refund Date" : typeBadge?.key === "rec" ? "Recharge Date" : "Execution Date",
                       })
                     } else {
                       void applyTransition(t.to_id)

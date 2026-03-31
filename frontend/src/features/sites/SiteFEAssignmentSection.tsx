@@ -87,7 +87,7 @@ export default function SiteFEAssignmentSection({
   canSiteWrite: boolean
   onReload: () => Promise<void>
 }) {
-  const assigneeLabel = jobBuckets.length ? "FE" : "Subcon"
+  const assigneeLabel = projectKey === "bb" ? "Provider" : jobBuckets.length ? "FE" : "Subcon"
   const siteOutcome = String(currentSite.fields.outcome_label ?? "").trim().toLowerCase()
   const hasMultipleBuckets = jobBuckets.length > 1
   const [assignmentForm, setAssignmentForm] = useState({ bucket_id: "", subcon_id: "" })
@@ -381,9 +381,9 @@ export default function SiteFEAssignmentSection({
           )
         }) : <EmptyState text={subcons.length ? `No ${assigneeLabel} assignments yet` : `No ${assigneeLabel}s available for this project`} />}
       </div>
-      {transactions.some((transaction) => !transaction.recipient_id) ? (
+      {transactions.some((transaction) => !transaction.recipient_id && badgeById.get(transaction.type_id)?.key !== "rec") ? (
         <div className="mt-4 space-y-3">
-          {transactions.filter((transaction) => !transaction.recipient_id).map((transaction) => (
+          {transactions.filter((transaction) => !transaction.recipient_id && badgeById.get(transaction.type_id)?.key !== "rec").map((transaction) => (
             <SiteTransactionCard
               key={transaction.id}
               row={transaction}

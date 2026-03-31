@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from typing import Optional
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -63,6 +63,19 @@ class Recharge(Base):
     validity: Mapped[int] = mapped_column(Integer, nullable=False)
     months: Mapped[bool] = mapped_column(Boolean, nullable=False)
     next_recharge_date: Optional[Mapped[date]] = mapped_column(Date, nullable=True)
+
+
+class RechargeRequest(Base):
+    __tablename__ = "recharge_requests"
+    __table_args__ = {"schema": "schema_bb"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    transaction_id: Mapped[int] = mapped_column(ForeignKey("schema_acc.transactions.id"), nullable=False, unique=True)
+    site_id: Mapped[int] = mapped_column(ForeignKey("schema_bb.sites.id"), nullable=False)
+    validity: Mapped[int] = mapped_column(Integer, nullable=False)
+    months: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    recharge_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_bb.recharges.id"), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class Termination(Base):

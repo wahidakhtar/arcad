@@ -95,3 +95,13 @@ export type TransactionRow = {
   remarks?: string | null
   version: number
 }
+
+export type RechargeRow = {
+  id: number
+  site_id: number
+  date: string
+  amount: string
+  validity: number
+  uom: string
+  next_recharge_date?: string | null
+}

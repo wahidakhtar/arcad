@@ -12,6 +12,7 @@ export default function PoDetailPage() {
   if (loading) return <div className="p-6 text-jscolors-text/50">Loading PO details...</div>
   if (error) return <div className="p-6 text-red-600">{error}</div>
   if (!po) return <div className="p-6 text-jscolors-text/50">PO not found.</div>
+  const isBB = po.project_name?.toLowerCase() === "broadband" || po.project_label?.toLowerCase() === "broadband"
 
   return (
     <DetailPageLayout
@@ -30,7 +31,7 @@ export default function PoDetailPage() {
     >
       <div className="grid gap-6 2xl:grid-cols-[1.05fr_0.95fr]">
         <PoInfoSection po={po} onSaved={loadPage} />
-        <InvoiceTable invoices={invoices} onSaved={loadPage} />
+        <InvoiceTable invoices={invoices} isBB={isBB} onSaved={loadPage} />
       </div>
       <PoUpdatesSection poId={po.id} />
     </DetailPageLayout>

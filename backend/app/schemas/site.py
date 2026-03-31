@@ -37,6 +37,12 @@ class FERemovalRequest(BaseModel):
     final_cost: Decimal
 
 
+class RechargeRequestCreate(BaseModel):
+    amount: Decimal
+    validity: int
+    uom: str
+
+
 class SiteFinancials(BaseModel):
     budget: Decimal
     cost: Decimal
