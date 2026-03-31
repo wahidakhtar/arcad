@@ -482,6 +482,16 @@ def _update_active_subcon_label(db: Session, project_key: str, site_id: int, lab
     )
 
 
+def _can_deploy_staged_site(user: UserContext, project_id: int) -> bool:
+    allowed_roles = {("ops", "l3"), ("mgmt", "l2"), ("mgmt", "l3")}
+    for role in user.roles:
+        if (role.dept_key, role.level_key) not in allowed_roles:
+            continue
+        if role.global_scope or role.project_id == project_id:
+            return True
+    return False
+
+
 def _remove_active_assignment_with_current_cost(
     db: Session,
     *,
@@ -522,6 +532,34 @@ def get_site(db: Session, user: UserContext, project_key: str, site_id: int) -> 
     if projection is None:
         raise HTTPException(status_code=404, detail="Site not found")
     return SiteOut(**projection)
+
+
+def deploy_site(db: Session, user: UserContext, project_key: str, site_id: int) -> SiteOut:
+    project = get_project(db, project_key)
+    ensure_permission(user, db, project_key=project_key, tag="site", action="write")
+    if not _can_deploy_staged_site(user, project.id):
+        raise HTTPException(status_code=403, detail="Only Ops L3 or Mgmt L2/L3 can deploy staged sites")
+
+    model = get_site_model(project_key)
+    site = db.get(model, site_id)
+    if site is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    badges = badge_map(db)
+    stage_badge = next((badge for badge in badges.values() if badge.key == "stage"), None)
+    permission_wait_badge = next((badge for badge in badges.values() if badge.key == "p_wait"), None)
+    if stage_badge is None or permission_wait_badge is None:
+        raise HTTPException(status_code=500, detail="Required site badges are not configured")
+    if site.status_id != stage_badge.id:
+        raise HTTPException(status_code=400, detail="Only staged sites can be deployed")
+
+    site.status_id = permission_wait_badge.id
+    if hasattr(site, "active"):
+        site.active = True
+    if hasattr(site, "version"):
+        site.version = (site.version or 0) + 1
+    db.commit()
+    return get_site(db, user, project_key, site_id)
 
 
 def update_site(db: Session, user: UserContext, project_key: str, site_id: int, data: dict) -> dict:

@@ -1,6 +1,7 @@
 import { useState } from "react"
 
 import DetailPageLayout from "../../../components/layout/DetailPageLayout"
+import Button from "../../../components/ui/Button"
 import FieldRenderer from "../../../components/ui/FieldRenderer"
 import Modal from "../../../components/ui/Modal"
 import { useAuth } from "../../../context/AuthContext"
@@ -15,12 +16,14 @@ import SiteHeader from "./components/SiteHeader"
 import useSiteDetail from "./hooks/useSiteDetail"
 
 export default function SiteDetailPage() {
-  const { can } = useAuth()
+  const { can, roles } = useAuth()
   const [visitOutcomeOpen, setVisitOutcomeOpen] = useState(false)
   const [visitDateDraft, setVisitDateDraft] = useState("")
   const [outcomeDraft, setOutcomeDraft] = useState("")
   const [visitOutcomeSaving, setVisitOutcomeSaving] = useState(false)
   const [visitOutcomeError, setVisitOutcomeError] = useState("")
+  const [deploying, setDeploying] = useState(false)
+  const [deployError, setDeployError] = useState("")
   const {
     projectKey,
     site,
@@ -67,6 +70,13 @@ export default function SiteDetailPage() {
   const canReadAccUpdates = can("acc_update", "read")
   const cancelBadgeId = badges.find((badge) => badge.key === "cancel")?.id
   const reqBadgeId = badges.find((badge) => badge.key === "req")?.id
+  const canDeployStagedSite = Boolean(
+    project?.id && roles.some((role) => (
+      ((role.dept_key === "ops" && role.level_key === "l3") || (role.dept_key === "mgmt" && (role.level_key === "l2" || role.level_key === "l3")))
+        && (role.project_id === null || role.project_id === project.id)
+    )),
+  )
+  const showDeployButton = canSiteWrite && canDeployStagedSite && site.status_key === "stage"
 
   function openVisitOutcomeEditor() {
     setVisitDateDraft((currentSite.fields.visit_date as string | null) ?? "")
@@ -99,6 +109,20 @@ export default function SiteDetailPage() {
     }
   }
 
+  async function deploySite() {
+    setDeploying(true)
+    setDeployError("")
+    try {
+      await api.post(`/sites/${projectKey}/${currentSite.id}/deploy`)
+      await loadPage()
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setDeployError(detail ?? "Failed to deploy site.")
+    } finally {
+      setDeploying(false)
+    }
+  }
+
   return (
     <DetailPageLayout
       backHref={`/projects/${projectKey}`}
@@ -116,6 +140,20 @@ export default function SiteDetailPage() {
       }
     >
       <div className="space-y-6">
+        {showDeployButton || deployError ? (
+          <section className="glass-panel flex flex-col gap-3 p-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Deployment</p>
+              <p className="mt-2 text-sm text-jscolors-text/65">Move this site from staged to Permission Awaited.</p>
+              {deployError ? <p className="mt-2 text-sm text-red-600">{deployError}</p> : null}
+            </div>
+            {showDeployButton ? (
+              <Button type="button" onClick={() => void deploySite()} disabled={deploying}>
+                {deploying ? "Deploying..." : "Deploy Site"}
+              </Button>
+            ) : null}
+          </section>
+        ) : null}
         <div className="grid gap-6 2xl:grid-cols-[1.05fr_0.95fr]">
           <SiteFieldsSection
             site={site}
