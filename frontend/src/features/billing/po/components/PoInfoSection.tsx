@@ -6,29 +6,36 @@ import Modal from "../../../../components/ui/Modal"
 import { updatePo } from "../../../../services/billingService"
 import type { PO } from "../../types"
 
-type EditableField = "po_no" | "po_date" | null
-
 const fieldCls = "w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
 
+function sanitizeDocNo(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9/-]/g, "")
+}
+
 export default function PoInfoSection({ po, onSaved }: { po: PO; onSaved: () => Promise<void> }) {
-  const [editingField, setEditingField] = useState<EditableField>(null)
-  const [draft, setDraft] = useState("")
+  const [editing, setEditing] = useState(false)
+  const [draftNo, setDraftNo] = useState("")
+  const [draftDate, setDraftDate] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
 
-  function openEditor(field: Exclude<EditableField, null>) {
-    setEditingField(field)
-    setDraft(field === "po_date" ? (po.po_date ?? "") : (po.po_no ?? ""))
+  function openEditor() {
+    setDraftNo(po.po_no ?? "")
+    setDraftDate(po.po_date ?? "")
     setError("")
+    setEditing(true)
   }
 
-  async function saveField() {
-    if (!editingField) return
+  async function save() {
+    if (!draftNo.trim() || !draftDate) {
+      setError("PO Number and Date are both required.")
+      return
+    }
     setSaving(true)
     setError("")
     try {
-      await updatePo(po.id, { [editingField]: draft || null })
-      setEditingField(null)
+      await updatePo(po.id, { po_no: draftNo, po_date: draftDate })
+      setEditing(false)
       await onSaved()
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -42,31 +49,36 @@ export default function PoInfoSection({ po, onSaved }: { po: PO; onSaved: () => 
     <section className="glass-panel p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">PO Information</p>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
-        <DetailFieldCard label="PO Number" value={<FieldRenderer value={po.po_no} />} onEdit={() => openEditor("po_no")} />
-        <DetailFieldCard label="PO Date" value={<FieldRenderer value={po.po_date} />} onEdit={() => openEditor("po_date")} />
+        <DetailFieldCard label="PO Number" value={<FieldRenderer value={po.po_no} />} onEdit={openEditor} />
+        <DetailFieldCard label="PO Date" value={<FieldRenderer value={po.po_date} />} onEdit={openEditor} />
       </div>
 
       <Modal
-        isOpen={editingField !== null}
-        title={editingField === "po_date" ? "Edit PO Date" : "Edit PO Number"}
-        onClose={() => {
-          setEditingField(null)
-          setError("")
-        }}
+        isOpen={editing}
+        title="Edit PO Details"
+        onClose={() => { setEditing(false); setError("") }}
         size="sm"
         submitLabel="Save"
-        onSubmit={() => void saveField()}
+        onSubmit={() => void save()}
         isSubmitting={saving}
       >
         <div className="space-y-4">
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">
-              {editingField === "po_date" ? "PO Date" : "PO Number"}
-            </span>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">PO Number *</span>
             <input
-              type={editingField === "po_date" ? "date" : "text"}
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
+              type="text"
+              value={draftNo}
+              onChange={(e) => setDraftNo(sanitizeDocNo(e.target.value))}
+              className={fieldCls}
+              placeholder="e.g. PO/2026/001"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">PO Date *</span>
+            <input
+              type="date"
+              value={draftDate}
+              onChange={(e) => setDraftDate(e.target.value)}
               className={fieldCls}
             />
           </label>

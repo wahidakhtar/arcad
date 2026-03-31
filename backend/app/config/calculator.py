@@ -201,7 +201,7 @@ def subcon_balance(
     job_scales: dict[str, str],
 ) -> Decimal:
     if assignment.active and site.get("status_key") != COMPLETED_STATUS:
-        return ZERO
+        return None
     return subcon_cost(site, assignment, assignments, transactions, rate_rows, job_scales) - subcon_paid(transactions, assignment.subcon_id) - scrap_value(site, assignment.bucket_key)
 
 
@@ -239,7 +239,7 @@ def calculate_site_financials(
             }
         )
 
-    site_balance = ZERO if site.get("status_key") != COMPLETED_STATUS else cost - paid - scrap_value(site, "bmd")
+    site_balance = None if site.get("status_key") != COMPLETED_STATUS else cost - paid - scrap_value(site, "bmd")
     return {"budget": budget, "cost": cost, "paid": paid, "balance": site_balance, "subcon_rows": by_subcon}
 
 

@@ -32,9 +32,11 @@ export default function SiteFieldsSection({
         {fields.map((field) => {
           const displayValue = displayValueForField(site, field, badgeById, stateById)
           const isReadOnly = READ_ONLY_FIELDS.has(field.key)
+          const isCompleted = site.status_key === "comp"
           const rawValue = draftValueForField(site, field)
           const isEmpty = field.type !== "bool" && (rawValue === "" || rawValue === null || rawValue === undefined)
           const isFinancial = ["budget", "cost", "paid", "balance"].includes(field.key)
+          const canEdit = canSiteWrite && !isReadOnly && !isCompleted
 
           return (
             <DetailFieldCard
@@ -47,8 +49,8 @@ export default function SiteFieldsSection({
               ) : (
                 <FieldRenderer field={field} value={displayValue} />
               )}
-              onAdd={canSiteWrite && !isReadOnly && isEmpty ? () => onOpenField(field) : undefined}
-              onEdit={canSiteWrite && !isReadOnly && !isEmpty ? () => onOpenField(field) : undefined}
+              onAdd={canEdit && isEmpty ? () => onOpenField(field) : undefined}
+              onEdit={canEdit && !isEmpty ? () => onOpenField(field) : undefined}
             />
           )
         })}

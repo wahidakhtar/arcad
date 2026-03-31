@@ -4,7 +4,7 @@ export function formatValue(value: unknown): string {
 }
 
 export function formatCurrency(amount: number | string | null | undefined): string {
-  if (amount === null || amount === undefined) return "-"
+  if (amount === null || amount === undefined) return "N/A"
   const num = typeof amount === "string" ? parseFloat(amount) : amount
   if (isNaN(num)) return "-"
   return `₹ ${num.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`

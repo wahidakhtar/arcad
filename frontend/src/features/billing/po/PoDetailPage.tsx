@@ -38,7 +38,7 @@ export default function PoDetailPage() {
     >
       <div className="grid gap-6 2xl:grid-cols-[1.05fr_0.95fr]">
         <PoInfoSection po={po} onSaved={loadPage} />
-        <InvoiceTable invoices={invoices} />
+        <InvoiceTable invoices={invoices} onSaved={loadPage} />
       </div>
       <PoUpdatesSection poId={po.id} />
     </DetailPageLayout>

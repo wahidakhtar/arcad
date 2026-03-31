@@ -295,6 +295,24 @@ def update_po(db: Session, po_id: int, data: dict) -> dict | None:
     return get_po(db, po_id)
 
 
+def update_invoice(db: Session, invoice_id: int, data: dict) -> dict | None:
+    row = db.get(Invoice, invoice_id)
+    if row is None:
+        return None
+    if "invoice_no" in data:
+        row.invoice_no = data["invoice_no"] or None
+    if "submission_date" in data:
+        row.submission_date = data["submission_date"] or None
+    row.version = (row.version or 0) + 1
+    db.commit()
+    result = db.execute(
+        select(Invoice, Badge.label.label("status_label"), Badge.color.label("status_color"))
+        .join(Badge, Badge.id == Invoice.invoice_status_id)
+        .where(Invoice.id == invoice_id)
+    ).one()
+    return _serialize_invoice(result.Invoice, result.status_label, result.status_color)
+
+
 def update_invoice_status(db: Session, invoice_id: int, status_id: int) -> Invoice:
     row = db.get(Invoice, invoice_id)
     row.invoice_status_id = status_id

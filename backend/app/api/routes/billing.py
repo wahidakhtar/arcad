@@ -90,6 +90,16 @@ async def create_invoice(payload: InvoiceCreate, db: Session = Depends(get_db)):
     return result
 
 
+@router.patch("/invoices/{invoice_id}", dependencies=[Depends(permission_required("billing", "write"))])
+async def update_invoice(invoice_id: int, payload: dict, db: Session = Depends(get_db)):
+    result = billing_service.update_invoice(db, invoice_id, payload)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    po_id = result.get("po_id") if isinstance(result, dict) else None
+    await ws_manager.broadcast({"type": "INVOICE_UPDATED", "po_id": po_id})
+    return result
+
+
 @router.patch("/invoices/{invoice_id}/status", dependencies=[Depends(permission_required("billing", "write"))])
 async def update_invoice_status(invoice_id: int, payload: StatusUpdate, db: Session = Depends(get_db)):
     result = billing_service.update_invoice_status(db, invoice_id, payload.status_id)
