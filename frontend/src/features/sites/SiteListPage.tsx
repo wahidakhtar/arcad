@@ -150,6 +150,7 @@ export default function SiteListPage() {
           label: field.label,
           type: field.type,
           minWidth: field.key === "ckt_id" ? 120 : field.key === "status" ? 140 : field.type === "date" ? 110 : 100,
+          ...( ["cost", "paid", "balance"].includes(field.key) ? { align: "right" as const } : {}),
         }))
       setColumns(listColumns)
       setFormFields(uiFields.filter((f) => f.form_view).map(({ key, label, type }) => ({ key, label, type })))

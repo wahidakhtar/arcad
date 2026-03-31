@@ -60,7 +60,7 @@ export default function DataTable<T extends Record<string, unknown>>({
           style={{ gridTemplateColumns, ...(minTableWidth ? { minWidth: minTableWidth } : {}) }}
         >
           {columns.map((column) => (
-            <div key={column.key} className={column.align === "right" ? "text-right" : ""}>
+            <div key={column.key} className={column.align === "right" ? "text-right pr-4" : ""}>
               {column.label}
             </div>
           ))}
