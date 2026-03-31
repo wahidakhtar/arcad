@@ -41,7 +41,7 @@ class SiteFinancials(BaseModel):
     budget: Decimal
     cost: Decimal
     paid: Decimal
-    balance: Decimal
+    balance: Optional[Decimal] = None
 
 
 class SubconSummary(BaseModel):
@@ -52,7 +52,7 @@ class SubconSummary(BaseModel):
     active: bool
     cost: Decimal
     paid: Decimal
-    balance: Decimal
+    balance: Optional[Decimal] = None
 
 
 class SiteOut(BaseModel):
