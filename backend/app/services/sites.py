@@ -496,8 +496,9 @@ def _validate_bucket_for_project(db: Session, project_id: int, bucket_id: Option
 
 
 def _update_active_subcon_label(db: Session, project_key: str, site_id: int, label: Optional[str]) -> None:
+    field_name = "active_provider" if project_key == "bb" else "active_fe"
     db.execute(
-        text(f"UPDATE schema_{project_key}.sites SET active_fe = :label WHERE id = :site_id"),
+        text(f"UPDATE schema_{project_key}.sites SET {field_name} = :label WHERE id = :site_id"),
         {"label": label, "site_id": site_id},
     )
 

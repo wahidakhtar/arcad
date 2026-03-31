@@ -141,7 +141,6 @@ export default function useTransactionsPage() {
               typeKey: typeBadge?.key,
               defaultLabel: typeBadge?.label,
               siteId: tx.site_id,
-              recipientId: tx.recipient_id,
               remarks: tx.remarks,
             }),
             status_id: tx.status_id,

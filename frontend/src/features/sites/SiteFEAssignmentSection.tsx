@@ -5,14 +5,14 @@ import EmptyState from "../../components/ui/EmptyState"
 import Modal from "../../components/ui/Modal"
 import SelectInput from "../../components/ui/SelectInput"
 import { api } from "../../lib/api"
-import { formatCurrency, formatDate } from "../../utils/format"
-import type { Badge, JobBucket, ProjectRow, RechargeRow, SiteDetail, SubconRow, TransactionRow, TransitionRow } from "./siteDetailTypes"
+import { formatCurrency } from "../../utils/format"
+import type { Badge, JobBucket, ProjectRow, SiteDetail, SubconRow, TransactionRow, TransitionRow } from "./siteDetailTypes"
 import { bucketLabel, transitionOptions } from "./siteDetailHelpers"
 import SiteTransactionCard from "./SiteTransactionCard"
 
 type TxModal = { open: boolean; subconId: number; bucketKey: string; subconLabel: string; type_id: string; amount: string; err: string }
 type RemoveModal = { open: boolean; assignment_id: number; subcon_label: string; final_cost: string; err: string }
-type RechargeModal = { open: boolean; amount: string; validity: string; uom: string; err: string }
+type RechargeModal = { open: boolean; subconId: number; subconLabel: string; amount: string; validity: string; uom: string; err: string }
 
 function ActionPanel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
@@ -62,7 +62,6 @@ export default function SiteFEAssignmentSection({
   jobBuckets,
   subcons,
   transactions,
-  recharges,
   badgeById,
   transactionTypes,
   transitions,
@@ -80,7 +79,6 @@ export default function SiteFEAssignmentSection({
   jobBuckets: JobBucket[]
   subcons: SubconRow[]
   transactions: TransactionRow[]
-  recharges: RechargeRow[]
   badgeById: Map<number, Badge>
   transactionTypes: Badge[]
   transitions: TransitionRow[]
@@ -104,7 +102,7 @@ export default function SiteFEAssignmentSection({
   const [removing, setRemoving] = useState(false)
   const [txModal, setTxModal] = useState<TxModal>({ open: false, subconId: 0, bucketKey: "", subconLabel: "", type_id: "", amount: "", err: "" })
   const [txSubmitting, setTxSubmitting] = useState(false)
-  const [rechargeModal, setRechargeModal] = useState<RechargeModal>({ open: false, amount: "", validity: "", uom: "days", err: "" })
+  const [rechargeModal, setRechargeModal] = useState<RechargeModal>({ open: false, subconId: 0, subconLabel: "", amount: "", validity: "", uom: "days", err: "" })
   const [rechargeSubmitting, setRechargeSubmitting] = useState(false)
 
   const reqTransitions = transitionOptions(transitions, "transaction_status", reqBadgeId ?? 0)
@@ -200,20 +198,21 @@ export default function SiteFEAssignmentSection({
   }
 
   async function submitRechargeRequest() {
-    if (!project?.id || !fePayTypeId || !rechargeModal.amount || !rechargeModal.validity) return
+    if (!project?.id || !fePayTypeId || !rechargeModal.subconId || !rechargeModal.amount || !rechargeModal.validity) return
     setRechargeSubmitting(true)
     setRechargeModal((current) => ({ ...current, err: "" }))
     try {
       await api.post("/transactions", {
         project_id: project.id,
         site_id: currentSite.id,
+        recipient_id: rechargeModal.subconId,
         type_id: fePayTypeId,
         amount: rechargeModal.amount,
         remarks: `Recharge request • ${Number(rechargeModal.validity)} ${rechargeModal.uom}`,
         recharge_validity: Number(rechargeModal.validity),
         recharge_uom: rechargeModal.uom,
       })
-      setRechargeModal({ open: false, amount: "", validity: "", uom: "days", err: "" })
+      setRechargeModal({ open: false, subconId: 0, subconLabel: "", amount: "", validity: "", uom: "days", err: "" })
       await onReload()
     } catch (error: unknown) {
       const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -230,15 +229,6 @@ export default function SiteFEAssignmentSection({
       title={isBB ? `${assigneeLabel} Assignment & Transactions` : `${assigneeLabel} Assignment`}
       action={
         <div className="flex flex-wrap gap-2">
-          {isBB && canRequestWrite ? (
-            <Button
-              type="button"
-              disabled={statusKey === "term"}
-              onClick={() => setRechargeModal({ open: true, amount: "", validity: "", uom: "days", err: "" })}
-            >
-              Request Recharge
-            </Button>
-          ) : null}
           <Button
             type="button"
             disabled={hasActiveAssignment}
@@ -379,6 +369,7 @@ export default function SiteFEAssignmentSection({
         isSubmitting={rechargeSubmitting}
       >
         <div className="space-y-4">
+          <p className="text-sm text-jscolors-text/60">{rechargeModal.subconLabel}</p>
           <label className="block">
             <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Amount *</span>
             <input
@@ -428,7 +419,14 @@ export default function SiteFEAssignmentSection({
                     <Button
                       type="button"
                       variant="secondary"
-                      onClick={() => setTxModal({ open: true, subconId: row.subcon_id, bucketKey: row.bucket_key, subconLabel: displayLabel, type_id: "", amount: "", err: "" })}
+                      disabled={isBB && statusKey === "term"}
+                      onClick={() => {
+                        if (isBB) {
+                          setRechargeModal({ open: true, subconId: row.subcon_id, subconLabel: displayLabel, amount: "", validity: "", uom: "days", err: "" })
+                          return
+                        }
+                        setTxModal({ open: true, subconId: row.subcon_id, bucketKey: row.bucket_key, subconLabel: displayLabel, type_id: "", amount: "", err: "" })
+                      }}
                     >
                       Request
                     </Button>
@@ -479,19 +477,6 @@ export default function SiteFEAssignmentSection({
               onUpdate={onReload}
               projectKey={projectKey}
             />
-          ))}
-        </div>
-      ) : null}
-      {isBB && recharges.length ? (
-        <div className="mt-4 space-y-3">
-          {recharges.map((row) => (
-            <div key={row.id} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
-              <div className="text-sm font-semibold text-jscolors-text">Recharge • {formatCurrency(row.amount)}</div>
-              <div className="mt-1 text-sm text-jscolors-text/60">
-                {formatDate(row.date)} • {row.validity} {row.uom}
-                {row.next_recharge_date ? ` • Next ${formatDate(row.next_recharge_date)}` : ""}
-              </div>
-            </div>
           ))}
         </div>
       ) : null}

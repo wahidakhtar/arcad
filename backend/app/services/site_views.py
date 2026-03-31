@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 from datetime import timedelta
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -72,6 +73,55 @@ def serialize_subcon_rows(db: Session, rows: list[dict[str, Any]]) -> list[dict[
         }
         for row in rows
     ]
+
+
+def _bb_provider_rows(db: Session, project_id: int, site_id: int) -> list[dict[str, Any]]:
+    badges = badge_map(db)
+    assignments = db.execute(
+        select(SubconAssignment)
+        .where(SubconAssignment.project_id == project_id, SubconAssignment.site_id == site_id)
+        .order_by(SubconAssignment.assigned_at.asc(), SubconAssignment.id.asc())
+    ).scalars().all()
+    if not assignments:
+        return []
+
+    subcons = {
+        subcon.id: subcon.name
+        for subcon in db.execute(
+            select(Subcon).where(Subcon.id.in_([assignment.subcon_id for assignment in assignments]))
+        ).scalars().all()
+    }
+    transactions = db.execute(
+        select(Transaction).where(Transaction.project_id == project_id, Transaction.site_id == site_id)
+    ).scalars().all()
+
+    rows: list[dict[str, Any]] = []
+    for assignment in assignments:
+        paid = Decimal("0")
+        for tx in transactions:
+            if tx.recipient_id != assignment.subcon_id:
+                continue
+            tx_type = badges.get(tx.type_id)
+            tx_status = badges.get(tx.status_id)
+            if tx_type is None or tx_status is None or tx_status.key != "exct":
+                continue
+            if tx_type.key == "fe_pay":
+                paid += tx.amount
+            elif tx_type.key == "ref":
+                paid -= tx.amount
+        rows.append(
+            {
+                "assignment_id": assignment.id,
+                "subcon_id": assignment.subcon_id,
+                "subcon_label": subcons.get(assignment.subcon_id, f"Subcon {assignment.subcon_id}"),
+                "bucket_key": "provider",
+                "active": assignment.active,
+                "cost": Decimal("0"),
+                "paid": paid,
+                "balance": None,
+            }
+        )
+    return rows
 
 
 def get_site_projection(db: Session, project_key: str, site_id: int) -> dict[str, Any] | None:
@@ -156,6 +206,10 @@ def get_site_projection(db: Session, project_key: str, site_id: int) -> dict[str
         site_data["next_recharge_date"] = str(last_recharge.next_recharge_date) if last_recharge and last_recharge.next_recharge_date else None
         site_data["next_invoice_date"] = str(next_invoice_date) if next_invoice_date else None
 
+    subcon_rows = serialize_subcon_rows(db, financials.get("subcon_rows", []))
+    if project_key == "bb":
+        subcon_rows = _bb_provider_rows(db, project.id, site_id)
+
     return {
         "id": site.id,
         "project_key": project_key,
@@ -165,5 +219,5 @@ def get_site_projection(db: Session, project_key: str, site_id: int) -> dict[str
         "receiving_date": site.receiving_date,
         "fields": site_data,
         "financials": {key: financials[key] for key in ["budget", "cost", "paid", "balance"]},
-        "subcon_rows": serialize_subcon_rows(db, financials.get("subcon_rows", [])),
+        "subcon_rows": subcon_rows,
     }

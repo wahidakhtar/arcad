@@ -84,7 +84,6 @@ export default function SiteTransactionCard({
           projectKey,
           typeKey,
           siteId: row.site_id,
-          recipientId: row.recipient_id,
           remarks: row.remarks,
         }))
         setShowExecModal(true)
@@ -127,7 +126,6 @@ export default function SiteTransactionCard({
               typeKey,
               defaultLabel: badges.get(row.type_id)?.label,
               siteId: row.site_id,
-              recipientId: row.recipient_id,
               remarks: row.remarks,
             })} • {formatCurrency(row.amount)}
           </div>

@@ -39,7 +39,6 @@ export default function SiteDetailPage() {
     jobBuckets,
     transactionTypes,
     outcomes,
-    recharges,
     badges,
     transitions,
     badgeById,
@@ -260,7 +259,6 @@ export default function SiteDetailPage() {
             jobBuckets={jobBuckets}
             subcons={subcons}
             transactions={transactions}
-            recharges={recharges}
             badgeById={badgeById}
             transactionTypes={transactionTypes}
             transitions={transitions}

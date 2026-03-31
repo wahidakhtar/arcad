@@ -41,7 +41,6 @@ export default function TransactionDetailPage() {
     typeKey: typeBadge?.key,
     defaultLabel: typeBadge?.label,
     siteId: tx.site_id,
-    recipientId: tx.recipient_id,
     remarks: tx.remarks,
   })
 
@@ -159,7 +158,6 @@ export default function TransactionDetailPage() {
                           projectKey,
                           typeKey: typeBadge?.key,
                           siteId: tx.site_id,
-                          recipientId: tx.recipient_id,
                           remarks: tx.remarks,
                         }),
                       })
