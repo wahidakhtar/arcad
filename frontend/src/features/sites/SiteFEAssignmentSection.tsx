@@ -5,13 +5,14 @@ import EmptyState from "../../components/ui/EmptyState"
 import Modal from "../../components/ui/Modal"
 import SelectInput from "../../components/ui/SelectInput"
 import { api } from "../../lib/api"
-import { formatCurrency } from "../../utils/format"
-import type { Badge, JobBucket, ProjectRow, SiteDetail, SubconRow, TransactionRow, TransitionRow } from "./siteDetailTypes"
+import { formatCurrency, formatDate } from "../../utils/format"
+import type { Badge, JobBucket, ProjectRow, RechargeRow, SiteDetail, SubconRow, TransactionRow, TransitionRow } from "./siteDetailTypes"
 import { bucketLabel, transitionOptions } from "./siteDetailHelpers"
 import SiteTransactionCard from "./SiteTransactionCard"
 
 type TxModal = { open: boolean; subconId: number; bucketKey: string; subconLabel: string; type_id: string; amount: string; err: string }
 type RemoveModal = { open: boolean; assignment_id: number; subcon_label: string; final_cost: string; err: string }
+type RechargeModal = { open: boolean; amount: string; validity: string; uom: string; err: string }
 
 function ActionPanel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
@@ -61,6 +62,7 @@ export default function SiteFEAssignmentSection({
   jobBuckets,
   subcons,
   transactions,
+  recharges,
   badgeById,
   transactionTypes,
   transitions,
@@ -69,6 +71,7 @@ export default function SiteFEAssignmentSection({
   canRequestWrite,
   canTransactionWrite,
   canSiteWrite,
+  statusKey,
   onReload,
 }: {
   currentSite: SiteDetail
@@ -77,6 +80,7 @@ export default function SiteFEAssignmentSection({
   jobBuckets: JobBucket[]
   subcons: SubconRow[]
   transactions: TransactionRow[]
+  recharges: RechargeRow[]
   badgeById: Map<number, Badge>
   transactionTypes: Badge[]
   transitions: TransitionRow[]
@@ -85,9 +89,11 @@ export default function SiteFEAssignmentSection({
   canRequestWrite: boolean
   canTransactionWrite: boolean
   canSiteWrite: boolean
+  statusKey: string
   onReload: () => Promise<void>
 }) {
   const assigneeLabel = projectKey === "bb" ? "Provider" : jobBuckets.length ? "FE" : "Subcon"
+  const isBB = projectKey === "bb"
   const siteOutcome = String(currentSite.fields.outcome_label ?? "").trim().toLowerCase()
   const hasMultipleBuckets = jobBuckets.length > 1
   const [assignmentForm, setAssignmentForm] = useState({ bucket_id: "", subcon_id: "" })
@@ -98,9 +104,12 @@ export default function SiteFEAssignmentSection({
   const [removing, setRemoving] = useState(false)
   const [txModal, setTxModal] = useState<TxModal>({ open: false, subconId: 0, bucketKey: "", subconLabel: "", type_id: "", amount: "", err: "" })
   const [txSubmitting, setTxSubmitting] = useState(false)
+  const [rechargeModal, setRechargeModal] = useState<RechargeModal>({ open: false, amount: "", validity: "", uom: "days", err: "" })
+  const [rechargeSubmitting, setRechargeSubmitting] = useState(false)
 
   const reqTransitions = transitionOptions(transitions, "transaction_status", reqBadgeId ?? 0)
   const hasActiveAssignment = currentSite.subcon_rows.some((row) => row.active)
+  const fePayTypeId = transactionTypes.find((type) => type.key === "fe_pay")?.id
   const selectedBucket = jobBuckets.length === 1
     ? jobBuckets[0]
     : (jobBuckets.find((bucket) => String(bucket.id) === assignmentForm.bucket_id) ?? null)
@@ -190,28 +199,63 @@ export default function SiteFEAssignmentSection({
     }
   }
 
+  async function submitRechargeRequest() {
+    if (!project?.id || !fePayTypeId || !rechargeModal.amount || !rechargeModal.validity) return
+    setRechargeSubmitting(true)
+    setRechargeModal((current) => ({ ...current, err: "" }))
+    try {
+      await api.post("/transactions", {
+        project_id: project.id,
+        site_id: currentSite.id,
+        type_id: fePayTypeId,
+        amount: rechargeModal.amount,
+        remarks: `Recharge request • ${Number(rechargeModal.validity)} ${rechargeModal.uom}`,
+        recharge_validity: Number(rechargeModal.validity),
+        recharge_uom: rechargeModal.uom,
+      })
+      setRechargeModal({ open: false, amount: "", validity: "", uom: "days", err: "" })
+      await onReload()
+    } catch (error: unknown) {
+      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setRechargeModal((current) => ({ ...current, err: detail ?? "Failed to submit request." }))
+    } finally {
+      setRechargeSubmitting(false)
+    }
+  }
+
   if (!canSiteWrite) return null
 
   return (
     <ActionPanel
-      title={`${assigneeLabel} Assignment`}
+      title={isBB ? `${assigneeLabel} Assignment & Transactions` : `${assigneeLabel} Assignment`}
       action={
-        <Button
-          type="button"
-          disabled={hasActiveAssignment}
-          onClick={() => {
-            if (hasActiveAssignment) return
-            const initialBucket = firstAvailableBucket()
-            setAssignmentForm({
-              bucket_id: initialBucket ? String(initialBucket.id) : "",
-              subcon_id: "",
-            })
-            setAssignErr("")
-            setAssignModal(true)
-          }}
-        >
-          {`Assign ${assigneeLabel}`}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {isBB && canRequestWrite ? (
+            <Button
+              type="button"
+              disabled={statusKey === "term"}
+              onClick={() => setRechargeModal({ open: true, amount: "", validity: "", uom: "days", err: "" })}
+            >
+              Request Recharge
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            disabled={hasActiveAssignment}
+            onClick={() => {
+              if (hasActiveAssignment) return
+              const initialBucket = firstAvailableBucket()
+              setAssignmentForm({
+                bucket_id: initialBucket ? String(initialBucket.id) : "",
+                subcon_id: "",
+              })
+              setAssignErr("")
+              setAssignModal(true)
+            }}
+          >
+            {`Assign ${assigneeLabel}`}
+          </Button>
+        </div>
       }
     >
       <Modal
@@ -325,6 +369,45 @@ export default function SiteFEAssignmentSection({
         </div>
       </Modal>
 
+      <Modal
+        isOpen={rechargeModal.open}
+        title="Request Recharge"
+        onClose={() => setRechargeModal((current) => ({ ...current, open: false, err: "" }))}
+        size="sm"
+        submitLabel="Submit Request"
+        onSubmit={() => void submitRechargeRequest()}
+        isSubmitting={rechargeSubmitting}
+      >
+        <div className="space-y-4">
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Amount *</span>
+            <input
+              type="number"
+              value={rechargeModal.amount}
+              onChange={(event) => setRechargeModal((current) => ({ ...current, amount: event.target.value }))}
+              className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Validity *</span>
+            <input
+              type="number"
+              value={rechargeModal.validity}
+              onChange={(event) => setRechargeModal((current) => ({ ...current, validity: event.target.value }))}
+              className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Unit *</span>
+            <SelectInput value={rechargeModal.uom} onChange={(event) => setRechargeModal((current) => ({ ...current, uom: event.target.value }))}>
+              <option value="days">Days</option>
+              <option value="months">Months</option>
+            </SelectInput>
+          </label>
+          {rechargeModal.err ? <p className="text-sm text-red-600">{rechargeModal.err}</p> : null}
+        </div>
+      </Modal>
+
       <div className="space-y-3">
         {currentSite.subcon_rows.length ? currentSite.subcon_rows.map((row) => {
           const rowTransactions = transactions.filter((transaction) => transaction.recipient_id === row.subcon_id)
@@ -374,6 +457,7 @@ export default function SiteFEAssignmentSection({
                     canTransactionWrite={canTransactionWrite}
                     cancelBadgeId={cancelBadgeId}
                     onUpdate={onReload}
+                    projectKey={projectKey}
                   />
                 )) : <EmptyState text="No transactions for this subcon yet" />}
               </div>
@@ -393,7 +477,21 @@ export default function SiteFEAssignmentSection({
               canTransactionWrite={canTransactionWrite}
               cancelBadgeId={cancelBadgeId}
               onUpdate={onReload}
+              projectKey={projectKey}
             />
+          ))}
+        </div>
+      ) : null}
+      {isBB && recharges.length ? (
+        <div className="mt-4 space-y-3">
+          {recharges.map((row) => (
+            <div key={row.id} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
+              <div className="text-sm font-semibold text-jscolors-text">Recharge • {formatCurrency(row.amount)}</div>
+              <div className="mt-1 text-sm text-jscolors-text/60">
+                {formatDate(row.date)} • {row.validity} {row.uom}
+                {row.next_recharge_date ? ` • Next ${formatDate(row.next_recharge_date)}` : ""}
+              </div>
+            </div>
           ))}
         </div>
       ) : null}

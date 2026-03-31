@@ -10,6 +10,7 @@ import { useAuth } from "../../context/AuthContext"
 import { formatCurrency } from "../../utils/format"
 import { txStatusLabel } from "../sites/siteDetailHelpers"
 import { updateTransactionStatus } from "../../services/transactionService"
+import { transactionExecutionLabel, transactionTypeLabel } from "./transactionDisplay"
 import useTransactionDetail from "./hooks/useTransactionDetail"
 
 export default function TransactionDetailPage() {
@@ -17,7 +18,7 @@ export default function TransactionDetailPage() {
   const canTransactionWrite = can("transaction", "write")
   const canRequestWrite = can("request", "write")
 
-  const { tx, badgeById, transitions, cancelBadgeId, cktId, projectLabel, loading, error, loadData } =
+  const { tx, badgeById, transitions, cancelBadgeId, cktId, projectLabel, projectKey, loading, error, loadData } =
     useTransactionDetail()
 
   const [transitioning, setTransitioning] = useState(false)
@@ -35,6 +36,14 @@ export default function TransactionDetailPage() {
   const isReq = statusBadge?.key === "requested" || statusBadge?.key === "req"
   const availableTransitions = transitions.filter((t) => t.from_id === tx.status_id)
   const displayStatusLabel = txStatusLabel(typeBadge?.key ?? "", statusBadge?.key ?? "", statusBadge?.label ?? "")
+  const displayTypeLabel = transactionTypeLabel({
+    projectKey,
+    typeKey: typeBadge?.key,
+    defaultLabel: typeBadge?.label,
+    siteId: tx.site_id,
+    recipientId: tx.recipient_id,
+    remarks: tx.remarks,
+  })
 
   async function applyTransition(toId: number, executionDate?: string) {
     if (!tx) return
@@ -107,7 +116,7 @@ export default function TransactionDetailPage() {
 
       <section className="glass-panel p-6">
         <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-          <DetailFieldCard label="Type" value={<FieldRenderer value={typeBadge?.label ?? "-"} />} />
+          <DetailFieldCard label="Type" value={<FieldRenderer value={displayTypeLabel} />} />
           <DetailFieldCard label="Project" value={<FieldRenderer value={projectLabel ?? "-"} />} />
           <DetailFieldCard label="Site" value={<FieldRenderer value={cktId ?? "-"} />} />
           <DetailFieldCard
@@ -146,7 +155,13 @@ export default function TransactionDetailPage() {
                       setExecModal({
                         open: true,
                         toId: t.to_id,
-                        title: typeBadge?.key === "ref" ? "Refund Date" : typeBadge?.key === "rec" ? "Recharge Date" : "Execution Date",
+                        title: transactionExecutionLabel({
+                          projectKey,
+                          typeKey: typeBadge?.key,
+                          siteId: tx.site_id,
+                          recipientId: tx.recipient_id,
+                          remarks: tx.remarks,
+                        }),
                       })
                     } else {
                       void applyTransition(t.to_id)

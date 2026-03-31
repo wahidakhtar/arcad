@@ -12,6 +12,7 @@ export default function useTransactionDetail() {
   const [transitions, setTransitions] = useState<TransitionEntry[]>([])
   const [cktId, setCktId] = useState<string | null>(null)
   const [projectLabel, setProjectLabel] = useState<string | null>(null)
+  const [projectKey, setProjectKey] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
@@ -37,6 +38,7 @@ export default function useTransactionDetail() {
       ])
       const project = projectsRes.data.find((p) => p.id === txData.project_id)
       setProjectLabel(project?.label ?? null)
+      setProjectKey(project?.key ?? null)
 
       if (project && txData.site_id) {
         try {
@@ -77,6 +79,7 @@ export default function useTransactionDetail() {
     cancelBadgeId,
     cktId,
     projectLabel,
+    projectKey,
     loading,
     error,
     loadData,

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { api } from "../../../lib/api"
 import { subscribe } from "../../../hooks/useWebSocket"
+import { transactionTypeLabel } from "../transactionDisplay"
 
 export type TxRaw = {
   id: number
@@ -51,6 +52,7 @@ export type TxRow = {
   id: number
   recipient_label: string
   project_label: string
+  project_key: string
   ckt_id: string
   tab_key: "site" | "salaried" | "others"
   type_key: string
@@ -60,6 +62,9 @@ export type TxRow = {
   status_key: string
   status_label: string
   version: number
+  site_id: number | null
+  recipient_id: number | null
+  remarks: string | null
 }
 
 export default function useTransactionsPage() {
@@ -126,15 +131,26 @@ export default function useTransactionsPage() {
             id: tx.id,
             recipient_label: tx.recipient_label ?? tx.user_name ?? tx.subcon_name ?? "-",
             project_label: project?.label ?? String(tx.project_id),
+            project_key: project?.key ?? "",
             ckt_id: siteMap.get(cktKey) ?? (tx.site_id ? String(tx.site_id) : "-"),
             tab_key: tx.site_id ? "site" : tx.recipient_type_key === "user" || !!tx.user_name ? "salaried" : "others",
             amount: tx.amount,
             type_key: typeBadge?.key ?? "",
-            type_label: typeBadge?.label ?? "-",
+            type_label: transactionTypeLabel({
+              projectKey: project?.key,
+              typeKey: typeBadge?.key,
+              defaultLabel: typeBadge?.label,
+              siteId: tx.site_id,
+              recipientId: tx.recipient_id,
+              remarks: tx.remarks,
+            }),
             status_id: tx.status_id,
             status_key: statusBadge?.key ?? "",
             status_label: statusBadge?.label ?? String(tx.status_id),
             version: tx.version,
+            site_id: tx.site_id,
+            recipient_id: tx.recipient_id,
+            remarks: tx.remarks,
           }
         }),
       )

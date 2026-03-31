@@ -186,9 +186,8 @@ def create_transaction(db: Session, payload: TransactionCreate) -> Transaction:
 
     type_badge = db.get(Badge, payload_data["type_id"])
     is_bb_recharge = (
-        type_badge is not None
-        and type_badge.key == "rec"
-        and payload_data.get("project_id") == acc_rules._bb_project_id(db)
+        payload_data.get("project_id") == acc_rules._bb_project_id(db)
+        and (recharge_validity is not None or recharge_uom is not None)
     )
 
     if is_bb_recharge:
@@ -205,6 +204,8 @@ def create_transaction(db: Session, payload: TransactionCreate) -> Transaction:
             raise HTTPException(status_code=400, detail="recharge_validity must be greater than 0")
         if recharge_uom not in {"months", "days"}:
             raise HTTPException(status_code=400, detail="recharge_uom must be 'months' or 'days'")
+        if type_badge is None or type_badge.key != "fe_pay":
+            raise HTTPException(status_code=400, detail="BB recharge requests must use the FE Payment transaction type")
         if acc_rules._is_bb_site_terminated(db, site_id):
             raise HTTPException(status_code=400, detail="Cannot request recharge for a terminated BB site")
 
@@ -296,7 +297,7 @@ def update_status(
             detail="Transaction was modified by another user",
         )
 
-    if type_badge is not None and type_badge.key == "rec" and updated.project_id == acc_rules._bb_project_id(db):
+    if updated.project_id == acc_rules._bb_project_id(db):
         if target_key == "exct":
             acc_rules.sync_bb_recharge_for_executed_transaction(db, updated)
         elif target_key in {"rej", "cancel"}:

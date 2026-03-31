@@ -904,9 +904,9 @@ def create_recharge_request(db: Session, user: UserContext, site_id: int, amount
     if validity <= 0:
         raise HTTPException(status_code=400, detail="validity must be greater than 0")
 
-    type_badge = db.execute(select(Badge).where(Badge.type == "transaction", Badge.key == "rec")).scalar_one_or_none()
+    type_badge = db.execute(select(Badge).where(Badge.type == "transaction", Badge.key == "fe_pay")).scalar_one_or_none()
     if type_badge is None:
-        raise HTTPException(status_code=500, detail="Recharge transaction badges are not configured")
+        raise HTTPException(status_code=500, detail="FE payment transaction badge is not configured")
 
     tx = transaction_service.create_transaction(
         db,

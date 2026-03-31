@@ -7,6 +7,7 @@ import { api } from "../../lib/api"
 import { formatCurrency, formatDate } from "../../utils/format"
 import type { Badge, TransactionRow, TransitionRow } from "./siteDetailTypes"
 import { txStatusLabel } from "./siteDetailHelpers"
+import { transactionExecutionLabel, transactionTypeLabel } from "../transactions/transactionDisplay"
 
 export default function SiteTransactionCard({
   row,
@@ -16,6 +17,7 @@ export default function SiteTransactionCard({
   canTransactionWrite,
   cancelBadgeId,
   onUpdate,
+  projectKey,
 }: {
   row: TransactionRow
   badges: Map<number, Badge>
@@ -24,6 +26,7 @@ export default function SiteTransactionCard({
   canTransactionWrite: boolean
   cancelBadgeId: number | undefined
   onUpdate: () => Promise<void>
+  projectKey?: string
 }) {
   const [updating, setUpdating] = useState(false)
   const [showExecModal, setShowExecModal] = useState(false)
@@ -77,7 +80,13 @@ export default function SiteTransactionCard({
         void handleTransition(toId)
       } else {
         setPendingExctId(toId)
-        setExecModalTitle(typeKey === "ref" ? "Refund Date" : typeKey === "rec" ? "Recharge Date" : "Execution Date")
+        setExecModalTitle(transactionExecutionLabel({
+          projectKey,
+          typeKey,
+          siteId: row.site_id,
+          recipientId: row.recipient_id,
+          remarks: row.remarks,
+        }))
         setShowExecModal(true)
       }
     } else {
@@ -112,7 +121,16 @@ export default function SiteTransactionCard({
 
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <div className="text-sm font-semibold text-jscolors-text">{badges.get(row.type_id)?.label ?? "Transaction"} • {formatCurrency(row.amount)}</div>
+          <div className="text-sm font-semibold text-jscolors-text">
+            {transactionTypeLabel({
+              projectKey,
+              typeKey,
+              defaultLabel: badges.get(row.type_id)?.label,
+              siteId: row.site_id,
+              recipientId: row.recipient_id,
+              remarks: row.remarks,
+            })} • {formatCurrency(row.amount)}
+          </div>
           <div className="mt-1 text-sm text-jscolors-text/60">
             {formatDate(row.request_date)}
             {row.bucket_key ? ` • ${row.bucket_key.toUpperCase()}` : ""}
