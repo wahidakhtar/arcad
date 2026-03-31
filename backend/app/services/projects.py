@@ -14,6 +14,7 @@ from app.api.auth import UserContext, ensure_permission, user_project_ids
 from app.models.acc import Transaction
 from app.models.core import Badge, IndianState, JobBucket, Project
 from app.models.ops import Subcon, SubconProject, Ticket
+from app.services import acc_rules
 from app.services.common import get_project_config, get_site_model, get_subproject_model
 import logging
 from app.utils.normalization import normalize_identifier, validate_identifier
@@ -441,6 +442,9 @@ def create_subproject(db: Session, user: UserContext, project_key: str, batch_da
     if project_key not in {"md", "ma", "mc"}:
         raise HTTPException(status_code=400, detail="Subproject bulk upload is only supported for MD, MA, and MC projects.")
 
+    project = db.execute(select(Project).where(Project.key == project_key)).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
     subproject_model = get_subproject_model(project_key)
     site_model = get_site_model(project_key)
     stage_badge = db.execute(select(Badge).where(Badge.key == "stage")).scalar_one()
@@ -480,5 +484,6 @@ def create_subproject(db: Session, user: UserContext, project_key: str, batch_da
     for normalized_row in normalized_rows:
         db.add(site_model(subproject_id=subproject.id, receiving_date=parsed_batch_date, status_id=stage_badge.id, **normalized_row))
 
+    acc_rules.create_subproject_po(db, project_key, project.id, subproject.id)
     db.commit()
     return {"id": subproject.id, "batch_date": subproject.batch_date, "site_count": len(rows)}
