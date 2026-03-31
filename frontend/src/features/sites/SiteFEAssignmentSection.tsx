@@ -6,7 +6,7 @@ import Modal from "../../components/ui/Modal"
 import { api } from "../../lib/api"
 import { formatCurrency } from "../../utils/format"
 import type { Badge, JobBucket, ProjectRow, SiteDetail, SubconRow, TransactionRow, TransitionRow } from "./siteDetailTypes"
-import { transitionOptions } from "./siteDetailHelpers"
+import { bucketLabel, transitionOptions } from "./siteDetailHelpers"
 import SiteTransactionCard from "./SiteTransactionCard"
 
 type TxModal = { open: boolean; subconId: number; bucketKey: string; subconLabel: string; type_id: string; amount: string; err: string }
@@ -94,7 +94,9 @@ export default function SiteFEAssignmentSection({
   onReload: () => Promise<void>
 }) {
   const assigneeLabel = jobBuckets.length ? "FE" : "Subcon"
-  const [assignmentForm, setAssignmentForm] = useState({ subcon_id: "" })
+  const siteOutcome = String(currentSite.fields.outcome ?? "").trim().toLowerCase()
+  const hasMultipleBuckets = jobBuckets.length > 1
+  const [assignmentForm, setAssignmentForm] = useState({ bucket_id: "", subcon_id: "" })
   const [assignModal, setAssignModal] = useState(false)
   const [assigning, setAssigning] = useState(false)
   const [assignErr, setAssignErr] = useState("")
@@ -105,20 +107,39 @@ export default function SiteFEAssignmentSection({
 
   const reqTransitions = transitionOptions(transitions, "transaction_status", reqBadgeId ?? 0)
   const hasActiveAssignment = currentSite.subcon_rows.some((row) => row.active)
+  const selectedBucket = jobBuckets.length === 1
+    ? jobBuckets[0]
+    : (jobBuckets.find((bucket) => String(bucket.id) === assignmentForm.bucket_id) ?? null)
+
+  function isBucketDisabled(bucket: JobBucket) {
+    return projectKey === "md" && bucket.key === "bmd" && siteOutcome !== "dismantle"
+  }
+
+  function firstAvailableBucket() {
+    return jobBuckets.find((bucket) => !isBucketDisabled(bucket)) ?? jobBuckets[0] ?? null
+  }
 
   async function assignSubcon() {
+    if (jobBuckets.length > 1 && !assignmentForm.bucket_id) {
+      setAssignErr("Job is required.")
+      return
+    }
     if (!assignmentForm.subcon_id) {
       setAssignErr(`${assigneeLabel} is required.`)
       return
     }
-    const bucketId = jobBuckets.length > 0 ? jobBuckets[0].id : null
+    if (selectedBucket && isBucketDisabled(selectedBucket)) {
+      setAssignErr("Dismantle assignment is only available when outcome is Dismantle.")
+      return
+    }
+    const bucketId = assignmentForm.bucket_id ? Number(assignmentForm.bucket_id) : (jobBuckets.length === 1 ? jobBuckets[0].id : null)
     const payload = { bucket_id: bucketId, subcon_id: Number(assignmentForm.subcon_id) }
     const endpoint = `/sites/${projectKey}/${currentSite.id}/assignments`
     setAssigning(true)
     setAssignErr("")
     try {
       await api.post(endpoint, payload)
-      setAssignmentForm({ subcon_id: "" })
+      setAssignmentForm({ bucket_id: "", subcon_id: "" })
       setAssignModal(false)
       await onReload()
     } catch (error: unknown) {
@@ -186,7 +207,11 @@ export default function SiteFEAssignmentSection({
           disabled={hasActiveAssignment}
           onClick={() => {
             if (hasActiveAssignment) return
-            setAssignmentForm({ subcon_id: "" })
+            const initialBucket = firstAvailableBucket()
+            setAssignmentForm({
+              bucket_id: initialBucket ? String(initialBucket.id) : "",
+              subcon_id: "",
+            })
             setAssignErr("")
             setAssignModal(true)
           }}
@@ -229,6 +254,29 @@ export default function SiteFEAssignmentSection({
         isSubmitting={assigning}
       >
         <div className="space-y-4">
+          {hasMultipleBuckets && (
+            <div className="flex gap-2">
+              {jobBuckets.map((bucket) => {
+                const disabled = isBucketDisabled(bucket)
+                return (
+                  <Button
+                    key={bucket.id}
+                    type="button"
+                    variant={assignmentForm.bucket_id === String(bucket.id) ? "primary" : "secondary"}
+                    size="sm"
+                    disabled={disabled}
+                    onClick={() => {
+                      if (disabled) return
+                      setAssignmentForm((current) => ({ ...current, bucket_id: String(bucket.id) }))
+                      setAssignErr("")
+                    }}
+                  >
+                    {bucket.label}
+                  </Button>
+                )
+              })}
+            </div>
+          )}
           <SelectField
             label={assigneeLabel}
             value={assignmentForm.subcon_id}
@@ -239,6 +287,9 @@ export default function SiteFEAssignmentSection({
                 <option key={subcon.id} value={subcon.id}>{subcon.label}</option>
               ))}
           </SelectField>
+          {hasMultipleBuckets && selectedBucket && isBucketDisabled(selectedBucket) ? (
+            <p className="text-sm text-jscolors-text/60">Dismantle FE assignment is available only after the site outcome is set to Dismantle.</p>
+          ) : null}
           {assignErr ? <p className="text-sm text-red-600">{assignErr}</p> : null}
         </div>
       </Modal>
@@ -291,7 +342,7 @@ export default function SiteFEAssignmentSection({
       <div className="space-y-3">
         {currentSite.subcon_rows.length ? currentSite.subcon_rows.map((row) => {
           const rowTransactions = transactions.filter((transaction) => transaction.recipient_id === row.subcon_id)
-          const displayLabel = row.subcon_label
+          const displayLabel = hasMultipleBuckets ? `${row.subcon_label} · ${bucketLabel(jobBuckets, row.bucket_key)}` : row.subcon_label
           return (
             <div key={`${row.assignment_id}-${row.bucket_key}`} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
