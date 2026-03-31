@@ -144,9 +144,9 @@ def _validate_site_date_order(site: Any, project_key: str, payload: dict[str, An
 
 def _parse_bool(value: Any) -> bool:
     text_value = "" if value is None else str(value).strip().lower()
-    if text_value in {"", "0", "false", "no", "n"}:
+    if text_value in {"", "0", "false", "no", "n", "not required", "not_required", "notrequired"}:
         return False
-    if text_value in {"1", "true", "yes", "y"}:
+    if text_value in {"1", "true", "yes", "y", "required"}:
         return True
     raise HTTPException(status_code=400, detail=f"Invalid boolean value: {value}")
 
