@@ -421,9 +421,22 @@ def create_site(db: Session, user: UserContext, project_key: str, subproject_id:
     logger.info("create_site request project=%s user=%s subproject_id=%s payload=%s", project_key, user.username, subproject_id, data)
     normalized_data = _normalize_site_payload(db, project_key, data)
     resolved_subproject_id = _resolve_subproject_id(db, project_key, subproject_id)
+    subproject_model = get_subproject_model(project_key)
+    resolved_subproject = db.get(subproject_model, resolved_subproject_id)
+    if resolved_subproject is None:
+        raise HTTPException(status_code=404, detail="Subproject not found")
     payload = {"subproject_id": resolved_subproject_id, **normalized_data}
     if "status_id" not in payload:
-        payload["status_id"] = 20 if data.get("bulk") else 10
+        badges = badge_map(db)
+        stage_badge_id = next((badge_id for badge_id, badge in badges.items() if badge.key == "stage"), None)
+        permission_wait_badge_id = next((badge_id for badge_id, badge in badges.items() if badge.key == "p_wait"), None)
+        payload["status_id"] = (
+            stage_badge_id
+            if data.get("bulk") or not getattr(resolved_subproject, "bucket", False)
+            else permission_wait_badge_id
+        )
+        if payload["status_id"] is None:
+            raise HTTPException(status_code=500, detail="Required site badges are not configured")
     _normalize_identifier_fields(payload)
     _sync_site_active_flag(payload, badge_map(db), default_active=True)
     _ensure_active_circuit_unique(

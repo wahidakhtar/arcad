@@ -1,4 +1,5 @@
 import Button from "./Button"
+import SelectInput from "./SelectInput"
 
 type FilterOption = {
   label: string
@@ -50,17 +51,17 @@ export default function FilterBar({
           return (
             <label key={filter.key} className="block">
               <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">{filter.label}</span>
-              <select
+              <SelectInput
                 value={filter.value}
                 onChange={(event) => onFilterChange(filter.key, event.target.value)}
-                className="rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
+                className="min-w-44"
               >
                 {filter.options.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
-              </select>
+              </SelectInput>
             </label>
           )
         }

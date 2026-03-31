@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react"
 import Button from "../../components/ui/Button"
 import EmptyState from "../../components/ui/EmptyState"
 import Modal from "../../components/ui/Modal"
+import SelectInput from "../../components/ui/SelectInput"
 import { api } from "../../lib/api"
 import { formatCurrency } from "../../utils/format"
 import type { Badge, JobBucket, ProjectRow, SiteDetail, SubconRow, TransactionRow, TransitionRow } from "./siteDetailTypes"
@@ -11,7 +12,6 @@ import SiteTransactionCard from "./SiteTransactionCard"
 
 type TxModal = { open: boolean; subconId: number; bucketKey: string; subconLabel: string; type_id: string; amount: string; err: string }
 type RemoveModal = { open: boolean; assignment_id: number; subcon_label: string; final_cost: string; err: string }
-const selectCls = "w-full appearance-none rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 pr-11 text-sm outline-none transition focus:border-jscolors-crimson/40"
 
 function ActionPanel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
@@ -42,19 +42,13 @@ function SelectField({
     <label className="block">
       <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">{label}</span>
       <div className="relative">
-        <select
+        <SelectInput
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className={selectCls}
         >
           <option value="">{placeholder}</option>
           {children}
-        </select>
-        <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-jscolors-text/45">
-          <svg viewBox="0 0 16 16" className="h-4 w-4 fill-current" aria-hidden="true">
-            <path d="M4.2 6.1a.75.75 0 0 1 1.06.04L8 9.08l2.74-2.94a.75.75 0 1 1 1.1 1.02l-3.3 3.54a.75.75 0 0 1-1.08 0L4.16 7.16a.75.75 0 0 1 .04-1.06Z" />
-          </svg>
-        </span>
+        </SelectInput>
       </div>
     </label>
   )
@@ -307,23 +301,15 @@ export default function SiteFEAssignmentSection({
           <p className="text-sm text-jscolors-text/60">{txModal.subconLabel}</p>
             <label className="block">
               <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Type</span>
-              <div className="relative">
-                <select
-                  value={txModal.type_id}
-                  onChange={(event) => setTxModal((current) => ({ ...current, type_id: event.target.value }))}
-                  className={selectCls}
-                >
-                  <option value="">Select Type</option>
-                  {transactionTypes.map((type) => (
-                    <option key={type.id} value={type.id}>{type.label}</option>
-                  ))}
-                </select>
-                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-jscolors-text/45">
-                  <svg viewBox="0 0 16 16" className="h-4 w-4 fill-current" aria-hidden="true">
-                    <path d="M4.2 6.1a.75.75 0 0 1 1.06.04L8 9.08l2.74-2.94a.75.75 0 1 1 1.1 1.02l-3.3 3.54a.75.75 0 0 1-1.08 0L4.16 7.16a.75.75 0 0 1 .04-1.06Z" />
-                  </svg>
-                </span>
-              </div>
+              <SelectInput
+                value={txModal.type_id}
+                onChange={(event) => setTxModal((current) => ({ ...current, type_id: event.target.value }))}
+              >
+                <option value="">Select Type</option>
+                {transactionTypes.map((type) => (
+                  <option key={type.id} value={type.id}>{type.label}</option>
+                ))}
+              </SelectInput>
             </label>
           <label className="block">
             <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Amount</span>

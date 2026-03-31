@@ -66,7 +66,7 @@ def get_recipient_type_id(db: Session, key: str) -> int | None:
 
 def format_subproject_label(batch_date: date | None, bucket: bool | None, fallback_id: int | None = None) -> str:
     if bucket:
-        return "Bucket"
+        return "Individual Site"
     if batch_date is not None:
         return batch_date.strftime("%B %Y")
     if fallback_id is not None:

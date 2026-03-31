@@ -1,4 +1,5 @@
 import BadgeDropdown from "./BadgeDropdown"
+import SelectInput from "./SelectInput"
 import { formatDate } from "../../utils/format"
 
 export type FieldDefinition = {
@@ -52,7 +53,7 @@ export default function FieldRenderer(props: FieldRendererProps) {
 
     if ((field.type === "select" || field.type === "dropdown") && field.options?.length) {
       return (
-        <select
+        <SelectInput
           value={String(value ?? "")}
           onFocus={onFocus}
           onChange={(event) => onChange(sanitizeIdentifier(event.target.value))}
@@ -65,7 +66,7 @@ export default function FieldRenderer(props: FieldRendererProps) {
               {option.label}
             </option>
           ))}
-        </select>
+        </SelectInput>
       )
     }
 

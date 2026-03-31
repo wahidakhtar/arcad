@@ -228,7 +228,7 @@ export default function SiteListPage() {
               type: "dropdown",
               required: true,
               options: siteTargetSubprojects.map((sub) => ({
-                label: sub.bucket ? "Default Bucket" : subprojectLabel(sub),
+                label: sub.bucket ? "Individual Site" : subprojectLabel(sub),
                 value: sub.id,
               })),
             },

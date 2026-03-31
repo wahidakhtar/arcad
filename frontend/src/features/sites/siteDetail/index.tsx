@@ -13,6 +13,7 @@ import SiteUpdatesSection from "../SiteUpdatesSection"
 import SiteBillingSection from "./components/SiteBillingSection"
 import SiteFieldsSection from "./components/SiteFieldsSection"
 import SiteHeader from "./components/SiteHeader"
+import SelectInput from "../../../components/ui/SelectInput"
 import useSiteDetail from "./hooks/useSiteDetail"
 
 export default function SiteDetailPage() {
@@ -217,16 +218,15 @@ export default function SiteDetailPage() {
             </label>
             <label className="block">
               <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Outcome *</span>
-              <select
+              <SelectInput
                 value={outcomeDraft}
                 onChange={(event) => setOutcomeDraft(event.target.value)}
-                className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-jscolors-crimson/40"
               >
                 <option value="">Select Outcome</option>
                 {outcomes.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
-              </select>
+              </SelectInput>
             </label>
             {visitOutcomeError ? <p className="text-sm text-red-600">{visitOutcomeError}</p> : null}
           </div>
