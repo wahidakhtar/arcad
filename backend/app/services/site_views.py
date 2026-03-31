@@ -73,6 +73,7 @@ def serialize_subcon_rows(db: Session, rows: list[dict[str, Any]]) -> list[dict[
 
 
 def get_site_projection(db: Session, project_key: str, site_id: int) -> dict[str, Any] | None:
+    from app.models.acc import Invoice, PO
     project = get_project(db, project_key)
     model = get_site_model(project_key)
     site = db.get(model, site_id)
@@ -81,6 +82,25 @@ def get_site_projection(db: Session, project_key: str, site_id: int) -> dict[str
     site_data = model_to_dict(site)
     financials = build_site_financials(db, project.id, project_key, site_id, site_data)
     badges = badge_map(db)
+
+    # Inject billing fields directly from source of truth (schema_acc)
+    po = db.execute(
+        select(PO).where(PO.project_id == project.id, PO.site_id == site_id).order_by(PO.id.desc())
+    ).scalars().first()
+    if po:
+        inv = db.execute(
+            select(Invoice).where(Invoice.po_id == po.id).order_by(Invoice.id.desc())
+        ).scalars().first()
+        site_data["po_number"] = po.po_no
+        site_data["po_status_id"] = po.po_status_id
+        site_data["invoice_number"] = inv.invoice_no if inv else None
+        site_data["invoice_status_id"] = inv.invoice_status_id if inv else None
+    else:
+        site_data["po_number"] = None
+        site_data["po_status_id"] = None
+        site_data["invoice_number"] = None
+        site_data["invoice_status_id"] = None
+
     return {
         "id": site.id,
         "project_key": project_key,
