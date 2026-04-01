@@ -50,7 +50,6 @@ export default function BulkTable({
     if (loading) return
     const filteredRows = rowsRef.current.filter((row) => Object.values(row).some((v) => v !== "" && v !== false))
     const payload = { batchDate: batchDateRef.current, rows: filteredRows }
-    console.log("SUBMIT PAYLOAD:", payload)
     setError("")
     setCellErrors([])
     setBulkFixes([])
@@ -59,9 +58,6 @@ export default function BulkTable({
     try {
       await onSubmit(payload)
     } catch (err: unknown) {
-      console.error("AddSubproject error:", err)
-      console.error("status:", (err as { response?: { status?: number } })?.response?.status)
-      console.error("data:", (err as { response?: { data?: { detail?: unknown } } })?.response?.data)
       const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
       if (detail && typeof detail === "object") {
         const payloadDetail = detail as { message?: string; errors?: CellError[]; fixes?: BulkFix[] }
@@ -103,7 +99,7 @@ export default function BulkTable({
   }
 
   return (
-    <div className="space-y-5 rounded-[24px] border border-dashed border-jscolors-crimson/20 bg-jscolors-crimson/[0.03] p-5 text-sm text-jscolors-text/70">
+    <div className="flex min-h-0 flex-col space-y-5 rounded-[24px] border border-dashed border-jscolors-crimson/20 bg-jscolors-crimson/[0.03] p-5 text-sm text-jscolors-text/70">
       <label className="block">
         <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Receiving Date</span>
         <input
@@ -113,7 +109,7 @@ export default function BulkTable({
           className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 outline-none"
         />
       </label>
-      <div>
+      <div className="flex min-h-0 flex-col">
         <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Bulk Entry Table</span>
         {bulkFixes.length > 0 && (
           <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4">
@@ -133,7 +129,7 @@ export default function BulkTable({
           </div>
         )}
         <div
-          className="overflow-auto rounded-2xl border border-jscolors-crimson/15 bg-white"
+          className="min-h-0 max-h-[52vh] overflow-auto rounded-2xl border border-jscolors-crimson/15 bg-white"
           onPaste={(event) => {
             if (!focus) return
             event.preventDefault()
