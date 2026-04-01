@@ -1,0 +1,25 @@
+name: Promote Blue Green Slot
+
+on:
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: Slot to promote
+        required: true
+        type: choice
+        options:
+          - blue
+          - green
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.INTERNAL_SERVER_HOST }}
+          username: ${{ secrets.INTERNAL_SERVER_USER }}
+          key: ${{ secrets.INTERNAL_SERVER_SSH_KEY }}
+          script: |
+            cd /opt/arcad-bluegreen
+            ./scripts/promote_slot.sh /opt/arcad-bluegreen ${{ inputs.slot }}
