@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.api.auth import UserContext, ensure_permission, is_ops_only_user
 from app.models.core import Badge, IndianState, JobBucket
 from app.models.md import MDOutcome
+from app.models.ma import MASite
 from app.models.ops import Subcon, SubconAssignment, SubconProject
 from app.schemas.site import SubconAssignmentRequest, SiteOut
 from app.services.common import badge_map, get_project, get_project_config, get_site_model, get_subproject_model, model_to_dict
@@ -479,6 +480,83 @@ def create_site(db: Session, user: UserContext, project_key: str, subproject_id:
         db.rollback()
         logger.exception("create_site db_error project=%s payload=%s", project_key, payload)
         raise HTTPException(status_code=400, detail="Unable to create site") from exc
+
+
+def transfer_ma_site_to_mc(db: Session, user: UserContext, site_id: int) -> dict:
+    ensure_permission(user, db, project_key="ma", tag="site", action="write")
+    ensure_permission(user, db, project_key="mc", tag="site", action="write")
+
+    source_site = db.get(MASite, site_id)
+    if source_site is None:
+        raise HTTPException(status_code=404, detail="MA site not found")
+    if source_site.transferred_to_mc:
+        raise HTTPException(status_code=409, detail="Site has already been transferred to CM")
+
+    badges = badge_map(db)
+    source_status_key = badges.get(source_site.status_id).key if badges.get(source_site.status_id) is not None else None
+    if source_status_key != "comp":
+        raise HTTPException(status_code=400, detail="Only completed MA sites can be transferred to CM")
+
+    mc_project = get_project(db, "mc")
+    mc_model = get_site_model("mc")
+    mc_subproject_id = _resolve_subproject_id(db, "mc", None)
+    mc_subproject_model = get_subproject_model("mc")
+    resolved_subproject = db.get(mc_subproject_model, mc_subproject_id)
+    if resolved_subproject is None:
+        raise HTTPException(status_code=404, detail="MC subproject not found")
+
+    payload = {
+        "receiving_date": source_site.receiving_date,
+        "ckt_id": source_site.ckt_id,
+        "customer": source_site.customer,
+        "address": source_site.address,
+        "state_id": source_site.state_id,
+        "height": source_site.height,
+        "lc": source_site.lc,
+        "audit_date": source_site.audit_date,
+        "mpaint": source_site.mpaint,
+        "mnbr": source_site.mnbr,
+        "arr": source_site.arr,
+        "ep": source_site.ep,
+        "ec": source_site.ec,
+    }
+    _normalize_identifier_fields(payload)
+
+    stage_badge_id = next((badge_id for badge_id, badge in badges.items() if badge.key == "stage"), None)
+    permission_wait_badge_id = next((badge_id for badge_id, badge in badges.items() if badge.key == "p_wait"), None)
+    payload["status_id"] = (
+        stage_badge_id
+        if not getattr(resolved_subproject, "bucket", False)
+        else permission_wait_badge_id
+    )
+    if payload["status_id"] is None:
+        raise HTTPException(status_code=500, detail="Required site badges are not configured")
+
+    payload["subproject_id"] = mc_subproject_id
+    _sync_site_active_flag(payload, badges, default_active=True)
+    _ensure_active_circuit_unique(
+        db,
+        mc_model,
+        subproject_id=mc_subproject_id,
+        ckt_id=payload.get("ckt_id"),
+        active=bool(payload.get("active", True)),
+    )
+
+    try:
+        mc_site = mc_model(**payload)
+        db.add(mc_site)
+        db.flush()
+        acc_rules.create_site_po_if_needed(db, "mc", mc_project.id, mc_site.id, mc_subproject_id)
+        source_site.transferred_to_mc = True
+        if hasattr(source_site, "version"):
+            source_site.version = (source_site.version or 0) + 1
+        db.commit()
+        db.refresh(mc_site)
+        return {"ma_site_id": source_site.id, "mc_site_id": mc_site.id}
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("transfer_ma_site_to_mc failed site_id=%s", site_id)
+        raise HTTPException(status_code=400, detail="Unable to transfer site to CM") from exc
 
 def _validate_subcon_for_project(db: Session, project_id: int, subcon_id: int) -> Subcon:
     subcon = db.get(Subcon, subcon_id)

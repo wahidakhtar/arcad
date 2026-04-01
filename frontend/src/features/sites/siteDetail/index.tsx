@@ -19,7 +19,7 @@ import useSiteDetail from "./hooks/useSiteDetail"
 const TODAY = new Date().toISOString().slice(0, 10)
 
 export default function SiteDetailPage() {
-  const { can, roles } = useAuth()
+  const { can, roles, projectKeys } = useAuth()
   const [visitOutcomeOpen, setVisitOutcomeOpen] = useState(false)
   const [visitDateDraft, setVisitDateDraft] = useState("")
   const [outcomeDraft, setOutcomeDraft] = useState("")
@@ -27,6 +27,8 @@ export default function SiteDetailPage() {
   const [visitOutcomeError, setVisitOutcomeError] = useState("")
   const [deploying, setDeploying] = useState(false)
   const [deployError, setDeployError] = useState("")
+  const [transferringToCm, setTransferringToCm] = useState(false)
+  const [transferToCmError, setTransferToCmError] = useState("")
   const {
     projectKey,
     site,
@@ -81,6 +83,10 @@ export default function SiteDetailPage() {
     )),
   )
   const showDeployButton = canSiteWrite && canDeployStagedSite && site.status_key === "stage"
+  const hasGlobalProjectScope = roles.some((role) => role.project_id === null)
+  const canAccessMcProject = hasGlobalProjectScope || projectKeys.includes("mc")
+  const siteTransferredToMc = Boolean(currentSite.fields.transferred_to_mc)
+  const showProceedWithCm = projectKey === "ma" && currentSite.status_key === "comp" && canSiteWrite && canAccessMcProject
 
   function openVisitOutcomeEditor() {
     setVisitDateDraft((currentSite.fields.visit_date as string | null) ?? "")
@@ -127,6 +133,20 @@ export default function SiteDetailPage() {
     }
   }
 
+  async function transferToCm() {
+    setTransferringToCm(true)
+    setTransferToCmError("")
+    try {
+      await api.post(`/sites/ma/${currentSite.id}/transfer-to-mc`)
+      await loadPage()
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setTransferToCmError(detail ?? "Failed to transfer site to CM.")
+    } finally {
+      setTransferringToCm(false)
+    }
+  }
+
   return (
     <DetailPageLayout
       backHref={`/projects/${projectKey}`}
@@ -154,6 +174,28 @@ export default function SiteDetailPage() {
             {showDeployButton ? (
               <Button type="button" onClick={() => void deploySite()} disabled={deploying}>
                 {deploying ? "Deploying..." : "Deploy Site"}
+              </Button>
+            ) : null}
+          </section>
+        ) : null}
+        {showProceedWithCm || transferToCmError ? (
+          <section className="glass-panel flex flex-col gap-3 p-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">CM Handoff</p>
+              <p className="mt-2 text-sm text-jscolors-text/65">
+                {siteTransferredToMc
+                  ? "This audit site has already been transferred to the CM project."
+                  : "Create the corresponding CM site from this completed audit site."}
+              </p>
+              {transferToCmError ? <p className="mt-2 text-sm text-red-600">{transferToCmError}</p> : null}
+            </div>
+            {showProceedWithCm ? (
+              <Button
+                type="button"
+                onClick={() => void transferToCm()}
+                disabled={transferringToCm || siteTransferredToMc}
+              >
+                {siteTransferredToMc ? "Transferred to CM" : transferringToCm ? "Transferring..." : "Proceed with CM"}
               </Button>
             ) : null}
           </section>
