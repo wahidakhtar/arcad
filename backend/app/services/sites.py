@@ -10,7 +10,7 @@ from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.api.auth import UserContext, ensure_permission
+from app.api.auth import UserContext, ensure_permission, is_ops_only_user
 from app.models.core import Badge, IndianState, JobBucket
 from app.models.md import MDOutcome
 from app.models.ops import Subcon, SubconAssignment, SubconProject
@@ -382,6 +382,7 @@ def list_sites(
         query = query.where(model.ckt_id.ilike(f"%{search}%"))
     rows = db.execute(query).scalars().all()
     badges = badge_map(db)
+    include_billing = not is_ops_only_user(user)
     stage_badge_id = next((bid for bid, b in badges.items() if b.key == "stage"), None)
 
     # Batch-fetch PO and invoice statuses for all sites in this project
@@ -409,12 +410,12 @@ def list_sites(
         item.update({"budget": financials["budget"], "cost": financials["cost"], "paid": financials["paid"], "balance": financials["balance"]})
         po = po_by_site.get(row.id)
         inv = inv_by_po.get(po.id) if po else None
-        item["po_number"] = po.po_no if po else None
-        item["po_status"] = _badge_dict(po.po_status_id if po else None)
-        item["po_status_id"] = po.po_status_id if po else None
-        item["invoice_number"] = inv.invoice_no if inv else None
-        item["invoice_status"] = _badge_dict(inv.invoice_status_id if inv else None)
-        item["invoice_status_id"] = inv.invoice_status_id if inv else None
+        item["po_number"] = po.po_no if po and include_billing else None
+        item["po_status"] = _badge_dict(po.po_status_id if po and include_billing else None)
+        item["po_status_id"] = po.po_status_id if po and include_billing else None
+        item["invoice_number"] = inv.invoice_no if inv and include_billing else None
+        item["invoice_status"] = _badge_dict(inv.invoice_status_id if inv and include_billing else None)
+        item["invoice_status_id"] = inv.invoice_status_id if inv and include_billing else None
         all_items.append(item)
     total = len(all_items)
     page_size = max(1, page_size)
@@ -560,7 +561,7 @@ def _remove_active_assignment_with_current_cost(
 
 def get_site(db: Session, user: UserContext, project_key: str, site_id: int) -> SiteOut:
     ensure_permission(user, db, project_key=project_key, tag="site", action="read")
-    projection = get_site_projection(db, project_key, site_id)
+    projection = get_site_projection(db, project_key, site_id, include_billing=not is_ops_only_user(user))
     if projection is None:
         raise HTTPException(status_code=404, detail="Site not found")
     return SiteOut(**projection)

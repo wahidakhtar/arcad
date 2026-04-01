@@ -23,6 +23,7 @@ security = HTTPBearer(auto_error=False)
 _log = logging.getLogger("arcad.auth")
 
 LEVEL_ORDER: dict[str, int] = {"l1": 1, "l2": 2, "l3": 3}
+OPS_HIDDEN_TAGS: set[str] = {"billing", "rate", "acc_update"}
 
 
 @dataclass
@@ -207,7 +208,13 @@ def _project_key_for_id(db: Session, project_id: Optional[int]) -> Optional[str]
     return None if project is None else project.key
 
 
+def is_ops_only_user(user: UserContext) -> bool:
+    return bool(user.roles) and all(role.dept_key == "ops" for role in user.roles)
+
+
 def check_permission(user: UserContext, project_key: Optional[str], tag: str, action: str, db: Session) -> bool:
+    if is_ops_only_user(user) and tag in OPS_HIDDEN_TAGS:
+        return False
     for role in user.roles:
         if project_key is not None and not role.global_scope:
             current_project_key = _project_key_for_id(db, role.project_id)
@@ -294,6 +301,9 @@ def build_tag_map(user: UserContext) -> dict[str, dict[str, bool]]:
             tag_map[tag]["read"] = True
         if write_ok:
             tag_map[tag]["write"] = True
+    if is_ops_only_user(user):
+        for tag in OPS_HIDDEN_TAGS:
+            tag_map.pop(tag, None)
     return tag_map
 
 
