@@ -149,8 +149,58 @@ def strip_billing_fields(site_data: dict[str, Any]) -> dict[str, Any]:
     return site_data
 
 
+def get_latest_site_po(db: Session, project_id: int, site_id: int):
+    from app.models.acc import PO
+
+    return db.execute(
+        select(PO)
+        .where(PO.project_id == project_id, PO.site_id == site_id)
+        .order_by(PO.id.desc())
+    ).scalars().first()
+
+
+def get_latest_po_invoice(db: Session, po_id: int):
+    from app.models.acc import Invoice
+
+    return db.execute(
+        select(Invoice)
+        .where(Invoice.po_id == po_id)
+        .order_by(Invoice.id.desc())
+    ).scalars().first()
+
+
+def get_latest_site_pos_by_site(db: Session, project_id: int) -> dict[int, Any]:
+    from app.models.acc import PO
+
+    rows = db.execute(
+        select(PO)
+        .where(PO.project_id == project_id, PO.site_id.is_not(None))
+        .order_by(PO.id.desc())
+    ).scalars().all()
+    latest_by_site: dict[int, Any] = {}
+    for po in rows:
+        if po.site_id is not None:
+            latest_by_site.setdefault(po.site_id, po)
+    return latest_by_site
+
+
+def get_latest_invoices_by_po(db: Session, po_ids: list[int]) -> dict[int, Any]:
+    from app.models.acc import Invoice
+
+    if not po_ids:
+        return {}
+    rows = db.execute(
+        select(Invoice)
+        .where(Invoice.po_id.in_(po_ids))
+        .order_by(Invoice.id.desc())
+    ).scalars().all()
+    latest_by_po: dict[int, Any] = {}
+    for invoice in rows:
+        latest_by_po.setdefault(invoice.po_id, invoice)
+    return latest_by_po
+
+
 def get_site_projection(db: Session, project_key: str, site_id: int, *, include_billing: bool = True) -> dict[str, Any] | None:
-    from app.models.acc import Invoice, PO
     project = get_project(db, project_key)
     model = get_site_model(project_key)
     site = db.get(model, site_id)
@@ -167,13 +217,9 @@ def get_site_projection(db: Session, project_key: str, site_id: int, *, include_
     badges = badge_map(db)
 
     if include_billing:
-        po = db.execute(
-            select(PO).where(PO.project_id == project.id, PO.site_id == site_id).order_by(PO.id.desc())
-        ).scalars().first()
+        po = get_latest_site_po(db, project.id, site_id)
         if po:
-            inv = db.execute(
-                select(Invoice).where(Invoice.po_id == po.id).order_by(Invoice.id.desc())
-            ).scalars().first()
+            inv = get_latest_po_invoice(db, po.id)
             site_data["po_id"] = po.id
             site_data["po_number"] = po.po_no
             site_data["po_date"] = str(po.po_date) if po.po_date else None
@@ -209,14 +255,8 @@ def get_site_projection(db: Session, project_key: str, site_id: int, *, include_
     if project_key == "bb" and include_billing:
         from app.models.bb import Recharge
 
-        active_po = db.execute(
-            select(PO).where(PO.project_id == project.id, PO.site_id == site_id).order_by(PO.valid_to.desc().nullslast(), PO.id.desc())
-        ).scalars().first()
-        active_invoice = None
-        if active_po is not None:
-            active_invoice = db.execute(
-                select(Invoice).where(Invoice.po_id == active_po.id).order_by(Invoice.period_to.desc().nullslast(), Invoice.id.desc())
-            ).scalars().first()
+        active_po = get_latest_site_po(db, project.id, site_id)
+        active_invoice = get_latest_po_invoice(db, active_po.id) if active_po is not None else None
         last_recharge = db.execute(
             select(Recharge).where(Recharge.site_id == site_id).order_by(Recharge.date.desc(), Recharge.id.desc())
         ).scalars().first()

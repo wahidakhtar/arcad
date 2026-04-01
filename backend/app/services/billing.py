@@ -300,6 +300,31 @@ def _badge_id_by_key(db: Session, badge_type: str, key: str) -> int | None:
     return row.id if row else None
 
 
+def _sync_invoice_status(db: Session, row: Invoice, *, is_bb_invoice: bool) -> None:
+    ready_for_generated = (
+        row.invoice_no
+        and row.invoice_date
+        and (not is_bb_invoice or (row.period_from is not None and row.period_to is not None))
+    )
+    if not ready_for_generated:
+        return
+
+    pending_id = _badge_id_by_key(db, "doc_status", "pend")
+    generated_id = _badge_id_by_key(db, "doc_status", "gen")
+    raised_id = _badge_id_by_key(db, "doc_status", "rsd")
+    settled_id = _badge_id_by_key(db, "doc_status", "set")
+    current_status = row.invoice_status_id
+
+    if row.settlement_date and settled_id is not None and current_status in {pending_id, generated_id, raised_id}:
+        row.invoice_status_id = settled_id
+        return
+    if row.submission_date and raised_id is not None and current_status in {pending_id, generated_id, raised_id}:
+        row.invoice_status_id = raised_id
+        return
+    if generated_id is not None and current_status in {pending_id, generated_id}:
+        row.invoice_status_id = generated_id
+
+
 def update_po(db: Session, po_id: int, data: dict) -> dict | None:
     row = db.get(PO, po_id)
     if row is None:
@@ -373,11 +398,7 @@ def update_invoice(db: Session, invoice_id: int, data: dict) -> dict | None:
                 raise HTTPException(status_code=400, detail=f"Invoice Period From must be {expected_period_from.isoformat()}.")
         elif row.period_from != po.valid_from:
             raise HTTPException(status_code=400, detail=f"First invoice Period From must be {po.valid_from.isoformat()}.")
-    # Auto-advance: Pending → Generated when invoice_no AND invoice_date are both set
-    if row.invoice_no and row.invoice_date and (not is_bb_invoice or row.period_from is not None and row.period_to is not None) and row.invoice_status_id == _badge_id_by_key(db, "doc_status", "pend"):
-        gen_id = _badge_id_by_key(db, "doc_status", "gen")
-        if gen_id is not None:
-            row.invoice_status_id = gen_id
+    _sync_invoice_status(db, row, is_bb_invoice=is_bb_invoice)
     row.version = (row.version or 0) + 1
     db.commit()
     result = db.execute(

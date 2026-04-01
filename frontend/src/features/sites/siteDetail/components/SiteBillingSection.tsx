@@ -148,66 +148,87 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
   return (
     <section className="glass-panel p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Billing</p>
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
-        <DetailFieldCard
-          label="PO Number"
-          value={<FieldRenderer value={site.fields.po_number} />}
-          onEdit={canWrite && !!site.fields.po_number ? openPoEditor : undefined}
-          onAdd={canWrite && !site.fields.po_number ? openPoEditor : undefined}
-        />
-        <DetailFieldCard
-          label="PO Date"
-          value={<FieldRenderer type="date" value={site.fields.po_date} />}
-          onEdit={canWrite && !!site.fields.po_date ? openPoEditor : undefined}
-          onAdd={canWrite && !site.fields.po_date ? openPoEditor : undefined}
-        />
-        {isBB ? (
-          <>
+      <div className="mt-5 space-y-5">
+        <div className="rounded-[22px] border border-jscolors-crimson/10 bg-white/70 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">PO Details</p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
             <DetailFieldCard
-              label="Valid From"
-              value={<FieldRenderer type="date" value={site.fields.po_valid_from} />}
-              onEdit={canWrite ? openPoEditor : undefined}
-              onAdd={canWrite && !site.fields.po_valid_from ? openPoEditor : undefined}
+              label="PO Number"
+              value={<FieldRenderer value={site.fields.po_number} />}
+              onEdit={canWrite && !!site.fields.po_number ? openPoEditor : undefined}
+              onAdd={canWrite && !site.fields.po_number ? openPoEditor : undefined}
             />
             <DetailFieldCard
-              label="Valid To"
-              value={<FieldRenderer type="date" value={site.fields.po_valid_to} />}
-              onEdit={canWrite ? openPoEditor : undefined}
-              onAdd={canWrite && !site.fields.po_valid_to ? openPoEditor : undefined}
-            />
-          </>
-        ) : null}
-        {invoiceId ? (
-          <>
-            <DetailFieldCard
-              label="Invoice Number"
-              value={<FieldRenderer value={site.fields.invoice_number} />}
-              onEdit={canWrite && !!site.fields.invoice_number ? openInvEditor : undefined}
-              onAdd={canWrite && !site.fields.invoice_number ? openInvEditor : undefined}
-            />
-            <DetailFieldCard
-              label="Invoice Date"
-              value={<FieldRenderer type="date" value={site.fields.invoice_date} />}
-              onEdit={canWrite && !!site.fields.invoice_date ? openInvEditor : undefined}
-              onAdd={canWrite && !site.fields.invoice_date ? openInvEditor : undefined}
+              label="PO Date"
+              value={<FieldRenderer type="date" value={site.fields.po_date} />}
+              onEdit={canWrite && !!site.fields.po_date ? openPoEditor : undefined}
+              onAdd={canWrite && !site.fields.po_date ? openPoEditor : undefined}
             />
             {isBB ? (
               <>
                 <DetailFieldCard
-                  label="Period From"
-                  value={<FieldRenderer type="date" value={site.fields.invoice_period_from} />}
-                  onEdit={canWrite ? openInvEditor : undefined}
-                  onAdd={canWrite && !site.fields.invoice_period_from ? openInvEditor : undefined}
+                  label="Valid From"
+                  value={<FieldRenderer type="date" value={site.fields.po_valid_from} />}
+                  onEdit={canWrite ? openPoEditor : undefined}
+                  onAdd={canWrite && !site.fields.po_valid_from ? openPoEditor : undefined}
                 />
                 <DetailFieldCard
-                  label="Period To"
-                  value={<FieldRenderer type="date" value={site.fields.invoice_period_to} />}
-                  onEdit={canWrite ? openInvEditor : undefined}
-                  onAdd={canWrite && !site.fields.invoice_period_to ? openInvEditor : undefined}
+                  label="Valid To"
+                  value={<FieldRenderer type="date" value={site.fields.po_valid_to} />}
+                  onEdit={canWrite ? openPoEditor : undefined}
+                  onAdd={canWrite && !site.fields.po_valid_to ? openPoEditor : undefined}
                 />
               </>
             ) : null}
-          </>
+          </div>
+        </div>
+
+        {invoiceId ? (
+          <div className="rounded-[22px] border border-jscolors-crimson/10 bg-white/70 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Invoice Details</p>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <DetailFieldCard
+                label="Invoice Number"
+                value={<FieldRenderer value={site.fields.invoice_number} />}
+                onEdit={canWrite && !!site.fields.invoice_number ? openInvEditor : undefined}
+                onAdd={canWrite && !site.fields.invoice_number ? openInvEditor : undefined}
+              />
+              <DetailFieldCard
+                label="Invoice Date"
+                value={<FieldRenderer type="date" value={site.fields.invoice_date} />}
+                onEdit={canWrite && !!site.fields.invoice_date ? openInvEditor : undefined}
+                onAdd={canWrite && !site.fields.invoice_date ? openInvEditor : undefined}
+              />
+              {isBB ? (
+                <>
+                  <DetailFieldCard
+                    label="Period From"
+                    value={<FieldRenderer type="date" value={site.fields.invoice_period_from} />}
+                    onEdit={canWrite ? openInvEditor : undefined}
+                    onAdd={canWrite && !site.fields.invoice_period_from ? openInvEditor : undefined}
+                  />
+                  <DetailFieldCard
+                    label="Period To"
+                    value={<FieldRenderer type="date" value={site.fields.invoice_period_to} />}
+                    onEdit={canWrite ? openInvEditor : undefined}
+                    onAdd={canWrite && !site.fields.invoice_period_to ? openInvEditor : undefined}
+                  />
+                </>
+              ) : null}
+              <DetailFieldCard
+                label="Submission Date"
+                value={<FieldRenderer type="date" value={site.fields.invoice_submission_date} />}
+                onEdit={canWrite ? openInvEditor : undefined}
+                onAdd={canWrite && !site.fields.invoice_submission_date ? openInvEditor : undefined}
+              />
+              <DetailFieldCard
+                label="Settlement Date"
+                value={<FieldRenderer type="date" value={site.fields.invoice_settlement_date} />}
+                onEdit={canWrite ? openInvEditor : undefined}
+                onAdd={canWrite && !site.fields.invoice_settlement_date ? openInvEditor : undefined}
+              />
+            </div>
+          </div>
         ) : null}
       </div>
 
@@ -278,8 +299,8 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
       >
         <div className="space-y-4">
           {(() => {
-            const canSubmission = !!(site.fields.invoice_number && site.fields.invoice_date)
-            const canSettlement = !!site.fields.invoice_submission_date
+            const canSubmission = !!(draftInvNo.trim() && draftInvDate)
+            const canSettlement = !!draftSubmissionDate
             return (
               <div className="flex gap-2">
                 <Button size="sm" variant={invTab === "details" ? "primary" : "secondary"} onClick={() => setInvTab("details")}>Details</Button>

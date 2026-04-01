@@ -7,6 +7,7 @@ import { rejectInvoice, updateInvoice } from "../../../../services/billingServic
 import type { Invoice } from "../../types"
 
 const fieldCls = "w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
+const TODAY = new Date().toISOString().slice(0, 10)
 
 type Tab = "details" | "submission" | "settlement"
 
@@ -141,8 +142,8 @@ export default function InvoiceTable({ invoices, isBB, onSaved }: { invoices: In
       >
         <div className="space-y-4">
           {(() => {
-            const canSubmission = !!(editingInvoice?.invoice_no && editingInvoice?.invoice_date)
-            const canSettlement = !!editingInvoice?.submission_date
+            const canSubmission = !!(draftNo.trim() && draftInvDate)
+            const canSettlement = !!draftSubmissionDate
             return (
               <div className="flex gap-2">
                 <Button size="sm" variant={activeTab === "details" ? "primary" : "secondary"} onClick={() => setActiveTab("details")}>Details</Button>
@@ -171,6 +172,7 @@ export default function InvoiceTable({ invoices, isBB, onSaved }: { invoices: In
                   value={draftInvDate}
                   onChange={(e) => setDraftInvDate(e.target.value)}
                   className={fieldCls}
+                  max={TODAY}
                 />
               </label>
               {isBB ? (
@@ -196,6 +198,7 @@ export default function InvoiceTable({ invoices, isBB, onSaved }: { invoices: In
                 value={draftSubmissionDate}
                 onChange={(e) => setDraftSubmissionDate(e.target.value)}
                 className={fieldCls}
+                max={TODAY}
               />
             </label>
           )}
@@ -208,6 +211,7 @@ export default function InvoiceTable({ invoices, isBB, onSaved }: { invoices: In
                 value={draftSettlementDate}
                 onChange={(e) => setDraftSettlementDate(e.target.value)}
                 className={fieldCls}
+                max={TODAY}
               />
             </label>
           )}
