@@ -290,14 +290,30 @@ def close_ticket(db: Session, ticket_id: int, data: dict | None = None) -> dict[
 
     data = data or {}
     project, _site = _project_and_site(db, ticket.project_id, ticket.site_id)
+    selected_points: list[PunchPoint] | None = None
     if "punch_point_ids" in data:
-        punch_points = _selected_punch_points(db, ticket.project_id, [int(value) for value in (data.get("punch_point_ids") or [])])
-        _replace_ticket_punch_points(db, ticket.id, punch_points)
-        ticket.pp_id = punch_points[0].id if punch_points else None
+        selected_points = _selected_punch_points(db, ticket.project_id, [int(value) for value in (data.get("punch_point_ids") or [])])
+        _replace_ticket_punch_points(db, ticket.id, selected_points)
+        ticket.pp_id = selected_points[0].id if selected_points else None
+        db.flush()
 
-    existing_points = _ticket_punch_points(db, [ticket.id]).get(ticket.id, [])
-    if not existing_points:
-        raise HTTPException(status_code=400, detail="At least one Punch Point is required before closing the ticket.")
+    if selected_points is not None:
+        if not selected_points:
+            raise HTTPException(
+                status_code=400,
+                detail="At least one RFO is required before closing the ticket."
+                if project.key == "bb"
+                else "At least one Punch Point is required before closing the ticket.",
+            )
+    else:
+        existing_points = _ticket_punch_points(db, [ticket.id]).get(ticket.id, [])
+        if not existing_points:
+            raise HTTPException(
+                status_code=400,
+                detail="At least one RFO is required before closing the ticket."
+                if project.key == "bb"
+                else "At least one Punch Point is required before closing the ticket.",
+            )
 
     ticket.closing_date = _parse_date(data.get("closing_date"), "Closing Date")
     if project.key == "bb":

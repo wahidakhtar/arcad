@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type MouseEvent } from "react"
 import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps"
-import indiaGeoUrl from "../../assets/india-lite.geojson?url"
+import indiaGeoUrl from "../../assets/india-states.json?url"
 
 const TOOLTIP_WIDTH = 260
 const TOOLTIP_HEIGHT = 140 // conservative estimate for clamping vertical
@@ -12,6 +12,14 @@ const TINY_REGION_MARKERS: Record<string, [number, number]> = {
   Puducherry: [79.82, 11.93],
 }
 const TINY_REGION_NAMES = new Set(Object.keys(TINY_REGION_MARKERS))
+const MAP_NAME_ALIASES: Record<string, string> = {
+  andamanandnicobar: "andamanandnicobarislands",
+  dadraandnagarhaveli: "dadraandnagarhavelianddamananddiu",
+  delhi: "delhincr",
+  nctofdelhi: "delhincr",
+  orissa: "odisha",
+  pondicherry: "puducherry",
+}
 
 type MapRow = {
   state_id: number
@@ -36,10 +44,10 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
   } | null>(null)
 
   const rowByState = useMemo(
-    () => new Map(rows.map((row) => [normalizeStateLabel(row.label), row])),
+    () => new Map(rows.map((row) => [canonicalStateLabel(row.label), row])),
     [rows],
   )
-  const knownStateLabels = useMemo(() => new Set(states.map((state) => normalizeStateLabel(state.label))), [states])
+  const knownStateLabels = useMemo(() => new Set(states.map((state) => canonicalStateLabel(state.label))), [states])
 
   function handleMouseEnter(event: MouseEvent<SVGPathElement>, name: string, count: number, row: MapRow | undefined) {
     const container = containerRef.current
@@ -63,7 +71,7 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
     () =>
       Object.entries(TINY_REGION_MARKERS)
         .map(([name, coordinates]) => {
-          const row = rowByState.get(normalizeStateLabel(name))
+          const row = rowByState.get(canonicalStateLabel(name))
           return {
             name,
             coordinates,
@@ -71,7 +79,7 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
             count: row?.count ?? 0,
           }
         })
-        .filter((item) => knownStateLabels.has(normalizeStateLabel(item.name))),
+        .filter((item) => knownStateLabels.has(canonicalStateLabel(item.name))),
     [knownStateLabels, rowByState],
   )
 
@@ -82,13 +90,14 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
           {({ geographies }: { geographies: Array<{ rsmKey: string; properties: Record<string, unknown> }> }) =>
             geographies.map((geography: { rsmKey: string; properties: Record<string, unknown> }) => {
               const name = String(geography.properties?.st_nm ?? geography.properties?.ST_NM ?? geography.properties?.name ?? geography.properties?.NAME_1 ?? "")
-              if (knownStateLabels.size && !knownStateLabels.has(normalizeStateLabel(name))) {
+              const canonicalName = canonicalStateLabel(name)
+              if (knownStateLabels.size && !knownStateLabels.has(canonicalName)) {
                 return null
               }
               if (TINY_REGION_NAMES.has(name)) {
                 return null
               }
-              const row = rowByState.get(normalizeStateLabel(name))
+              const row = rowByState.get(canonicalName)
               const count = row?.count ?? 0
               return (
                 <Geography
@@ -158,4 +167,9 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
 
 function normalizeStateLabel(value: string) {
   return value.toLowerCase().replace(/[^a-z]/g, "")
+}
+
+function canonicalStateLabel(value: string) {
+  const normalized = normalizeStateLabel(value)
+  return MAP_NAME_ALIASES[normalized] ?? normalized
 }

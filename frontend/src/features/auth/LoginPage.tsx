@@ -14,16 +14,18 @@ export default function LoginPage() {
 
   return (
     <div className="page-shell flex items-center justify-center p-6">
-      <div className="glass-panel relative w-full max-w-4xl overflow-hidden">
-        <div className="grid min-h-[600px] md:grid-cols-[0.72fr_1fr]">
-          <div className="relative overflow-hidden bg-jscolors-crimson px-8 py-10 text-white">
+      <div className="glass-panel relative w-full max-w-[980px] overflow-hidden">
+        <div className="grid min-h-[520px] md:grid-cols-[0.84fr_1fr]">
+          <div className="relative overflow-hidden bg-jscolors-crimson px-8 py-8 text-white">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.18),_transparent_28%)]" />
             <div className="relative z-10 flex h-full items-center justify-center">
-              <img src="/logo.png" alt="ARCAD" className="h-24 w-24 rounded-[28px] border border-white/20 bg-white/10 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.2)]" />
+              <div className="w-full max-w-[250px] rounded-[26px] border border-white/18 bg-white/95 px-6 py-5 shadow-[0_24px_60px_rgba(0,0,0,0.2)]">
+                <img src="/logo.png" alt="ARCAD" className="mx-auto h-auto w-full" />
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center bg-white/70 px-8 py-10">
+          <div className="flex items-center bg-white/70 px-8 py-8">
             <form
               className="mx-auto w-full max-w-md"
               onSubmit={async (event) => {
