@@ -147,8 +147,7 @@ def _apply_ticket_site_rules(db: Session, ticket: Ticket, closing: bool) -> None
     by_key = {b.key: b.id for b in badges.values()}
 
     if project_key == "bb":
-        if getattr(site, "status_key", None) == "down":
-            site.status_id = by_key.get("live", site.status_id)
+        site.status_id = by_key.get("live" if closing else "down", site.status_id)
         if hasattr(site, "active"):
             site.active = True
     else:
