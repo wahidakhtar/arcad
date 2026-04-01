@@ -5,8 +5,8 @@ PROJECT_KEY = "ma"
 fields = [
     "receiving_date", "ckt_id", "customer", "address", "state_id", "lc", "height",
     "permission_date", "status", "followup_date", "mpaint", "mnbr", "arr", "ep", "ec",
-    "audit_date", "fsr_status", "report_status", "budget", "cost", "paid", "balance",
-    "po_number", "po_status", "invoice_number", "invoice_status",
+    "audit_date", "wcc_status", "budget", "cost", "paid", "balance", "po_number",
+    "po_status", "invoice_number", "invoice_status",
 ]
 form_fields = ["receiving_date", "ckt_id", "customer", "address", "state_id", "height"]
 bulk_columns = ["ckt_id", "customer", "address", "state_id", "height"]
@@ -15,8 +15,8 @@ system_status_triggers = {
     "permission_date:set": {"status_key": "wip"},
     "status_key:hold": {"clear": ["permission_date"]},
     "status_key:cancel": {"clear": ["permission_date"]},
-    "audit_date:set": {"status_key": "comp", "lock_all_except": ["audit_date", "fsr_status_id", "report_status_id"]},
-    "audit_date:clear": {"status_key": "p_wait", "clear": ["permission_date", "fsr_status_id", "report_status_id"]},
+    "audit_date:set": {"status_key": "comp", "lock_all_except": ["audit_date", "wcc_status_id"]},
+    "audit_date:clear": {"status_key": "p_wait", "clear": ["permission_date", "wcc_status_id"]},
 }
 field_lock_rules = {
     "permission_date": {"status_key": ["p_wait"]},
@@ -61,8 +61,7 @@ def apply_ma_rules(site, payload: dict, db) -> dict:
     if current_status_key == "comp":
         allowed_when_comp = {
             "audit_date",
-            "fsr_status_id",
-            "report_status_id",
+            "wcc_status_id",
             "mpaint",
             "mnbr",
             "arr",
@@ -73,21 +72,13 @@ def apply_ma_rules(site, payload: dict, db) -> dict:
             if key not in allowed_when_comp:
                 raise HTTPException(status_code=400, detail=f"Field '{key}' cannot be changed when site is complete")
 
-    # 4. fsr_status_id requires audit_date
-    if "fsr_status_id" in payload:
+    # 4. wcc_status_id requires audit_date
+    if "wcc_status_id" in payload:
         has_audit = site.audit_date is not None or (
             "audit_date" in payload and payload["audit_date"] is not None
         )
         if not has_audit:
-            raise HTTPException(status_code=400, detail="FSR status cannot be set before audit date")
-
-    # 5. report_status_id requires audit_date
-    if "report_status_id" in payload:
-        has_audit = site.audit_date is not None or (
-            "audit_date" in payload and payload["audit_date"] is not None
-        )
-        if not has_audit:
-            raise HTTPException(status_code=400, detail="Report status cannot be set before audit date")
+            raise HTTPException(status_code=400, detail="WCC status cannot be set before audit date")
 
     # SIDE EFFECTS
     # 6. Status → hold, cancel, or p_iss: clear permission_date
@@ -106,16 +97,13 @@ def apply_ma_rules(site, payload: dict, db) -> dict:
     # 9. audit_date set: set status to comp, default doc statuses to pend
     if "audit_date" in payload and payload["audit_date"] is not None:
         payload["status_id"] = status_by_key["comp"]
-        if site.fsr_status_id is None and "fsr_status_id" not in payload:
-            payload["fsr_status_id"] = doc_by_key["pend"]
-        if site.report_status_id is None and "report_status_id" not in payload:
-            payload["report_status_id"] = doc_by_key["pend"]
+        if site.wcc_status_id is None and "wcc_status_id" not in payload:
+            payload["wcc_status_id"] = doc_by_key["pend"]
 
     # 10. audit_date cleared: revert status, clear related fields
     if "audit_date" in payload and payload["audit_date"] is None:
         payload["status_id"] = status_by_key["p_wait"]
         payload["permission_date"] = None
-        payload["fsr_status_id"] = None
-        payload["report_status_id"] = None
+        payload["wcc_status_id"] = None
 
     return payload
