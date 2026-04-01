@@ -58,7 +58,16 @@ def apply_ma_rules(site, payload: dict, db) -> dict:
 
     # 3. If comp, restrict allowed fields
     if current_status_key == "comp":
-        allowed_when_comp = {"audit_date", "fsr_status_id", "report_status_id"}
+        allowed_when_comp = {
+            "audit_date",
+            "fsr_status_id",
+            "report_status_id",
+            "mpaint",
+            "mnbr",
+            "arr",
+            "ep",
+            "ec",
+        }
         for key in payload:
             if key not in allowed_when_comp:
                 raise HTTPException(status_code=400, detail=f"Field '{key}' cannot be changed when site is complete")
