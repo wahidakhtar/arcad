@@ -14,30 +14,18 @@ export default function LoginPage() {
 
   return (
     <div className="page-shell flex items-center justify-center p-6">
-      <div className="glass-panel relative w-full max-w-5xl overflow-hidden">
-        <div className="grid min-h-[640px] md:grid-cols-[1.1fr_0.9fr]">
+      <div className="glass-panel relative w-full max-w-4xl overflow-hidden">
+        <div className="grid min-h-[600px] md:grid-cols-[0.72fr_1fr]">
           <div className="relative overflow-hidden bg-jscolors-crimson px-8 py-10 text-white">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.18),_transparent_28%)]" />
-            <div className="relative z-10 flex h-full flex-col justify-between">
-              <div>
-                <img src="/logo.png" alt="ARCAD" className="h-16 w-16 rounded-[24px] border border-white/20 bg-white/10 p-3" />
-                <p className="mt-10 text-xs uppercase tracking-[0.36em] text-white/65">ARCAD Internal Office System</p>
-                <h1 className="mt-4 max-w-md font-syne text-5xl font-bold leading-[1.05]">Built for disciplined field operations.</h1>
-                <p className="mt-5 max-w-lg text-sm leading-7 text-white/76">
-                  Unified projects, site workflows, finance visibility, and permission-controlled execution in one premium internal console.
-                </p>
-              </div>
-              <div className="grid gap-4 text-sm text-white/78 md:grid-cols-3">
-                <Metric label="Auth Window" value="8 Hours" />
-                <Metric label="Refresh Window" value="30 Days" />
-                <Metric label="Runtime" value="Internal LAN" />
-              </div>
+            <div className="relative z-10 flex h-full items-center justify-center">
+              <img src="/logo.png" alt="ARCAD" className="h-24 w-24 rounded-[28px] border border-white/20 bg-white/10 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.2)]" />
             </div>
           </div>
 
           <div className="flex items-center bg-white/70 px-8 py-10">
             <form
-              className="w-full"
+              className="mx-auto w-full max-w-md"
               onSubmit={async (event) => {
                 event.preventDefault()
                 try {
@@ -54,7 +42,7 @@ export default function LoginPage() {
             >
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-jscolors-text/45">Secure Access</p>
               <h2 className="mt-3 font-syne text-4xl font-semibold text-jscolors-crimson">Sign in</h2>
-              <p className="mt-3 text-sm text-jscolors-text/60">Use your assigned ARCAD username and password.</p>
+              <p className="mt-3 text-sm text-jscolors-text/60">Use your assigned username and password.</p>
 
               <div className="mt-8 space-y-5">
                 <Input label="Username" value={username} onChange={setUsername} />
@@ -77,15 +65,6 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-4 backdrop-blur">
-      <div className="text-[10px] uppercase tracking-[0.24em] text-white/55">{label}</div>
-      <div className="mt-2 font-syne text-xl font-semibold">{value}</div>
     </div>
   )
 }

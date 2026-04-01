@@ -7,7 +7,7 @@ import { api } from "../../lib/api"
 import { formatCurrency, formatDate } from "../../utils/format"
 import type { Badge, TransactionRow, TransitionRow } from "./siteDetailTypes"
 import { txStatusLabel } from "./siteDetailHelpers"
-import { transactionExecutionLabel, transactionTypeLabel } from "../transactions/transactionDisplay"
+import { transactionDisplayRemarks, transactionExecutionLabel, transactionTypeLabel } from "../transactions/transactionDisplay"
 
 export default function SiteTransactionCard({
   row,
@@ -40,6 +40,12 @@ export default function SiteTransactionCard({
   const statusKey = currentBadge?.key ?? ""
   const isReq = statusKey === "req"
   const typeKey = badges.get(row.type_id)?.key
+  const displayRemarks = transactionDisplayRemarks({
+    projectKey,
+    typeKey,
+    siteId: row.site_id,
+    remarks: row.remarks,
+  })
 
   async function handleTransition(toId: number, executionDate?: string) {
     setUpdating(true)
@@ -132,7 +138,7 @@ export default function SiteTransactionCard({
           <div className="mt-1 text-sm text-jscolors-text/60">
             {formatDate(row.request_date)}
             {row.bucket_key ? ` • ${row.bucket_key.toUpperCase()}` : ""}
-            {row.remarks ? ` • ${row.remarks}` : ""}
+            {displayRemarks ? ` • ${displayRemarks}` : ""}
           </div>
         </div>
         <div className="flex items-center gap-2">

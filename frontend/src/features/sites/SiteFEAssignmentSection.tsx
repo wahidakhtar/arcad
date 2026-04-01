@@ -208,7 +208,7 @@ export default function SiteFEAssignmentSection({
         recipient_id: rechargeModal.subconId,
         type_id: fePayTypeId,
         amount: rechargeModal.amount,
-        remarks: `Recharge request • ${Number(rechargeModal.validity)} ${rechargeModal.uom}`,
+        remarks: `${Number(rechargeModal.validity)} ${rechargeModal.uom}`,
         recharge_validity: Number(rechargeModal.validity),
         recharge_uom: rechargeModal.uom,
       })
@@ -226,7 +226,7 @@ export default function SiteFEAssignmentSection({
 
   return (
     <ActionPanel
-      title={isBB ? `${assigneeLabel} Assignment & Transactions` : `${assigneeLabel} Assignment`}
+      title={isBB ? "Providers" : `${assigneeLabel} Assignment`}
       action={
         <div className="flex flex-wrap gap-2">
           <Button
@@ -409,9 +409,15 @@ export default function SiteFEAssignmentSection({
                 <div>
                   <div className="text-sm font-semibold text-jscolors-text">{displayLabel}</div>
                   <div className="mt-2 flex flex-wrap gap-4 text-sm text-jscolors-text/60">
-                    <span className="tabular-nums">Cost <span className="font-semibold text-jscolors-text">{formatCurrency(row.cost)}</span></span>
-                    <span className="tabular-nums">Paid <span className="font-semibold text-jscolors-text">{formatCurrency(row.paid)}</span></span>
-                    <span className="tabular-nums">Balance <span className="font-semibold text-jscolors-text">{formatCurrency(row.balance)}</span></span>
+                    {isBB ? (
+                      <span className="tabular-nums">Paid <span className="font-semibold text-jscolors-text">{formatCurrency(row.paid)}</span></span>
+                    ) : (
+                      <>
+                        <span className="tabular-nums">Cost <span className="font-semibold text-jscolors-text">{formatCurrency(row.cost)}</span></span>
+                        <span className="tabular-nums">Paid <span className="font-semibold text-jscolors-text">{formatCurrency(row.paid)}</span></span>
+                        <span className="tabular-nums">Balance <span className="font-semibold text-jscolors-text">{formatCurrency(row.balance)}</span></span>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -428,7 +434,7 @@ export default function SiteFEAssignmentSection({
                         setTxModal({ open: true, subconId: row.subcon_id, bucketKey: row.bucket_key, subconLabel: displayLabel, type_id: "", amount: "", err: "" })
                       }}
                     >
-                      Request
+                      {isBB ? "Request Recharge" : "Request"}
                     </Button>
                   )}
                   {row.active && canSiteWrite && row.assignment_id ? (

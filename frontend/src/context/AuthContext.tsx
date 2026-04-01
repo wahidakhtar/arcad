@@ -1,13 +1,14 @@
 import {
   createContext,
   startTransition,
+  useCallback,
   useContext,
   useEffect,
   useState,
   type ReactNode,
 } from "react"
 
-import { api } from "../lib/api"
+import { api, setUnauthorizedHandler } from "../lib/api"
 import { decodeJWT, hasPermission, type AuthRole, type AuthUser, type TagMap } from "../lib/auth"
 
 type AuthContextValue = {
@@ -69,6 +70,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [projectKeys, setProjectKeys] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [setupRequired, setSetupRequired] = useState(false)
+
+  const resetAuthState = useCallback((nextSetupRequired = false) => {
+    startTransition(() => {
+      setUser(null)
+      setRoles([])
+      setTags({})
+      setProjectKeys([])
+      setSetupRequired(nextSetupRequired)
+      setLoading(false)
+    })
+  }, [])
+
+  const handleUnauthorized = useCallback(() => {
+    clearStoredSession()
+    resetAuthState(false)
+    if (window.location.pathname !== "/login") {
+      window.location.assign("/login")
+    }
+  }, [resetAuthState])
 
   async function fetchSetupRequired() {
     try {
@@ -135,6 +155,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refreshAuth()
   }, [])
 
+  useEffect(() => {
+    setUnauthorizedHandler(handleUnauthorized)
+    return () => setUnauthorizedHandler(null)
+  }, [handleUnauthorized])
+
   async function login(username: string, password: string, deviceLabel?: string) {
     const response = await api.post<LoginResponse>("/auth/login", {
       username,
@@ -151,13 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await api.delete("/auth/logout")
     } finally {
       clearStoredSession()
-      startTransition(() => {
-        setUser(null)
-        setRoles([])
-        setTags({})
-        setProjectKeys([])
-        setLoading(false)
-      })
+      resetAuthState(false)
       await fetchSetupRequired()
       window.location.assign("/login")
     }

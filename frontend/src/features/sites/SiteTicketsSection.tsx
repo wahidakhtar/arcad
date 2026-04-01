@@ -72,6 +72,14 @@ function toggleSelection(selectedIds: number[], pointId: number): number[] {
     : [...selectedIds, pointId]
 }
 
+function ticketIssueLabel(projectKey: string) {
+  return projectKey === "bb" ? "RFO" : "Punch Points"
+}
+
+function ticketIssuePlaceholder(projectKey: string) {
+  return projectKey === "bb" ? "Add new RFO" : "Add new punch point"
+}
+
 function PunchPointField({
   points,
   selectedIds,
@@ -81,6 +89,9 @@ function PunchPointField({
   setAddLabel,
   onAdd,
   addBusy,
+  issueLabel,
+  emptyLabel,
+  addPlaceholder,
 }: {
   points: PunchPointRow[]
   selectedIds: number[]
@@ -90,11 +101,14 @@ function PunchPointField({
   setAddLabel: (value: string) => void
   onAdd: () => void
   addBusy: boolean
+  issueLabel: string
+  emptyLabel: string
+  addPlaceholder: string
 }) {
   return (
     <div className="space-y-3">
       <div>
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Punch Points</span>
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">{issueLabel}</span>
         <div className="max-h-40 space-y-2 overflow-y-auto rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3">
           {points.length ? points.map((point) => {
             const checked = selectedIds.includes(point.id)
@@ -109,7 +123,7 @@ function PunchPointField({
                 <span>{point.label}</span>
               </label>
             )
-          }) : <p className="text-sm text-jscolors-text/50">No punch points yet.</p>}
+          }) : <p className="text-sm text-jscolors-text/50">{emptyLabel}</p>}
         </div>
       </div>
       {canWrite ? (
@@ -119,7 +133,7 @@ function PunchPointField({
             value={addLabel}
             onChange={(event) => setAddLabel(event.target.value)}
             className="flex-1 rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-jscolors-crimson/40"
-            placeholder="Add new punch point"
+            placeholder={addPlaceholder}
           />
           <Button type="button" variant="secondary" onClick={onAdd} disabled={addBusy || !addLabel.trim()}>
             {addBusy ? "Adding..." : "Add"}
@@ -190,6 +204,9 @@ export default function SiteTicketsSection({
   const [closeErr, setCloseErr] = useState("")
   const [newPunchPointLabel, setNewPunchPointLabel] = useState("")
   const [addingPunchPoint, setAddingPunchPoint] = useState(false)
+  const issueLabel = ticketIssueLabel(projectKey)
+  const emptyIssueLabel = projectKey === "bb" ? "No RFO added yet." : "No punch points yet."
+  const addIssuePlaceholder = ticketIssuePlaceholder(projectKey)
 
   useEffect(() => {
     setLocalPunchPoints(punchPoints)
@@ -258,7 +275,7 @@ export default function SiteTicketsSection({
       setNewPunchPointLabel("")
     } catch (e: unknown) {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      errorSetter(detail ?? "Failed to add punch point.")
+      errorSetter(detail ?? `Failed to add ${issueLabel.toLowerCase()}.`)
     } finally {
       setAddingPunchPoint(false)
     }
@@ -297,7 +314,7 @@ export default function SiteTicketsSection({
       await onReload()
     } catch (e: unknown) {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setErr(detail ?? "Failed to update punch points.")
+      setErr(detail ?? `Failed to update ${issueLabel.toLowerCase()}.`)
     } finally {
       setSubmitting(false)
     }
@@ -365,6 +382,9 @@ export default function SiteTicketsSection({
             setAddLabel={setNewPunchPointLabel}
             onAdd={() => void addPunchPoint()}
             addBusy={addingPunchPoint}
+            issueLabel={issueLabel}
+            emptyLabel={emptyIssueLabel}
+            addPlaceholder={addIssuePlaceholder}
           />
           {err ? <p className="text-sm text-red-600">{err}</p> : null}
         </div>
@@ -372,7 +392,7 @@ export default function SiteTicketsSection({
 
       <Modal
         isOpen={showEditModal}
-        title="Ticket Punch Points"
+        title={`Ticket ${issueLabel}`}
         onClose={() => setShowEditModal(false)}
         size="md"
         submitLabel="Save"
@@ -389,6 +409,9 @@ export default function SiteTicketsSection({
             setAddLabel={setNewPunchPointLabel}
             onAdd={() => void addPunchPoint()}
             addBusy={addingPunchPoint}
+            issueLabel={issueLabel}
+            emptyLabel={emptyIssueLabel}
+            addPlaceholder={addIssuePlaceholder}
           />
           {err ? <p className="text-sm text-red-600">{err}</p> : null}
         </div>
@@ -430,6 +453,9 @@ export default function SiteTicketsSection({
             setAddLabel={setNewPunchPointLabel}
             onAdd={() => void addPunchPoint()}
             addBusy={addingPunchPoint}
+            issueLabel={issueLabel}
+            emptyLabel={emptyIssueLabel}
+            addPlaceholder={addIssuePlaceholder}
           />
           {closeErr ? <p className="text-sm text-red-600">{closeErr}</p> : null}
         </div>
@@ -442,24 +468,23 @@ export default function SiteTicketsSection({
         <div className="space-y-3">
           {sortedTickets.length ? sortedTickets.map((row) => {
             const isOpen = !row.closing_date
-            const punchPointLabel = row.punch_points?.length ? row.punch_points.map((point) => point.label).join(", ") : "No punch point selected"
+            const punchPointLabel = row.punch_points?.length ? row.punch_points.map((point) => point.label).join(", ") : `No ${issueLabel.toLowerCase()} selected`
             return (
               <div key={row.id} className="rounded-[20px] border border-jscolors-crimson/10 bg-white px-4 py-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold text-jscolors-text">{row.ticket_number ?? `TKT-${row.id}`}</div>
-                    <div className="mt-1 text-sm text-jscolors-text/60">
-                      Opened {row.ticket_date}{row.ticket_time ? ` ${row.ticket_time}` : ""}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="text-sm font-semibold text-jscolors-text">{row.ticket_number ?? `TKT-${row.id}`}</div>
+                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${isOpen ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"}`}>
+                        {isOpen ? "Open" : "Closed"}
+                      </span>
                     </div>
-                    <div className="mt-1 text-sm text-jscolors-text/60">
-                      {isOpen ? "Open ticket" : `Closed ${row.closing_date}${row.closing_time ? ` ${row.closing_time}` : ""}`}
-                    </div>
-                    <div className="mt-2 text-sm text-jscolors-text/65">Punch Points: {punchPointLabel}</div>
+                    <div className="mt-2 text-sm text-jscolors-text/65">{issueLabel}: {punchPointLabel}</div>
                   </div>
                   {isOpen && canTicketWrite ? (
                     <div className="flex gap-2">
                       <Button type="button" variant="secondary" className="shrink-0" onClick={() => openEditModal(row)}>
-                        Punch Points
+                        {projectKey === "bb" ? "Edit RFO" : "Edit Punch Points"}
                       </Button>
                       <Button type="button" variant="secondary" className="shrink-0" onClick={() => openCloseModal(row)}>
                         Close

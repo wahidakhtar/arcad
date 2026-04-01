@@ -936,7 +936,7 @@ def create_recharge_request(db: Session, user: UserContext, site_id: int, amount
             recipient_id=None,
             type_id=type_badge.id,
             amount=amount,
-            remarks=f"Recharge request • {validity} {'months' if uom == 'months' else 'days'}",
+            remarks=f"{validity} {'months' if uom == 'months' else 'days'}",
             recharge_validity=validity,
             recharge_uom=uom,
         ),

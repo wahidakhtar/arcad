@@ -76,8 +76,8 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
   )
 
   return (
-    <div ref={containerRef} className="relative rounded-[24px] border border-jscolors-crimson/10 bg-white/70 p-4">
-      <ComposableMap projection="geoMercator" projectionConfig={{ scale: 920, center: [82, 22] }} style={{ width: "100%", height: "540px" }}>
+    <div ref={containerRef} className="relative rounded-[24px] border border-jscolors-crimson/10 bg-[#FBF7F6] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.5)]">
+      <ComposableMap projection="geoMercator" projectionConfig={{ scale: 920, center: [82, 22] }} style={{ width: "100%", height: "540px", background: "#F7EFEE" }}>
         <Geographies geography={indiaGeoUrl}>
           {({ geographies }: { geographies: Array<{ rsmKey: string; properties: Record<string, unknown> }> }) =>
             geographies.map((geography: { rsmKey: string; properties: Record<string, unknown> }) => {
@@ -94,14 +94,14 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
                 <Geography
                   key={geography.rsmKey}
                   geography={geography}
-                  stroke="#ffffff"
-                  strokeWidth={0.9}
-                  fill={count > 0 ? "#8B1A1A" : "#E7D8D8"}
+                  stroke={count > 0 ? "#FFF6F4" : "#BDAAAA"}
+                  strokeWidth={count > 0 ? 1 : 1.2}
+                  fill={count > 0 ? "#8B1A1A" : "#D9C7C7"}
                   onMouseEnter={(event: MouseEvent<SVGPathElement>) => handleMouseEnter(event, name, count, row)}
                   onMouseLeave={() => setTooltip(null)}
                   style={{
                     default: { outline: "none" },
-                    hover: { outline: "none", fill: count > 0 ? "#6F1515" : "#D9C4C4" },
+                    hover: { outline: "none", fill: count > 0 ? "#6F1515" : "#CBB3B3" },
                     pressed: { outline: "none" },
                   }}
                 />
@@ -130,7 +130,7 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
             >
               <circle
                 r={6}
-                fill={marker.count > 0 ? "#8B1A1A" : "#E7D8D8"}
+                fill={marker.count > 0 ? "#8B1A1A" : "#CDB8B8"}
                 stroke="#ffffff"
                 strokeWidth={2}
               />

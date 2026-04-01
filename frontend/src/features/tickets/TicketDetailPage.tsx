@@ -80,6 +80,14 @@ function toggleSelection(selectedIds: number[], pointId: number): number[] {
     : [...selectedIds, pointId]
 }
 
+function ticketIssueLabel(projectKey: string) {
+  return projectKey === "bb" ? "RFO" : "Punch Points"
+}
+
+function ticketIssuePlaceholder(projectKey: string) {
+  return projectKey === "bb" ? "Add new RFO" : "Add new punch point"
+}
+
 function PunchPointField({
   points,
   selectedIds,
@@ -88,6 +96,9 @@ function PunchPointField({
   setAddLabel,
   onAdd,
   adding,
+  issueLabel,
+  emptyLabel,
+  addPlaceholder,
 }: {
   points: PunchPointRow[]
   selectedIds: number[]
@@ -96,11 +107,14 @@ function PunchPointField({
   setAddLabel: (value: string) => void
   onAdd: () => void
   adding: boolean
+  issueLabel: string
+  emptyLabel: string
+  addPlaceholder: string
 }) {
   return (
     <div className="space-y-3">
       <div>
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Punch Points</span>
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">{issueLabel}</span>
         <div className="max-h-40 space-y-2 overflow-y-auto rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3">
           {points.length ? points.map((point) => (
             <label key={point.id} className="flex cursor-pointer items-center gap-3 text-sm text-jscolors-text">
@@ -112,7 +126,7 @@ function PunchPointField({
               />
               <span>{point.label}</span>
             </label>
-          )) : <p className="text-sm text-jscolors-text/50">No punch points yet.</p>}
+          )) : <p className="text-sm text-jscolors-text/50">{emptyLabel}</p>}
         </div>
       </div>
       <div className="flex gap-2">
@@ -121,7 +135,7 @@ function PunchPointField({
           value={addLabel}
           onChange={(event) => setAddLabel(event.target.value)}
           className="flex-1 rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-jscolors-crimson/40"
-          placeholder="Add new punch point"
+          placeholder={addPlaceholder}
         />
         <Button type="button" variant="secondary" onClick={onAdd} disabled={!addLabel.trim() || adding}>
           Add
@@ -172,9 +186,11 @@ export default function TicketDetailPage() {
   const [closingTime, setClosingTime] = useState<TimeDraft>(emptyTime())
   const [newPunchPointLabel, setNewPunchPointLabel] = useState("")
   const [showCloseModal, setShowCloseModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [closing, setClosing] = useState(false)
+  const [savingRfo, setSavingRfo] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -248,7 +264,24 @@ export default function TicketDetailPage() {
       setSelectedPunchPointIds((current) => current.includes(response.data.id) ? current : [...current, response.data.id])
       setNewPunchPointLabel("")
     } catch {
-      setError("Unable to add punch point.")
+      setError(projectKey === "bb" ? "Unable to add RFO." : "Unable to add punch point.")
+    }
+  }
+
+  async function savePunchPoints() {
+    setSavingRfo(true)
+    setError("")
+    try {
+      await api.patch(`/tickets/${ticketId}`, {
+        punch_point_ids: selectedPunchPointIds,
+      })
+      setShowEditModal(false)
+      safeLoad()
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setError(detail ?? (projectKey === "bb" ? "Unable to update RFO." : "Unable to update punch points."))
+    } finally {
+      setSavingRfo(false)
     }
   }
 
@@ -276,6 +309,9 @@ export default function TicketDetailPage() {
   if (!ticket) return <div className="p-6 text-jscolors-text/50">Ticket not found.</div>
 
   const isOpen = !ticket.closing_date
+  const issueLabel = ticketIssueLabel(projectKey)
+  const emptyIssueLabel = projectKey === "bb" ? "No RFO added yet." : "No punch points yet."
+  const addIssuePlaceholder = ticketIssuePlaceholder(projectKey)
   const punchPointLabel = ticket.punch_points?.length ? ticket.punch_points.map((point) => point.label).join(", ") : "Not selected"
 
   return (
@@ -283,24 +319,69 @@ export default function TicketDetailPage() {
       backHref="/tickets"
       title={ticket.ticket_number ?? `TKT-${ticket.id}`}
       subtitle="Ticket"
+      badges={
+        <span className={`rounded-full px-3 py-1 text-xs font-medium ${isOpen ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"}`}>
+          {isOpen ? "Open" : "Closed"}
+        </span>
+      }
       actions={
         isOpen && can("ticket", "write") ? (
-          <Button
-            type="button"
-            disabled={closing}
-            onClick={() => {
-              setClosingDate(TODAY)
-              setClosingTime(timeStringToUi(ticket.closing_time))
-              setSelectedPunchPointIds((ticket.punch_points ?? []).map((point) => point.id))
-              setShowCloseModal(true)
-              setError("")
-            }}
-          >
-            {closing ? "Closing..." : "Close Ticket"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={savingRfo}
+              onClick={() => {
+                setSelectedPunchPointIds((ticket.punch_points ?? []).map((point) => point.id))
+                setShowEditModal(true)
+                setError("")
+              }}
+            >
+              {projectKey === "bb" ? "Edit RFO" : "Edit Punch Points"}
+            </Button>
+            <Button
+              type="button"
+              disabled={closing}
+              onClick={() => {
+                setClosingDate(TODAY)
+                setClosingTime(timeStringToUi(ticket.closing_time))
+                setSelectedPunchPointIds((ticket.punch_points ?? []).map((point) => point.id))
+                setShowCloseModal(true)
+                setError("")
+              }}
+            >
+              {closing ? "Closing..." : "Close Ticket"}
+            </Button>
+          </div>
         ) : null
       }
     >
+      <Modal
+        isOpen={showEditModal}
+        title={`Ticket ${issueLabel}`}
+        onClose={() => setShowEditModal(false)}
+        size="md"
+        submitLabel="Save"
+        onSubmit={() => void savePunchPoints()}
+        isSubmitting={savingRfo}
+      >
+        <div className="space-y-4">
+          <PunchPointField
+            points={punchPoints}
+            selectedIds={selectedPunchPointIds}
+            onToggle={(pointId) => setSelectedPunchPointIds((current) => toggleSelection(current, pointId))}
+            addLabel={newPunchPointLabel}
+            setAddLabel={setNewPunchPointLabel}
+            onAdd={() => void addPunchPoint()}
+            adding={false}
+            issueLabel={issueLabel}
+            emptyLabel={emptyIssueLabel}
+            addPlaceholder={addIssuePlaceholder}
+          />
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        </div>
+      </Modal>
+
       <Modal
         isOpen={showCloseModal}
         title="Close Ticket"
@@ -336,6 +417,9 @@ export default function TicketDetailPage() {
             setAddLabel={setNewPunchPointLabel}
             onAdd={() => void addPunchPoint()}
             adding={false}
+            issueLabel={issueLabel}
+            emptyLabel={emptyIssueLabel}
+            addPlaceholder={addIssuePlaceholder}
           />
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
         </div>
@@ -346,15 +430,7 @@ export default function TicketDetailPage() {
           <DetailFieldCard label="Project" value={projectLabel} />
           <DetailFieldCard label="Site" value={cktId} />
           <DetailFieldCard label="Date" value={`${ticket.ticket_date}${ticket.ticket_time ? ` ${ticket.ticket_time}` : ""}`} />
-          <DetailFieldCard label="Punch Points" value={punchPointLabel} />
-          <DetailFieldCard
-            label="Status"
-            value={
-              <span className={`rounded-full px-3 py-1 text-xs font-medium ${isOpen ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"}`}>
-                {isOpen ? "Open" : `Closed ${ticket.closing_date}${ticket.closing_time ? ` ${ticket.closing_time}` : ""}`}
-              </span>
-            }
-          />
+          <DetailFieldCard label={issueLabel} value={punchPointLabel} />
         </div>
       </section>
     </DetailPageLayout>

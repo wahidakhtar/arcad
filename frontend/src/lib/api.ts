@@ -9,6 +9,15 @@ export const api = axios.create({
 })
 
 let refreshPromise: Promise<string | null> | null = null
+let unauthorizedHandler: (() => void) | null = null
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler
+}
+
+function handleUnauthorized() {
+  unauthorizedHandler?.()
+}
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token")
@@ -24,6 +33,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
+    const requestUrl = typeof original?.url === "string" ? original.url : ""
     if (error.response?.status !== 401 || original?._retry) {
       logError({
         error_type: "api_error",
@@ -34,11 +44,17 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
 
+    if (requestUrl.includes("/auth/login") || requestUrl.includes("/auth/refresh")) {
+      handleUnauthorized()
+      return Promise.reject(error)
+    }
+
     if (!refreshPromise) {
       const refreshToken = localStorage.getItem("refresh_token")
       if (!refreshToken) {
         localStorage.removeItem("access_token")
         localStorage.removeItem("refresh_token")
+        handleUnauthorized()
         return Promise.reject(error)
       }
 
@@ -52,6 +68,7 @@ api.interceptors.response.use(
         .catch(() => {
           localStorage.removeItem("access_token")
           localStorage.removeItem("refresh_token")
+          handleUnauthorized()
           return null
         })
         .finally(() => {
