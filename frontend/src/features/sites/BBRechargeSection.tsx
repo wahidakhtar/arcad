@@ -78,7 +78,7 @@ export default function BBRechargeSection({
         site_id: siteId,
         amount: Number(amount),
         type_id: rechargeTypeId,
-        remarks: `Recharge request • ${Number(validity)} ${uom}`,
+        remarks: `${Number(validity)} ${uom}`,
         recharge_validity: Number(validity),
         recharge_uom: uom,
       })
