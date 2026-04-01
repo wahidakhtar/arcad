@@ -25,6 +25,15 @@ export default function SiteDetailPage() {
   const [outcomeDraft, setOutcomeDraft] = useState("")
   const [visitOutcomeSaving, setVisitOutcomeSaving] = useState(false)
   const [visitOutcomeError, setVisitOutcomeError] = useState("")
+  const [auditResultsOpen, setAuditResultsOpen] = useState(false)
+  const [auditDateDraft, setAuditDateDraft] = useState("")
+  const [auditPaintDraft, setAuditPaintDraft] = useState(false)
+  const [auditNutBoltDraft, setAuditNutBoltDraft] = useState(false)
+  const [auditArresterDraft, setAuditArresterDraft] = useState(false)
+  const [auditEarthpitDraft, setAuditEarthpitDraft] = useState(false)
+  const [auditEarthingCableDraft, setAuditEarthingCableDraft] = useState("")
+  const [auditResultsSaving, setAuditResultsSaving] = useState(false)
+  const [auditResultsError, setAuditResultsError] = useState("")
   const [deploying, setDeploying] = useState(false)
   const [deployError, setDeployError] = useState("")
   const [transferringToCm, setTransferringToCm] = useState(false)
@@ -95,6 +104,19 @@ export default function SiteDetailPage() {
     setVisitOutcomeOpen(true)
   }
 
+  function openAuditResultsEditor() {
+    setAuditDateDraft((currentSite.fields.audit_date as string | null) ?? "")
+    setAuditPaintDraft(Boolean(currentSite.fields.mpaint))
+    setAuditNutBoltDraft(Boolean(currentSite.fields.mnbr))
+    setAuditArresterDraft(Boolean(currentSite.fields.arr))
+    setAuditEarthpitDraft(Boolean(currentSite.fields.ep))
+    setAuditEarthingCableDraft(
+      currentSite.fields.ec == null ? "" : String(currentSite.fields.ec),
+    )
+    setAuditResultsError("")
+    setAuditResultsOpen(true)
+  }
+
   async function saveVisitOutcome() {
     if (!visitDateDraft || !outcomeDraft.trim()) {
       setVisitOutcomeError("Visit Date and Outcome are both required.")
@@ -116,6 +138,34 @@ export default function SiteDetailPage() {
       setVisitOutcomeError(detail ?? "Failed to update visit details.")
     } finally {
       setVisitOutcomeSaving(false)
+    }
+  }
+
+  async function saveAuditResults() {
+    if (!auditDateDraft) {
+      setAuditResultsError("Audit Date is required.")
+      return
+    }
+    setAuditResultsSaving(true)
+    setAuditResultsError("")
+    try {
+      await api.patch(`/sites/${projectKey}/${currentSite.id}`, {
+        data: {
+          audit_date: auditDateDraft,
+          mpaint: auditPaintDraft,
+          mnbr: auditNutBoltDraft,
+          arr: auditArresterDraft,
+          ep: auditEarthpitDraft,
+          ec: auditEarthingCableDraft.trim() === "" ? null : Number(auditEarthingCableDraft),
+        },
+      })
+      setAuditResultsOpen(false)
+      await loadPage()
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setAuditResultsError(detail ?? "Failed to update audit details.")
+    } finally {
+      setAuditResultsSaving(false)
     }
   }
 
@@ -213,6 +263,7 @@ export default function SiteDetailPage() {
               setEditError("")
             }}
             onOpenVisitOutcome={openVisitOutcomeEditor}
+            onOpenAuditResults={openAuditResultsEditor}
           />
           {can("billing", "read") && <SiteBillingSection site={site} canWrite={can("billing", "write")} onSaved={loadPage} />}
         </div>
@@ -275,6 +326,80 @@ export default function SiteDetailPage() {
               </SelectInput>
             </label>
             {visitOutcomeError ? <p className="text-sm text-red-600">{visitOutcomeError}</p> : null}
+          </div>
+        </Modal>
+
+        <Modal
+          isOpen={auditResultsOpen}
+          title="Audit Results"
+          onClose={() => {
+            setAuditResultsOpen(false)
+            setAuditResultsError("")
+          }}
+          size="sm"
+          submitLabel="Save"
+          onSubmit={() => void saveAuditResults()}
+          isSubmitting={auditResultsSaving}
+        >
+          <div className="space-y-4">
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Audit Date *</span>
+              <input
+                type="date"
+                value={auditDateDraft}
+                onChange={(event) => setAuditDateDraft(event.target.value)}
+                className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-jscolors-crimson/40"
+                max={TODAY}
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3">
+              <span className="text-sm font-medium text-jscolors-text">Painting</span>
+              <input
+                type="checkbox"
+                checked={auditPaintDraft}
+                onChange={(event) => setAuditPaintDraft(event.target.checked)}
+                className="h-4 w-4 accent-jscolors-crimson"
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3">
+              <span className="text-sm font-medium text-jscolors-text">Nut-Bolt Replacement</span>
+              <input
+                type="checkbox"
+                checked={auditNutBoltDraft}
+                onChange={(event) => setAuditNutBoltDraft(event.target.checked)}
+                className="h-4 w-4 accent-jscolors-crimson"
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3">
+              <span className="text-sm font-medium text-jscolors-text">Lightning Arrester</span>
+              <input
+                type="checkbox"
+                checked={auditArresterDraft}
+                onChange={(event) => setAuditArresterDraft(event.target.checked)}
+                className="h-4 w-4 accent-jscolors-crimson"
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3">
+              <span className="text-sm font-medium text-jscolors-text">Earthpit</span>
+              <input
+                type="checkbox"
+                checked={auditEarthpitDraft}
+                onChange={(event) => setAuditEarthpitDraft(event.target.checked)}
+                className="h-4 w-4 accent-jscolors-crimson"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Earthing Cable</span>
+              <input
+                type="number"
+                value={auditEarthingCableDraft}
+                onChange={(event) => setAuditEarthingCableDraft(event.target.value)}
+                className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-jscolors-crimson/40"
+                min="0"
+                step="0.01"
+              />
+            </label>
+            {auditResultsError ? <p className="text-sm text-red-600">{auditResultsError}</p> : null}
           </div>
         </Modal>
 

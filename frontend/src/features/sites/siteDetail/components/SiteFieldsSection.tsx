@@ -18,6 +18,7 @@ type SiteFieldsSectionProps = {
   canSiteWrite: boolean
   onOpenField: (field: UIField) => void
   onOpenVisitOutcome: () => void
+  onOpenAuditResults: () => void
 }
 
 export default function SiteFieldsSection({
@@ -29,6 +30,7 @@ export default function SiteFieldsSection({
   canSiteWrite,
   onOpenField,
   onOpenVisitOutcome,
+  onOpenAuditResults,
 }: SiteFieldsSectionProps) {
   return (
     <section className="glass-panel p-6">
@@ -48,7 +50,12 @@ export default function SiteFieldsSection({
           const isFinancial = ["budget", "cost", "paid", "balance"].includes(normalizedField.key)
           const canEdit = canSiteWrite && !isReadOnly && !isCompleted
           const isVisitOutcomeField = projectKey === "md" && (normalizedField.key === "visit_date" || normalizedField.key === "outcome")
-          const openEditor = isVisitOutcomeField ? onOpenVisitOutcome : () => onOpenField(normalizedField)
+          const isAuditResultField = projectKey === "ma" && ["audit_date", "mpaint", "mnbr", "arr", "ep", "ec"].includes(normalizedField.key)
+          const openEditor = isVisitOutcomeField
+            ? onOpenVisitOutcome
+            : isAuditResultField
+              ? onOpenAuditResults
+              : () => onOpenField(normalizedField)
 
           return (
             <DetailFieldCard
