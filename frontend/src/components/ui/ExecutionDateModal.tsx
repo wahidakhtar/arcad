@@ -43,6 +43,7 @@ export default function ExecutionDateModal({
             value={date}
             onChange={(e) => setDate(e.target.value)}
             className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
+            max={TODAY}
           />
         </label>
       </div>

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -15,6 +15,11 @@ from app.schemas.billing import InvoiceCreate, POCreate, RateCardCreate
 
 # acc department badge id (used for PO-level updates)
 _ACC_DEPT_ID = 2
+
+
+def _ensure_not_future(value: date | None, label: str) -> None:
+    if value is not None and value > date.today():
+        raise HTTPException(status_code=400, detail=f"{label} cannot be later than today.")
 
 
 def list_jobs(db: Session) -> list[Job]:
@@ -308,6 +313,7 @@ def update_po(db: Session, po_id: int, data: dict) -> dict | None:
         row.valid_from = data["valid_from"]
     if "valid_to" in data:
         row.valid_to = data["valid_to"]
+    _ensure_not_future(row.po_date, "PO Date")
     if is_bb_po:
         if any(key in data for key in ("po_no", "po_date", "valid_from", "valid_to")):
             if not row.po_no or row.po_date is None or row.valid_from is None or row.valid_to is None:
@@ -342,6 +348,11 @@ def update_invoice(db: Session, invoice_id: int, data: dict) -> dict | None:
         row.submission_date = data["submission_date"] or None
     if "settlement_date" in data:
         row.settlement_date = data["settlement_date"] or None
+    _ensure_not_future(row.invoice_date, "Invoice Date")
+    _ensure_not_future(row.period_from, "Period From")
+    _ensure_not_future(row.period_to, "Period To")
+    _ensure_not_future(row.submission_date, "Submission Date")
+    _ensure_not_future(row.settlement_date, "Settlement Date")
     if is_bb_invoice:
         if not po or po.valid_from is None or po.valid_to is None:
             raise HTTPException(status_code=400, detail="PO validity must be set before editing BB invoices.")

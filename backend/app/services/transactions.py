@@ -266,6 +266,8 @@ def update_status(
         requires_execution_date = type_badge is None or type_badge.key not in {"b_sur", "e_sur"}
         if target_key == "exct" and requires_execution_date and execution_date is None:
             raise HTTPException(status_code=400, detail="execution_date is required for executed status")
+        if execution_date is not None and execution_date > date.today():
+            raise HTTPException(status_code=400, detail="Execution Date cannot be later than today.")
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported target status: {target_key}")
 

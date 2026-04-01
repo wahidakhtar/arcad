@@ -48,6 +48,22 @@ def _is_bb_site_terminated(db: Session, site_id: int) -> bool:
     return db.get(Termination, site_id) is not None
 
 
+def set_bb_site_live_if_needed(db: Session, site_id: int) -> None:
+    from app.models.bb import BBSite
+
+    site = db.get(BBSite, site_id)
+    if site is None:
+        return
+    down_id = _get_badge_id(db, "status", "down")
+    live_id = _get_badge_id(db, "status", "live")
+    if site.status_id != down_id:
+        return
+    site.status_id = live_id
+    if hasattr(site, "version"):
+        site.version = (site.version or 0) + 1
+    db.flush()
+
+
 def create_bb_site_po(db: Session, site_id: int) -> None:
     """Create a pending PO for a new BB site. No-op if site is already terminated or PO exists."""
     try:
@@ -233,6 +249,7 @@ def sync_bb_recharge_for_executed_transaction(db: Session, tx) -> None:
     recharge.validity = request_row.validity
     recharge.months = request_row.months
     recharge.next_recharge_date = next_recharge_date
+    set_bb_site_live_if_needed(db, request_row.site_id)
 
 
 def ensure_bb_placeholder_invoices(db: Session, *, as_of: date | None = None) -> int:

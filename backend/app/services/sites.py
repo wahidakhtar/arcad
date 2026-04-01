@@ -103,6 +103,16 @@ def _site_field_label(field_name: str) -> str:
     return labels.get(field_name, field_name.replace("_", " ").title())
 
 
+def _validate_no_future_site_dates(payload: dict[str, Any]) -> None:
+    today = date.today()
+    for field_name, value in payload.items():
+        if isinstance(value, date) and value > today:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{_site_field_label(field_name)} cannot be later than today.",
+            )
+
+
 def _validate_site_date_order(site: Any, project_key: str, payload: dict[str, Any]) -> None:
     completion_field = PROJECT_COMPLETION_FIELD.get(project_key)
     receiving_date = payload.get("receiving_date", getattr(site, "receiving_date", None))
@@ -420,6 +430,7 @@ def create_site(db: Session, user: UserContext, project_key: str, subproject_id:
     project = get_project(db, project_key)
     logger.info("create_site request project=%s user=%s subproject_id=%s payload=%s", project_key, user.username, subproject_id, data)
     normalized_data = _normalize_site_payload(db, project_key, data)
+    _validate_no_future_site_dates(normalized_data)
     resolved_subproject_id = _resolve_subproject_id(db, project_key, subproject_id)
     subproject_model = get_subproject_model(project_key)
     resolved_subproject = db.get(subproject_model, resolved_subproject_id)
@@ -596,6 +607,7 @@ def update_site(db: Session, user: UserContext, project_key: str, site_id: int, 
 
     # Normalize payload
     normalized_data = _normalize_site_payload(db, project_key, data)
+    _validate_no_future_site_dates(normalized_data)
 
     # Badge transition check for user-provided badge fields BEFORE rules
     user_badge_fields = {f for f in data if f in TRANSITION_TYPE_BY_FIELD}
@@ -764,6 +776,8 @@ def create_termination(db: Session, user: UserContext, project_key: str, site_id
     site = db.get(model, site_id)
     if site is None:
         raise HTTPException(status_code=404, detail="Site not found")
+    if termination_date > date.today():
+        raise HTTPException(status_code=400, detail="Termination Date cannot be later than today.")
     existing = db.get(Termination, site_id)
     if existing is not None:
         raise HTTPException(status_code=400, detail="Termination already exists for this site")
@@ -861,6 +875,8 @@ def create_recharge(db: Session, user: UserContext, site_id: int, recharge_date:
     site = db.get(BBSite, site_id)
     if site is None:
         raise HTTPException(status_code=404, detail="BB site not found")
+    if recharge_date > date.today():
+        raise HTTPException(status_code=400, detail="Recharge Date cannot be later than today.")
     if db.get(Termination, site_id) is not None:
         raise HTTPException(status_code=400, detail="Cannot add recharge for a terminated BB site")
     if uom not in ("months", "days"):
@@ -875,6 +891,7 @@ def create_recharge(db: Session, user: UserContext, site_id: int, recharge_date:
         next_recharge_date=next_recharge_date,
     )
     db.add(row)
+    acc_rules.set_bb_site_live_if_needed(db, site_id)
     db.commit()
     db.refresh(row)
     return {

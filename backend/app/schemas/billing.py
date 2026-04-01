@@ -44,6 +44,15 @@ class InvoiceCreate(BaseModel):
     invoice_status_id: int
 
 
+class InvoiceUpdate(BaseModel):
+    invoice_no: Optional[str] = None
+    invoice_date: Optional[date] = None
+    period_from: Optional[date] = None
+    period_to: Optional[date] = None
+    submission_date: Optional[date] = None
+    settlement_date: Optional[date] = None
+
+
 class InvoiceOut(BaseModel):
     id: int
     po_id: int

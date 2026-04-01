@@ -8,6 +8,7 @@ import { updateInvoice, updatePo } from "../../../../services/billingService"
 import type { SiteDetail } from "../../siteDetailTypes"
 
 const fieldCls = "w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
+const TODAY = new Date().toISOString().slice(0, 10)
 
 type InvTab = "details" | "submission" | "settlement"
 
@@ -32,6 +33,7 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
   const poId = site.fields.po_id as number | null | undefined
   const invoiceId = site.fields.invoice_id as number | null | undefined
   const isBB = site.project_key === "bb"
+  const isFirstBBInvoicePeriodLocked = isBB && !site.fields.invoice_period_from && !!site.fields.po_valid_from
 
   const [editingPo, setEditingPo] = useState(false)
   const [draftPoNo, setDraftPoNo] = useState("")
@@ -90,7 +92,7 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
   function openInvEditor() {
     setDraftInvNo((site.fields.invoice_number as string | null) ?? "")
     setDraftInvDate((site.fields.invoice_date as string | null) ?? "")
-    setDraftPeriodFrom((site.fields.invoice_period_from as string | null) ?? "")
+    setDraftPeriodFrom((site.fields.invoice_period_from as string | null) ?? (isBB ? (site.fields.po_valid_from as string | null) ?? "" : ""))
     setDraftPeriodTo((site.fields.invoice_period_to as string | null) ?? "")
     setDraftSubmissionDate((site.fields.invoice_submission_date as string | null) ?? "")
     setDraftSettlementDate((site.fields.invoice_settlement_date as string | null) ?? "")
@@ -236,6 +238,7 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
               value={draftPoDate}
               onChange={(e) => setDraftPoDate(e.target.value)}
               className={fieldCls}
+              max={TODAY}
             />
           </label>
           {isBB ? (
@@ -305,6 +308,7 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
                   value={draftInvDate}
                   onChange={(e) => setDraftInvDate(e.target.value)}
                   className={fieldCls}
+                  max={TODAY}
                 />
               </label>
               {isBB ? (
@@ -316,6 +320,8 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
                       value={draftPeriodFrom}
                       onChange={(e) => setDraftPeriodFrom(e.target.value)}
                       className={fieldCls}
+                      max={TODAY}
+                      disabled={isFirstBBInvoicePeriodLocked}
                     />
                   </label>
                   <label className="block">
@@ -325,6 +331,7 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
                       value={draftPeriodTo}
                       onChange={(e) => setDraftPeriodTo(e.target.value)}
                       className={fieldCls}
+                      max={TODAY}
                     />
                   </label>
                 </>
@@ -340,6 +347,7 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
                 value={draftSubmissionDate}
                 onChange={(e) => setDraftSubmissionDate(e.target.value)}
                 className={fieldCls}
+                max={TODAY}
               />
             </label>
           )}
@@ -352,6 +360,7 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
                 value={draftSettlementDate}
                 onChange={(e) => setDraftSettlementDate(e.target.value)}
                 className={fieldCls}
+                max={TODAY}
               />
             </label>
           )}

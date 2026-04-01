@@ -2,6 +2,8 @@ import BadgeDropdown from "./BadgeDropdown"
 import SelectInput from "./SelectInput"
 import { formatDate } from "../../utils/format"
 
+const TODAY = new Date().toISOString().slice(0, 10)
+
 export type FieldDefinition = {
   key: string
   label: string
@@ -78,6 +80,7 @@ export default function FieldRenderer(props: FieldRendererProps) {
         onChange={(event) => onChange(sanitizeIdentifier(event.target.value))}
         className={inputClassName}
         required={field.required}
+        max={field.type === "date" ? TODAY : undefined}
       />
     )
   }

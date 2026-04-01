@@ -16,6 +16,8 @@ import SiteHeader from "./components/SiteHeader"
 import SelectInput from "../../../components/ui/SelectInput"
 import useSiteDetail from "./hooks/useSiteDetail"
 
+const TODAY = new Date().toISOString().slice(0, 10)
+
 export default function SiteDetailPage() {
   const { can, roles } = useAuth()
   const [visitOutcomeOpen, setVisitOutcomeOpen] = useState(false)
@@ -214,6 +216,7 @@ export default function SiteDetailPage() {
                 value={visitDateDraft}
                 onChange={(event) => setVisitDateDraft(event.target.value)}
                 className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-jscolors-crimson/40"
+                max={TODAY}
               />
             </label>
             <label className="block">

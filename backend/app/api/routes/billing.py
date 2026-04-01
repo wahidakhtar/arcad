@@ -8,7 +8,7 @@ from app.core.database import get_db
 from app.core.ws_manager import manager as ws_manager
 from app.models.acc import PO
 from app.models.core import Project
-from app.schemas.billing import ActivatePORequest, InvoiceCreate, POCreate, POUpdate, RateCardCreate, StatusUpdate
+from app.schemas.billing import ActivatePORequest, InvoiceCreate, InvoiceUpdate, POCreate, POUpdate, RateCardCreate, StatusUpdate
 from app.services import billing as billing_service
 from app.services import acc_rules
 
@@ -105,8 +105,8 @@ async def create_invoice(payload: InvoiceCreate, db: Session = Depends(get_db)):
 
 
 @router.patch("/invoices/{invoice_id}", dependencies=[Depends(permission_required("billing", "write"))])
-async def update_invoice(invoice_id: int, payload: dict, db: Session = Depends(get_db)):
-    result = billing_service.update_invoice(db, invoice_id, payload)
+async def update_invoice(invoice_id: int, payload: InvoiceUpdate, db: Session = Depends(get_db)):
+    result = billing_service.update_invoice(db, invoice_id, payload.model_dump(exclude_unset=True))
     if result is None:
         raise HTTPException(status_code=404, detail="Invoice not found")
     po_id = result.get("po_id") if isinstance(result, dict) else None
