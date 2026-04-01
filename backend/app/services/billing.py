@@ -349,8 +349,6 @@ def update_invoice(db: Session, invoice_id: int, data: dict) -> dict | None:
     if "settlement_date" in data:
         row.settlement_date = data["settlement_date"] or None
     _ensure_not_future(row.invoice_date, "Invoice Date")
-    _ensure_not_future(row.period_from, "Period From")
-    _ensure_not_future(row.period_to, "Period To")
     _ensure_not_future(row.submission_date, "Submission Date")
     _ensure_not_future(row.settlement_date, "Settlement Date")
     if is_bb_invoice:

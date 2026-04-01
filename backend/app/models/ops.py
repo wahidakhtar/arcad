@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 from datetime import date, datetime, time
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, Time
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, Time, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -42,6 +42,13 @@ class SubconAssignment(Base):
     __tablename__ = "subcon_assignments"
     __table_args__ = (
         Index("ix_subcon_assignments_site_id", "site_id"),
+        Index(
+            "ux_project_site_one_active_subcon",
+            "project_id",
+            "site_id",
+            unique=True,
+            postgresql_where=text("active = TRUE"),
+        ),
         {"schema": "schema_ops"},
     )
 

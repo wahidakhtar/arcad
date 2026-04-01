@@ -320,7 +320,6 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
                       value={draftPeriodFrom}
                       onChange={(e) => setDraftPeriodFrom(e.target.value)}
                       className={fieldCls}
-                      max={TODAY}
                       disabled={isFirstBBInvoicePeriodLocked}
                     />
                   </label>
@@ -331,7 +330,6 @@ export default function SiteBillingSection({ site, canWrite, onSaved }: Props) {
                       value={draftPeriodTo}
                       onChange={(e) => setDraftPeriodTo(e.target.value)}
                       className={fieldCls}
-                      max={TODAY}
                     />
                   </label>
                 </>
