@@ -1,0 +1,50 @@
+name: Deploy Inactive Slot (Windows)
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/arcad-api:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/arcad-api:latest
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./deploy/windows/frontend.Dockerfile
+          push: true
+          build-args: |
+            VITE_API_URL=/api/v1
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/arcad-frontend:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/arcad-frontend:latest
+
+      - uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.INTERNAL_SERVER_HOST }}
+          username: ${{ secrets.INTERNAL_SERVER_USER }}
+          key: ${{ secrets.INTERNAL_SERVER_SSH_KEY }}
+          script: |
+            powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-Location 'C:\arcad-bluegreen'; docker login ghcr.io -u '${{ github.repository_owner }}' -p '${{ secrets.GHCR_READ_TOKEN }}'; .\scripts\deploy_inactive.ps1 -RootDir 'C:\arcad-bluegreen' -ImageTag '${{ github.sha }}'"
