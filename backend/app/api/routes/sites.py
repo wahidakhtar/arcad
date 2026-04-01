@@ -92,6 +92,14 @@ async def deploy_site(project_key: str, site_id: int, user: UserContext = Depend
     return result
 
 
+@router.post("/ma/{site_id}/transfer-to-mc")
+async def transfer_ma_site_to_mc(site_id: int, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
+    result = site_service.transfer_ma_site_to_mc(db, user, site_id)
+    await ws_manager.broadcast({"type": "SITE_UPDATED", "site_id": site_id, "project_key": "ma"})
+    await ws_manager.broadcast({"type": "SITE_CREATED", "site_id": result["mc_site_id"], "project_key": "mc"})
+    return result
+
+
 @router.post("/{project_key}/{site_id}/assignments", response_model=SiteOut)
 async def assign(project_key: str, site_id: int, payload: SubconAssignmentRequest, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
     result = site_service.assign_subcon(db, user, project_key, site_id, payload)
