@@ -18,6 +18,7 @@ Recommended path:
 Copy these repo paths to that directory:
 
 - `deploy/bluegreen/docker-compose.yml`
+- `deploy/bluegreen/frontend.Dockerfile`
 - `deploy/bluegreen/proxy/default.conf.template`
 - `deploy/bluegreen/scripts/deploy_inactive.sh`
 - `deploy/bluegreen/scripts/promote_slot.sh`

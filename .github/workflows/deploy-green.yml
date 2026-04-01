@@ -32,8 +32,8 @@ jobs:
 
       - uses: docker/build-push-action@v6
         with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
+          context: .
+          file: ./deploy/bluegreen/frontend.Dockerfile
           push: true
           build-args: |
             VITE_API_URL=/api/v1
