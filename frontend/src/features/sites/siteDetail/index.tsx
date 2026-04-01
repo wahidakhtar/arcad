@@ -251,7 +251,7 @@ export default function SiteDetailPage() {
             punchPoints={punchPoints}
             canTicketRead={can("ticket", "read")}
             canTicketWrite={can("ticket", "write")}
-            projectId={project?.id}
+            projectId={site.project_id}
             siteId={site.id}
             statusKey={site.status_key}
             projectKey={projectKey}

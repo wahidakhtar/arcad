@@ -1,5 +1,6 @@
 export type SiteDetail = {
   id: number
+  project_id: number
   ckt_id: string
   project_key: string
   subproject_id: number

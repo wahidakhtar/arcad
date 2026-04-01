@@ -239,6 +239,7 @@ def get_site_projection(db: Session, project_key: str, site_id: int, *, include_
 
     return {
         "id": site.id,
+        "project_id": project.id,
         "project_key": project_key,
         "subproject_id": site.subproject_id,
         "ckt_id": site.ckt_id,
