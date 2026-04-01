@@ -109,10 +109,11 @@ def _project_and_site(db: Session, project_id: int, site_id: int) -> tuple[Proje
     return project, site
 
 
-def _ensure_ticket_allowed(project: Project, site: Any, *, closing: bool) -> None:
+def _ensure_ticket_allowed(db: Session, project: Project, site: Any, *, closing: bool) -> None:
     if closing:
         return
-    status_key = getattr(site, "status_key", None)
+    badges = badge_map(db)
+    status_key = badges.get(getattr(site, "status_id", None)).key if badges.get(getattr(site, "status_id", None)) is not None else None
     if project.key == "bb":
         if status_key != "live":
             raise HTTPException(status_code=400, detail="Tickets can only be added for live BB sites.")
@@ -230,7 +231,7 @@ def create_ticket(db: Session, data: dict) -> dict[str, Any]:
     site_id = int(data["site_id"])
     ticket_date = _parse_date(data.get("ticket_date"), "Ticket Date")
     project, site = _project_and_site(db, project_id, site_id)
-    _ensure_ticket_allowed(project, site, closing=False)
+    _ensure_ticket_allowed(db, project, site, closing=False)
 
     open_ticket = db.execute(
         select(Ticket).where(Ticket.project_id == project_id, Ticket.site_id == site_id, Ticket.closing_date.is_(None))
