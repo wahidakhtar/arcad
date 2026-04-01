@@ -14,6 +14,7 @@ import type {
   Badge,
   JobBucket,
   OutcomeOption,
+  PunchPointRow,
   ProjectRow,
   RechargeRow,
   SiteDetail,
@@ -45,6 +46,7 @@ export default function useSiteDetail() {
   const [tickets, setTickets] = useState<TicketRow[]>([])
   const [transactions, setTransactions] = useState<TransactionRow[]>([])
   const [subcons, setSubcons] = useState<SubconRow[]>([])
+  const [punchPoints, setPunchPoints] = useState<PunchPointRow[]>([])
   const [transactionTypes, setTransactionTypes] = useState<Badge[]>([])
   const [outcomes, setOutcomes] = useState<OutcomeOption[]>([])
   const [recharges, setRecharges] = useState<RechargeRow[]>([])
@@ -73,6 +75,7 @@ export default function useSiteDetail() {
         ticketsResponse,
         transactionsResponse,
         subconsResponse,
+        punchPointsResponse,
         txTypesResponse,
         outcomesResponse,
         rechargeResponse,
@@ -88,6 +91,7 @@ export default function useSiteDetail() {
         api.get("/tickets").catch(() => empty),
         api.get("/transactions").catch(() => empty),
         api.get(`/projects/${projectKey}/subcons`).catch(() => empty),
+        api.get(`/projects/${projectKey}/punch-points`).catch(() => empty),
         api.get(`/projects/${projectKey}/transaction-types`).catch(() => empty),
         api.get(`/projects/${projectKey}/outcomes`).catch(() => empty),
         projectKey === "bb" ? api.get(`/sites/bb/${numericSiteId}/recharges`).catch(() => empty) : Promise.resolve(empty),
@@ -124,6 +128,7 @@ export default function useSiteDetail() {
         ),
       )
       setSubcons((subconsResponse.data as SubconRow[]) ?? [])
+      setPunchPoints((punchPointsResponse.data as PunchPointRow[]) ?? [])
       setTransactionTypes(Array.isArray(txTypesResponse.data) ? txTypesResponse.data as Badge[] : [])
       setOutcomes(Array.isArray(outcomesResponse.data) ? outcomesResponse.data as OutcomeOption[] : [])
       setRecharges(projectKey === "bb" && Array.isArray(rechargeResponse.data) ? rechargeResponse.data as RechargeRow[] : [])
@@ -231,6 +236,7 @@ export default function useSiteDetail() {
     tickets,
     transactions,
     subcons,
+    punchPoints,
     transactionTypes,
     outcomes,
     recharges,

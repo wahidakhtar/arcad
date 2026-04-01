@@ -38,6 +38,7 @@ export default function SiteDetailPage() {
     tickets,
     transactions,
     subcons,
+    punchPoints,
     jobBuckets,
     transactionTypes,
     outcomes,
@@ -247,6 +248,7 @@ export default function SiteDetailPage() {
           />
           <SiteTicketsSection
             tickets={tickets}
+            punchPoints={punchPoints}
             canTicketRead={can("ticket", "read")}
             canTicketWrite={can("ticket", "write")}
             projectId={project?.id}

@@ -41,9 +41,21 @@ async def create_ticket(payload: dict, db: Session = Depends(get_db)):
     return result
 
 
+@router.patch("/{ticket_id}", dependencies=[Depends(permission_required("ticket", "write"))])
+async def update_ticket(ticket_id: int, payload: dict, db: Session = Depends(get_db)):
+    result = ticket_service.update_ticket(db, ticket_id, payload)
+    site_id = result.get("site_id")
+    project_id = result.get("project_id")
+    if site_id and project_id:
+        project = db.get(Project, project_id)
+        if project:
+            await ws_manager.broadcast({"type": "SITE_UPDATED", "site_id": site_id, "project_key": project.key})
+    return result
+
+
 @router.patch("/{ticket_id}/close", dependencies=[Depends(permission_required("ticket", "write"))])
-async def close_ticket(ticket_id: int, db: Session = Depends(get_db)):
-    result = ticket_service.close_ticket(db, ticket_id)
+async def close_ticket(ticket_id: int, payload: dict | None = None, db: Session = Depends(get_db)):
+    result = ticket_service.close_ticket(db, ticket_id, payload)
     site_id = result.get("site_id") if isinstance(result, dict) else getattr(result, "site_id", None)
     project_id = result.get("project_id") if isinstance(result, dict) else getattr(result, "project_id", None)
     await ws_manager.broadcast({"type": "TICKET_CLOSED", "ticket_id": ticket_id, "site_id": site_id})

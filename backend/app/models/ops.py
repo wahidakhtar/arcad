@@ -90,3 +90,11 @@ class PunchPoint(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("schema_core.projects.id"), nullable=False)
     label: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
+class TicketPunchPoint(Base):
+    __tablename__ = "ticket_punch_points"
+    __table_args__ = {"schema": "schema_ops"}
+
+    ticket_id: Mapped[int] = mapped_column(ForeignKey("schema_ops.tickets.id"), primary_key=True)
+    punch_point_id: Mapped[int] = mapped_column(ForeignKey("schema_ops.punch_point.id"), primary_key=True)

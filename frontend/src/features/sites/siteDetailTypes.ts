@@ -66,6 +66,12 @@ export type SubconRow = {
   label: string
 }
 
+export type PunchPointRow = {
+  id: number
+  label: string
+  project_id?: number
+}
+
 export type UpdateRow = {
   id: number
   date: string
@@ -79,7 +85,11 @@ export type TicketRow = {
   project_id: number
   site_id: number
   ticket_date: string
+  ticket_time?: string | null
   closing_date?: string | null
+  closing_time?: string | null
+  ticket_number?: string | null
+  punch_points?: PunchPointRow[]
 }
 
 export type TransactionRow = {

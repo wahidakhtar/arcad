@@ -11,7 +11,7 @@ form_fields = ["receiving_date", "ckt_id", "customer", "address", "city", "lc"]
 bulk_columns: list[str] = []
 budget_params = {}
 system_status_triggers = {
-    "ticket:create": {"status_key": "down"},
+    "ticket:create": {"status_key": "live"},
     "ticket:close": {"status_key": "live"},
     "termination:create": {"status_key": "term"},
 }

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.api.auth import UserContext, ensure_permission, user_project_ids
 from app.models.acc import Transaction
 from app.models.core import Badge, IndianState, JobBucket, Project
-from app.models.ops import Subcon, SubconProject, SubconType, Ticket
+from app.models.ops import PunchPoint, Subcon, SubconProject, SubconType, Ticket
 from app.services import acc_rules
 from app.services.common import get_project_config, get_site_model, get_subproject_model
 import logging
@@ -411,6 +411,37 @@ def list_project_subcons(db: Session, user: UserContext, project_key: str) -> li
         .order_by(Subcon.name.asc())
     ).scalars().all()
     return [{"id": row.id, "label": row.name} for row in rows]
+
+
+def list_project_punch_points(db: Session, user: UserContext, project_key: str) -> list[dict]:
+    ensure_permission(user, db, project_key=project_key, tag="ticket", action="read")
+    project = db.execute(select(Project).where(Project.key == project_key)).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    rows = db.execute(
+        select(PunchPoint).where(PunchPoint.project_id == project.id).order_by(func.lower(PunchPoint.label), PunchPoint.id)
+    ).scalars().all()
+    return [{"id": row.id, "label": row.label, "project_id": row.project_id} for row in rows]
+
+
+def create_project_punch_point(db: Session, user: UserContext, project_key: str, label: str) -> list[dict] | dict:
+    ensure_permission(user, db, project_key=project_key, tag="ticket", action="write")
+    project = db.execute(select(Project).where(Project.key == project_key)).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    cleaned = label.strip()
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="Punch Point label is required.")
+    existing = db.execute(
+        select(PunchPoint).where(PunchPoint.project_id == project.id, func.lower(PunchPoint.label) == cleaned.lower())
+    ).scalar_one_or_none()
+    if existing is not None:
+        return {"id": existing.id, "label": existing.label, "project_id": existing.project_id}
+    row = PunchPoint(project_id=project.id, label=cleaned)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {"id": row.id, "label": row.label, "project_id": row.project_id}
 
 
 def list_project_outcomes(db: Session, user: UserContext, project_key: str) -> list[dict]:

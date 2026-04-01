@@ -46,6 +46,16 @@ def project_subcons(project_key: str, user: UserContext = Depends(permission_req
     return project_service.list_project_subcons(db, user, project_key)
 
 
+@router.get("/{project_key}/punch-points")
+def project_punch_points(project_key: str, user: UserContext = Depends(permission_required("ticket", "read")), db: Session = Depends(get_db)):
+    return project_service.list_project_punch_points(db, user, project_key)
+
+
+@router.post("/{project_key}/punch-points")
+def create_project_punch_point(payload: dict, project_key: str, user: UserContext = Depends(permission_required("ticket", "write")), db: Session = Depends(get_db)):
+    return project_service.create_project_punch_point(db, user, project_key, str(payload.get("label", "")))
+
+
 
 @router.get("/{project_key}/outcomes")
 def project_outcomes(project_key: str, user: UserContext = Depends(permission_required("site", "read")), db: Session = Depends(get_db)):
