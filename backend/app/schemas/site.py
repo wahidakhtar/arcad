@@ -63,6 +63,7 @@ class SubconSummary(BaseModel):
 
 class SiteOut(BaseModel):
     id: int
+    project_id: int
     project_key: str
     subproject_id: int
     ckt_id: str
