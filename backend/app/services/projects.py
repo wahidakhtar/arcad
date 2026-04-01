@@ -10,7 +10,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.api.auth import UserContext, ensure_permission, user_project_ids
+from app.api.auth import UserContext, ensure_permission, is_ops_only_user, user_project_ids
 from app.models.acc import Transaction
 from app.models.core import Badge, IndianState, JobBucket, Project
 from app.models.ops import PunchPoint, Subcon, SubconProject, SubconType, Ticket
@@ -55,6 +55,25 @@ FIELD_META: dict[str, dict[str, object]] = {
     "arr": {"label": "Lightning Arrester", "type": "bool", "list_view": False},
     "ep": {"label": "Earthpit", "type": "bool", "list_view": False},
     "ec": {"label": "Earthing Cable", "type": "number", "list_view": False},
+}
+
+OPS_HIDDEN_BILLING_FIELDS = {
+    "po_number",
+    "po_date",
+    "po_valid_from",
+    "po_valid_to",
+    "po_status",
+    "active_po_number",
+    "active_invoice_number",
+    "active_invoice_status",
+    "next_invoice_date",
+    "invoice_number",
+    "invoice_date",
+    "invoice_period_from",
+    "invoice_period_to",
+    "invoice_submission_date",
+    "invoice_settlement_date",
+    "invoice_status",
 }
 
 
@@ -306,7 +325,7 @@ def list_ui_fields(db: Session, user: UserContext, project_key: str) -> list[dic
             f"ORDER BY uf.id"
         )
     ).mappings().all()
-    return [
+    rows_out = [
         {
             "id": row["id"],
             "key": row["key"],
@@ -319,6 +338,9 @@ def list_ui_fields(db: Session, user: UserContext, project_key: str) -> list[dic
         }
         for row in rows
     ]
+    if is_ops_only_user(user):
+        rows_out = [row for row in rows_out if row["key"] not in OPS_HIDDEN_BILLING_FIELDS]
+    return rows_out
 
 
 def list_badge_transitions(db: Session, user: UserContext, project_key: str) -> list[dict]:

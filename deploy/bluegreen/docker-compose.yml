@@ -1,0 +1,90 @@
+services:
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ACTIVE_SLOT: ${ACTIVE_SLOT}
+    volumes:
+      - ./proxy/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    command: >
+      /bin/sh -c "envsubst '$$ACTIVE_SLOT' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+      && nginx -g 'daemon off;'"
+    ports:
+      - "${PUBLIC_HTTP_PORT:-80}:80"
+    depends_on:
+      api-blue:
+        condition: service_healthy
+      api-green:
+        condition: service_healthy
+      frontend-blue:
+        condition: service_healthy
+      frontend-green:
+        condition: service_healthy
+
+  api-blue:
+    image: ${API_IMAGE}:${IMAGE_TAG}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_SLOT: blue
+      DATABASE_URL: ${DATABASE_URL}
+      PORT: 8000
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      SECRET_KEY: ${SECRET_KEY}
+      API_PREFIX: ${API_PREFIX}
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json')"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  api-green:
+    image: ${API_IMAGE}:${IMAGE_TAG}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_SLOT: green
+      DATABASE_URL: ${DATABASE_URL}
+      PORT: 8000
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      SECRET_KEY: ${SECRET_KEY}
+      API_PREFIX: ${API_PREFIX}
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json')"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  frontend-blue:
+    image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      APP_SLOT: blue
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  frontend-green:
+    image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      APP_SLOT: green
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 20s
+      timeout: 5s
+      retries: 5

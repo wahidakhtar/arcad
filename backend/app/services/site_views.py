@@ -124,7 +124,32 @@ def _bb_provider_rows(db: Session, project_id: int, site_id: int) -> list[dict[s
     return rows
 
 
-def get_site_projection(db: Session, project_key: str, site_id: int) -> dict[str, Any] | None:
+def strip_billing_fields(site_data: dict[str, Any]) -> dict[str, Any]:
+    for key in (
+        "po_id",
+        "po_number",
+        "po_date",
+        "po_valid_from",
+        "po_valid_to",
+        "po_status_id",
+        "invoice_id",
+        "invoice_number",
+        "invoice_date",
+        "invoice_period_from",
+        "invoice_period_to",
+        "invoice_submission_date",
+        "invoice_settlement_date",
+        "invoice_status_id",
+        "active_po_number",
+        "active_invoice_number",
+        "active_invoice_status",
+        "next_invoice_date",
+    ):
+        site_data.pop(key, None)
+    return site_data
+
+
+def get_site_projection(db: Session, project_key: str, site_id: int, *, include_billing: bool = True) -> dict[str, Any] | None:
     from app.models.acc import Invoice, PO
     project = get_project(db, project_key)
     model = get_site_model(project_key)
@@ -141,45 +166,47 @@ def get_site_projection(db: Session, project_key: str, site_id: int) -> dict[str
     financials = build_site_financials(db, project.id, project_key, site_id, site_data)
     badges = badge_map(db)
 
-    # Inject billing fields directly from source of truth (schema_acc)
-    po = db.execute(
-        select(PO).where(PO.project_id == project.id, PO.site_id == site_id).order_by(PO.id.desc())
-    ).scalars().first()
-    if po:
-        inv = db.execute(
-            select(Invoice).where(Invoice.po_id == po.id).order_by(Invoice.id.desc())
+    if include_billing:
+        po = db.execute(
+            select(PO).where(PO.project_id == project.id, PO.site_id == site_id).order_by(PO.id.desc())
         ).scalars().first()
-        site_data["po_id"] = po.id
-        site_data["po_number"] = po.po_no
-        site_data["po_date"] = str(po.po_date) if po.po_date else None
-        site_data["po_valid_from"] = str(po.valid_from) if po.valid_from else None
-        site_data["po_valid_to"] = str(po.valid_to) if po.valid_to else None
-        site_data["po_status_id"] = po.po_status_id
-        site_data["invoice_id"] = inv.id if inv else None
-        site_data["invoice_number"] = inv.invoice_no if inv else None
-        site_data["invoice_date"] = str(inv.invoice_date) if inv and inv.invoice_date else None
-        site_data["invoice_period_from"] = str(inv.period_from) if inv and inv.period_from else None
-        site_data["invoice_period_to"] = str(inv.period_to) if inv and inv.period_to else None
-        site_data["invoice_submission_date"] = str(inv.submission_date) if inv and inv.submission_date else None
-        site_data["invoice_settlement_date"] = str(inv.settlement_date) if inv and inv.settlement_date else None
-        site_data["invoice_status_id"] = inv.invoice_status_id if inv else None
+        if po:
+            inv = db.execute(
+                select(Invoice).where(Invoice.po_id == po.id).order_by(Invoice.id.desc())
+            ).scalars().first()
+            site_data["po_id"] = po.id
+            site_data["po_number"] = po.po_no
+            site_data["po_date"] = str(po.po_date) if po.po_date else None
+            site_data["po_valid_from"] = str(po.valid_from) if po.valid_from else None
+            site_data["po_valid_to"] = str(po.valid_to) if po.valid_to else None
+            site_data["po_status_id"] = po.po_status_id
+            site_data["invoice_id"] = inv.id if inv else None
+            site_data["invoice_number"] = inv.invoice_no if inv else None
+            site_data["invoice_date"] = str(inv.invoice_date) if inv and inv.invoice_date else None
+            site_data["invoice_period_from"] = str(inv.period_from) if inv and inv.period_from else None
+            site_data["invoice_period_to"] = str(inv.period_to) if inv and inv.period_to else None
+            site_data["invoice_submission_date"] = str(inv.submission_date) if inv and inv.submission_date else None
+            site_data["invoice_settlement_date"] = str(inv.settlement_date) if inv and inv.settlement_date else None
+            site_data["invoice_status_id"] = inv.invoice_status_id if inv else None
+        else:
+            site_data["po_id"] = None
+            site_data["po_number"] = None
+            site_data["po_date"] = None
+            site_data["po_valid_from"] = None
+            site_data["po_valid_to"] = None
+            site_data["po_status_id"] = None
+            site_data["invoice_id"] = None
+            site_data["invoice_number"] = None
+            site_data["invoice_date"] = None
+            site_data["invoice_period_from"] = None
+            site_data["invoice_period_to"] = None
+            site_data["invoice_submission_date"] = None
+            site_data["invoice_settlement_date"] = None
+            site_data["invoice_status_id"] = None
     else:
-        site_data["po_id"] = None
-        site_data["po_number"] = None
-        site_data["po_date"] = None
-        site_data["po_valid_from"] = None
-        site_data["po_valid_to"] = None
-        site_data["po_status_id"] = None
-        site_data["invoice_id"] = None
-        site_data["invoice_number"] = None
-        site_data["invoice_date"] = None
-        site_data["invoice_period_from"] = None
-        site_data["invoice_period_to"] = None
-        site_data["invoice_submission_date"] = None
-        site_data["invoice_settlement_date"] = None
-        site_data["invoice_status_id"] = None
+        strip_billing_fields(site_data)
 
-    if project_key == "bb":
+    if project_key == "bb" and include_billing:
         from app.models.bb import Recharge
 
         active_po = db.execute(
