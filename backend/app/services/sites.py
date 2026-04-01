@@ -17,7 +17,12 @@ from app.models.ops import Subcon, SubconAssignment, SubconProject
 from app.schemas.site import SubconAssignmentRequest, SiteOut
 from app.services.common import badge_map, get_project, get_project_config, get_site_model, get_subproject_model, model_to_dict
 from app.services import acc_rules
-from app.services.site_views import build_site_financials, get_site_projection
+from app.services.site_views import (
+    build_site_financials,
+    get_latest_invoices_by_po,
+    get_latest_site_pos_by_site,
+    get_site_projection,
+)
 from app.utils.normalization import normalize_identifier, validate_identifier
 
 logger = logging.getLogger(__name__)
@@ -386,14 +391,9 @@ def list_sites(
     stage_badge_id = next((bid for bid, b in badges.items() if b.key == "stage"), None)
 
     # Batch-fetch PO and invoice statuses for all sites in this project
-    from app.models.acc import Invoice, PO
-    pos = db.execute(select(PO).where(PO.project_id == project.id)).scalars().all()
-    po_by_site: dict[int, PO] = {po.site_id: po for po in pos if po.site_id is not None}
-    po_ids = [po.id for po in pos if po.site_id is not None]
-    inv_by_po: dict[int, Invoice] = {}
-    if po_ids:
-        for inv in db.execute(select(Invoice).where(Invoice.po_id.in_(po_ids)).order_by(Invoice.id.desc())).scalars().all():
-            inv_by_po.setdefault(inv.po_id, inv)
+    po_by_site = get_latest_site_pos_by_site(db, project.id)
+    po_ids = [po.id for po in po_by_site.values()]
+    inv_by_po = get_latest_invoices_by_po(db, po_ids)
 
     def _badge_dict(badge_id: int | None) -> dict | None:
         if badge_id is None:
@@ -798,8 +798,8 @@ def create_termination(db: Session, user: UserContext, project_key: str, site_id
     canc_id = next((bid for bid, b in badges.items() if b.type == "doc_status" and b.key == "canc"), None)
     if pend_id is not None and canc_id is not None:
         po = db.execute(
-            select(PO).where(PO.project_id == project.id, PO.site_id == site_id)
-        ).scalar_one_or_none()
+            select(PO).where(PO.project_id == project.id, PO.site_id == site_id).order_by(PO.id.desc())
+        ).scalars().first()
         if po is not None:
             pending_invoices = db.execute(
                 select(Invoice).where(Invoice.po_id == po.id, Invoice.invoice_status_id == pend_id)

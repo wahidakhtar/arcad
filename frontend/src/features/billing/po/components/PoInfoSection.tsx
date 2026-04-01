@@ -7,6 +7,7 @@ import { updatePo } from "../../../../services/billingService"
 import type { PO } from "../../types"
 
 const fieldCls = "w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none"
+const TODAY = new Date().toISOString().slice(0, 10)
 
 function sanitizeDocNo(value: string): string {
   return value.toUpperCase().replace(/[^A-Z0-9/-]/g, "")
@@ -91,6 +92,7 @@ export default function PoInfoSection({ po, onSaved }: { po: PO; onSaved: () => 
               value={draftDate}
               onChange={(e) => setDraftDate(e.target.value)}
               className={fieldCls}
+              max={TODAY}
             />
           </label>
           {isBB ? (
