@@ -53,7 +53,8 @@ def apply_ma_rules(site, payload: dict, db) -> dict:
 
     # 2. audit_date requires wip status
     if "audit_date" in payload and payload["audit_date"] is not None:
-        if current_status_key != "wip":
+        existing_audit_date = getattr(site, "audit_date", None)
+        if current_status_key != "wip" and existing_audit_date is None:
             raise HTTPException(status_code=400, detail="Audit date can only be set when status is WIP")
 
     # 3. If comp, restrict allowed fields
