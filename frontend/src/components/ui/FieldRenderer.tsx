@@ -1,3 +1,5 @@
+import type { KeyboardEvent as ReactKeyboardEvent } from "react"
+
 import BadgeDropdown from "./BadgeDropdown"
 import SelectInput from "./SelectInput"
 import { formatDate } from "../../utils/format"
@@ -25,12 +27,15 @@ type FieldRendererProps =
       value: string | boolean
       onChange: (value: string | boolean) => void
       onFocus?: () => void
+      onBlur?: () => void
+      onKeyDown?: (event: ReactKeyboardEvent<HTMLInputElement | HTMLSelectElement>) => void
+      autoFocus?: boolean
       className?: string
     }
 
 export default function FieldRenderer(props: FieldRendererProps) {
   if (props.mode === "input") {
-    const { field, value, onChange, onFocus, className } = props
+    const { field, value, onChange, onFocus, onBlur, onKeyDown, autoFocus, className } = props
     const sanitizeIdentifier = (nextValue: string) => {
       if (!["ckt_id", "po_number", "invoice_number"].includes(field.key)) return nextValue
       return nextValue.toUpperCase().replace(/[^A-Z0-9/-]/g, "")
@@ -44,7 +49,10 @@ export default function FieldRenderer(props: FieldRendererProps) {
           <input
             type="checkbox"
             checked={checked}
+            autoFocus={autoFocus}
             onFocus={onFocus}
+            onBlur={onBlur}
+            onKeyDown={onKeyDown}
             onChange={(event) => onChange(event.target.checked)}
             className="h-4 w-4 accent-jscolors-crimson"
           />
@@ -57,7 +65,10 @@ export default function FieldRenderer(props: FieldRendererProps) {
       return (
         <SelectInput
           value={String(value ?? "")}
+          autoFocus={autoFocus}
           onFocus={onFocus}
+          onBlur={onBlur}
+          onKeyDown={onKeyDown}
           onChange={(event) => onChange(sanitizeIdentifier(event.target.value))}
           className={inputClassName}
           required={field.required}
@@ -76,7 +87,10 @@ export default function FieldRenderer(props: FieldRendererProps) {
       <input
         type={field.type === "date" ? "date" : field.type === "number" ? "number" : field.type === "password" ? "password" : "text"}
         value={String(value ?? "")}
+        autoFocus={autoFocus}
         onFocus={onFocus}
+        onBlur={onBlur}
+        onKeyDown={onKeyDown}
         onChange={(event) => onChange(sanitizeIdentifier(event.target.value))}
         className={inputClassName}
         required={field.required}

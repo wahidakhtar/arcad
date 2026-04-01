@@ -19,6 +19,8 @@ type BulkFix = {
   count: number
 }
 
+const INITIAL_ROW_COUNT = 8
+
 export default function BulkTable({
   columns,
   onSubmit,
@@ -33,9 +35,10 @@ export default function BulkTable({
 }) {
   const [batchDate, setBatchDate] = useState(TODAY)
   const [rows, setRows] = useState<Array<Record<string, string | boolean>>>(
-    Array.from({ length: 8 }, () => Object.fromEntries(columns.map((column) => [column.key, ""]))),
+    Array.from({ length: INITIAL_ROW_COUNT }, () => Object.fromEntries(columns.map((column) => [column.key, ""]))),
   )
-  const [focus, setFocus] = useState<{ rowIndex: number; columnIndex: number } | null>(null)
+  const [activeCell, setActiveCell] = useState<{ rowIndex: number; columnIndex: number }>({ rowIndex: 0, columnIndex: 0 })
+  const [editingCell, setEditingCell] = useState<{ rowIndex: number; columnIndex: number } | null>(null)
   const [error, setError] = useState("")
   const [cellErrors, setCellErrors] = useState<CellError[]>([])
   const [bulkFixes, setBulkFixes] = useState<BulkFix[]>([])
@@ -86,6 +89,12 @@ export default function BulkTable({
     setCellErrors((current) => current.filter((item) => !(item.row_index === rowIndex && item.field === key)))
   }
 
+  function ensureRow(nextRows: Array<Record<string, string | boolean>>, rowIndex: number) {
+    while (!nextRows[rowIndex]) {
+      nextRows.push(Object.fromEntries(columns.map((column) => [column.key, ""])))
+    }
+  }
+
   function applyFixToAll(fix: BulkFix) {
     setRows((current) =>
       current.map((row) => (
@@ -96,6 +105,10 @@ export default function BulkTable({
     )
     setCellErrors((current) => current.filter((item) => !(item.field === fix.field && String(item.value ?? "").trim() === fix.from_value)))
     setBulkFixes((current) => current.filter((item) => !(item.field === fix.field && item.from_value === fix.from_value && item.to_value === fix.to_value)))
+  }
+
+  function stopEditing() {
+    setEditingCell(null)
   }
 
   return (
@@ -131,7 +144,6 @@ export default function BulkTable({
         <div
           className="min-h-0 max-h-[52vh] overflow-auto rounded-2xl border border-jscolors-crimson/15 bg-white"
           onPaste={(event) => {
-            if (!focus) return
             event.preventDefault()
             const clipboard = event.clipboardData.getData("text")
             const pastedRows = clipboard.split("\n").map((line) => line.replace(/\r/g, "")).filter(Boolean)
@@ -139,18 +151,17 @@ export default function BulkTable({
               const next = [...current]
               pastedRows.forEach((line, rowOffset) => {
                 const values = line.split("\t")
-                const targetRow = focus.rowIndex + rowOffset
-                if (!next[targetRow]) {
-                  next[targetRow] = Object.fromEntries(columns.map((column) => [column.key, ""]))
-                }
+                const targetRow = activeCell.rowIndex + rowOffset
+                ensureRow(next, targetRow)
                 values.forEach((value, columnOffset) => {
-                  const targetColumn = columns[focus.columnIndex + columnOffset]
+                  const targetColumn = columns[activeCell.columnIndex + columnOffset]
                   if (!targetColumn) return
                   next[targetRow] = { ...next[targetRow], [targetColumn.key]: value }
                 })
               })
               return next
             })
+            setEditingCell(null)
           }}
         >
           <table className="min-w-full border-collapse text-sm">
@@ -168,19 +179,48 @@ export default function BulkTable({
                 <tr key={rowIndex}>
                   {columns.map((column, columnIndex) => {
                     const cellError = cellErrors.find((item) => item.row_index === rowIndex && item.field === column.key)
+                    const isEditing = editingCell?.rowIndex === rowIndex && editingCell.columnIndex === columnIndex
+                    const cellValue = String(row[column.key] ?? "")
                     return (
                       <td key={column.key} className="border-r border-t border-jscolors-crimson/10 p-1 align-top">
-                        <FieldRenderer
-                          mode="input"
-                          field={{
-                            ...column,
-                            type: "text",
-                          }}
-                          value={String(row[column.key] ?? "")}
-                          onFocus={() => setFocus({ rowIndex, columnIndex })}
-                          onChange={(value) => updateCell(rowIndex, column.key, String(value))}
-                          className={`w-full rounded-lg px-2 py-2 outline-none ${cellError ? "border border-red-300 text-red-700" : ""}`}
-                        />
+                        {isEditing ? (
+                          <FieldRenderer
+                            mode="input"
+                            field={{
+                              ...column,
+                              type: "text",
+                            }}
+                            value={cellValue}
+                            autoFocus
+                            onFocus={() => setActiveCell({ rowIndex, columnIndex })}
+                            onBlur={stopEditing}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === "Escape") {
+                                event.preventDefault()
+                                stopEditing()
+                              }
+                            }}
+                            onChange={(value) => updateCell(rowIndex, column.key, String(value))}
+                            className={`w-full rounded-lg px-2 py-2 outline-none ${cellError ? "border border-red-300 text-red-700" : ""}`}
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            className={`block min-h-10 w-full rounded-lg px-2 py-2 text-left text-sm outline-none transition focus:ring-2 focus:ring-jscolors-crimson/20 ${
+                              cellError
+                                ? "border border-red-300 bg-red-50/60 text-red-700"
+                                : "border border-transparent hover:bg-jscolors-crimson/[0.04]"
+                            }`}
+                            onFocus={() => setActiveCell({ rowIndex, columnIndex })}
+                            onClick={() => {
+                              setActiveCell({ rowIndex, columnIndex })
+                              setEditingCell({ rowIndex, columnIndex })
+                            }}
+                            onDoubleClick={() => setEditingCell({ rowIndex, columnIndex })}
+                          >
+                            {cellValue || <span className="text-jscolors-text/20"> </span>}
+                          </button>
+                        )}
                         {cellError ? (
                           <p className="mt-1 px-1 text-[11px] leading-4 text-red-600">
                             {cellError.message}
