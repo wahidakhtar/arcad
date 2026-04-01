@@ -7,12 +7,13 @@ type ModalProps = {
   isOpen: boolean
   onClose: () => void
   title: string
-  size?: "sm" | "md" | "lg"
+  size?: "sm" | "md" | "lg" | "xl"
   children: React.ReactNode
   submitLabel: string
   onSubmit: () => void
   submitVariant?: "primary" | "danger"
   isSubmitting?: boolean
+  bodyScrollable?: boolean
 }
 
 export default function Modal({
@@ -25,6 +26,7 @@ export default function Modal({
   onSubmit,
   submitVariant = "primary",
   isSubmitting = false,
+  bodyScrollable = true,
 }: ModalProps) {
   useEffect(() => {
     if (!isOpen) return
@@ -37,7 +39,13 @@ export default function Modal({
 
   if (!isOpen) return null
 
-  const maxW = size === "sm" ? "max-w-sm" : size === "md" ? "max-w-md" : "max-w-2xl"
+  const maxW = size === "sm"
+    ? "max-w-sm"
+    : size === "md"
+      ? "max-w-md"
+      : size === "lg"
+        ? "max-w-2xl"
+        : "max-w-[96vw]"
 
   return createPortal(
     <div
@@ -63,7 +71,7 @@ export default function Modal({
         </div>
 
         {/* Body */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-2">
+        <div className={`min-h-0 flex-1 px-6 pb-2 ${bodyScrollable ? "overflow-y-auto" : "overflow-hidden"}`}>
           {children}
         </div>
 

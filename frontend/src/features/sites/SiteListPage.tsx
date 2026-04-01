@@ -303,7 +303,8 @@ export default function SiteListPage() {
         isOpen={openAddModal}
         title={showModalTabs ? (addModalTab === "site" ? "Add Site" : "Add Subproject") : showSiteAdd ? "Add Site" : "Add Subproject"}
         onClose={() => { setOpenAddModal(false); setSubmitting(false) }}
-        size="lg"
+        size={addModalTab === "subproject" ? "xl" : "lg"}
+        bodyScrollable={addModalTab !== "subproject"}
         submitLabel={addModalTab === "site" ? "Add Site" : "Add Subproject"}
         onSubmit={() => {
           if (addModalTab === "site") {
