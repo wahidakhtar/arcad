@@ -1,24 +1,16 @@
 import { useMemo, useRef, useState, type MouseEvent } from "react"
 import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps"
-import indiaGeoUrl from "../../assets/india-states.json?url"
+
+import indiaGeoRaw from "../../assets/india-full.geojson?raw"
 
 const TOOLTIP_WIDTH = 260
-const TOOLTIP_HEIGHT = 140 // conservative estimate for clamping vertical
+const TOOLTIP_HEIGHT = 140
 const TINY_REGION_MARKERS: Record<string, [number, number]> = {
   "Andaman and Nicobar Islands": [92.9, 11.7],
   Chandigarh: [76.78, 30.73],
   "Dadra and Nagar Haveli and Daman and Diu": [72.95, 20.3],
   Lakshadweep: [72.7, 10.6],
   Puducherry: [79.82, 11.93],
-}
-const TINY_REGION_NAMES = new Set(Object.keys(TINY_REGION_MARKERS))
-const MAP_NAME_ALIASES: Record<string, string> = {
-  andamanandnicobar: "andamanandnicobarislands",
-  dadraandnagarhaveli: "dadraandnagarhavelianddamananddiu",
-  delhi: "delhincr",
-  nctofdelhi: "delhincr",
-  orissa: "odisha",
-  pondicherry: "puducherry",
 }
 
 type MapRow = {
@@ -33,6 +25,24 @@ type StateRow = {
   label: string
 }
 
+type Geometry = {
+  type: "Polygon" | "MultiPolygon"
+  coordinates: number[][][] | number[][][][]
+}
+
+type GeoFeature = {
+  type: "Feature"
+  properties: Record<string, unknown>
+  geometry: Geometry
+}
+
+type GeoCollection = {
+  type: "FeatureCollection"
+  features: GeoFeature[]
+}
+
+const indiaGeo = JSON.parse(indiaGeoRaw) as GeoCollection
+
 export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: StateRow[] }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [tooltip, setTooltip] = useState<{
@@ -43,11 +53,20 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
     y: number
   } | null>(null)
 
-  const rowByState = useMemo(
-    () => new Map(rows.map((row) => [canonicalStateLabel(row.label), row])),
-    [rows],
+  const rowByState = useMemo(() => new Map(rows.map((row) => [normalizeStateLabel(row.label), row])), [rows])
+  const knownStateLabels = useMemo(() => new Set(states.map((state) => normalizeStateLabel(state.label))), [states])
+  const mapGeography = useMemo(() => buildStateGeoCollection(indiaGeo as GeoCollection, knownStateLabels), [knownStateLabels])
+  const markerRows = useMemo(
+    () =>
+      Object.entries(TINY_REGION_MARKERS)
+        .map(([name, coordinates]) => ({
+          name,
+          coordinates,
+          row: rowByState.get(normalizeStateLabel(name)),
+        }))
+        .filter((item) => knownStateLabels.has(normalizeStateLabel(item.name))),
+    [knownStateLabels, rowByState],
   )
-  const knownStateLabels = useMemo(() => new Set(states.map((state) => canonicalStateLabel(state.label))), [states])
 
   function handleMouseEnter(event: MouseEvent<SVGPathElement>, name: string, count: number, row: MapRow | undefined) {
     const container = containerRef.current
@@ -55,7 +74,6 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
     const rect = container.getBoundingClientRect()
     const rawX = event.clientX - rect.left
     const rawY = event.clientY - rect.top
-    // clamp so tooltip never overflows the right or bottom of the container
     const x = Math.min(rawX + 12, rect.width - TOOLTIP_WIDTH - 16)
     const y = Math.min(rawY + 12, rect.height - TOOLTIP_HEIGHT - 8)
     setTooltip({
@@ -67,37 +85,14 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
     })
   }
 
-  const markerRows = useMemo(
-    () =>
-      Object.entries(TINY_REGION_MARKERS)
-        .map(([name, coordinates]) => {
-          const row = rowByState.get(canonicalStateLabel(name))
-          return {
-            name,
-            coordinates,
-            row,
-            count: row?.count ?? 0,
-          }
-        })
-        .filter((item) => knownStateLabels.has(canonicalStateLabel(item.name))),
-    [knownStateLabels, rowByState],
-  )
-
   return (
     <div ref={containerRef} className="relative rounded-[24px] border border-jscolors-crimson/10 bg-[#FBF7F6] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.5)]">
-      <ComposableMap projection="geoMercator" projectionConfig={{ scale: 920, center: [82, 22] }} style={{ width: "100%", height: "540px", background: "#F7EFEE" }}>
-        <Geographies geography={indiaGeoUrl}>
+      <ComposableMap projection="geoMercator" projectionConfig={{ scale: 980, center: [82.8, 23.5] }} style={{ width: "100%", height: "540px", background: "#F7EFEE" }}>
+        <Geographies geography={mapGeography}>
           {({ geographies }: { geographies: Array<{ rsmKey: string; properties: Record<string, unknown> }> }) =>
             geographies.map((geography: { rsmKey: string; properties: Record<string, unknown> }) => {
-              const name = String(geography.properties?.st_nm ?? geography.properties?.ST_NM ?? geography.properties?.name ?? geography.properties?.NAME_1 ?? "")
-              const canonicalName = canonicalStateLabel(name)
-              if (knownStateLabels.size && !knownStateLabels.has(canonicalName)) {
-                return null
-              }
-              if (TINY_REGION_NAMES.has(name)) {
-                return null
-              }
-              const row = rowByState.get(canonicalName)
+              const name = String(geography.properties?.st_nm ?? geography.properties?.name ?? "")
+              const row = rowByState.get(normalizeStateLabel(name))
               const count = row?.count ?? 0
               return (
                 <Geography
@@ -130,19 +125,14 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
                     clientY: rect.top + rect.height / 2,
                   } as MouseEvent<SVGPathElement>,
                   marker.name,
-                  marker.count,
+                  marker.row?.count ?? 0,
                   marker.row,
                 )
               }}
               onMouseLeave={() => setTooltip(null)}
               style={{ cursor: "pointer" }}
             >
-              <circle
-                r={6}
-                fill={marker.count > 0 ? "#8B1A1A" : "#CDB8B8"}
-                stroke="#ffffff"
-                strokeWidth={2}
-              />
+              <circle r={6} fill={marker.row?.count ? "#8B1A1A" : "#CDB8B8"} stroke="#ffffff" strokeWidth={2} />
             </g>
           </Marker>
         ))}
@@ -165,11 +155,37 @@ export default function IndiaMap({ rows, states }: { rows: MapRow[]; states: Sta
   )
 }
 
-function normalizeStateLabel(value: string) {
-  return value.toLowerCase().replace(/[^a-z]/g, "")
+function buildStateGeoCollection(source: GeoCollection, allowedStates: Set<string>): GeoCollection {
+  const grouped = new Map<string, number[][][][]>()
+
+  for (const feature of source.features) {
+    const stateName = String(feature.properties?.st_nm ?? feature.properties?.name ?? "").trim()
+    const normalized = normalizeStateLabel(stateName)
+    if (!normalized || (allowedStates.size && !allowedStates.has(normalized))) continue
+
+    const polygons = feature.geometry.type === "Polygon"
+      ? [feature.geometry.coordinates as number[][][]]
+      : (feature.geometry.coordinates as number[][][][])
+
+    const current = grouped.get(stateName) ?? []
+    current.push(...polygons)
+    grouped.set(stateName, current)
+  }
+
+  const features = [...grouped.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([stateName, coordinates]) => ({
+      type: "Feature" as const,
+      properties: { name: stateName, st_nm: stateName },
+      geometry: {
+        type: "MultiPolygon" as const,
+        coordinates,
+      },
+    }))
+
+  return { type: "FeatureCollection", features }
 }
 
-function canonicalStateLabel(value: string) {
-  const normalized = normalizeStateLabel(value)
-  return MAP_NAME_ALIASES[normalized] ?? normalized
+function normalizeStateLabel(value: string) {
+  return value.toLowerCase().replace(/[^a-z]/g, "")
 }
