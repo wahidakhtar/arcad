@@ -16,9 +16,35 @@ import SiteHeader from "./components/SiteHeader"
 import SelectInput from "../../../components/ui/SelectInput"
 import useSiteDetail from "./hooks/useSiteDetail"
 
-const TODAY = new Date().toISOString().slice(0, 10)
+function localTodayIso() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, "0")
+  const day = String(now.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function detailMessage(detail: unknown, fallback: string) {
+  if (typeof detail === "string" && detail.trim()) return detail
+  if (Array.isArray(detail) && detail.length > 0) {
+    return detail
+      .map((item) => {
+        if (typeof item === "string") return item
+        if (item && typeof item === "object" && "msg" in item) return String(item.msg)
+        return null
+      })
+      .filter((item): item is string => Boolean(item))
+      .join(", ") || fallback
+  }
+  if (detail && typeof detail === "object") {
+    if ("detail" in detail && typeof detail.detail === "string" && detail.detail.trim()) return detail.detail
+    if ("msg" in detail && typeof detail.msg === "string" && detail.msg.trim()) return detail.msg
+  }
+  return fallback
+}
 
 export default function SiteDetailPage() {
+  const today = localTodayIso()
   const { can, roles, projectKeys } = useAuth()
   const [visitOutcomeOpen, setVisitOutcomeOpen] = useState(false)
   const [visitDateDraft, setVisitDateDraft] = useState("")
@@ -134,8 +160,8 @@ export default function SiteDetailPage() {
       setVisitOutcomeOpen(false)
       await loadPage()
     } catch (err: unknown) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setVisitOutcomeError(detail ?? "Failed to update visit details.")
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+      setVisitOutcomeError(detailMessage(detail, "Failed to update visit details."))
     } finally {
       setVisitOutcomeSaving(false)
     }
@@ -162,8 +188,8 @@ export default function SiteDetailPage() {
       setAuditResultsOpen(false)
       await loadPage()
     } catch (err: unknown) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setAuditResultsError(detail ?? "Failed to update audit details.")
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+      setAuditResultsError(detailMessage(detail, "Failed to update audit details."))
     } finally {
       setAuditResultsSaving(false)
     }
@@ -310,7 +336,7 @@ export default function SiteDetailPage() {
                 value={visitDateDraft}
                 onChange={(event) => setVisitDateDraft(event.target.value)}
                 className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-jscolors-crimson/40"
-                max={TODAY}
+                max={today}
               />
             </label>
             <label className="block">
@@ -349,7 +375,7 @@ export default function SiteDetailPage() {
                 value={auditDateDraft}
                 onChange={(event) => setAuditDateDraft(event.target.value)}
                 className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-jscolors-crimson/40"
-                max={TODAY}
+                max={today}
               />
             </label>
             <label className="flex items-center justify-between gap-3 rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3">

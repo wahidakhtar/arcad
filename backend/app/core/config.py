@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     cors_allowed_origins: str = Field(alias="CORS_ALLOWED_ORIGINS", default="http://localhost:5173")
     media_root: str = Field(alias="MEDIA_ROOT", default="media")
     redis_url: str = Field(alias="REDIS_URL", default="redis://localhost:6379/0")
+    app_timezone: str = Field(alias="APP_TIMEZONE", default="Asia/Kolkata")
 
     @property
     def effective_jwt_secret(self) -> str:

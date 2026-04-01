@@ -11,6 +11,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.api.auth import UserContext, ensure_permission, is_ops_only_user
+from app.core.time import app_today
 from app.models.core import Badge, IndianState, JobBucket
 from app.models.md import MDOutcome
 from app.models.ma import MASite
@@ -110,7 +111,7 @@ def _site_field_label(field_name: str) -> str:
 
 
 def _validate_no_future_site_dates(payload: dict[str, Any]) -> None:
-    today = date.today()
+    today = app_today()
     for field_name, value in payload.items():
         if isinstance(value, date) and value > today:
             raise HTTPException(
