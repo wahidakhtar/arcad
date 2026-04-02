@@ -1,8 +1,8 @@
 import axios from "axios"
 import { logError } from "./errorLogger"
 
-// Force frontend rebuild: align with paginated backend responses (f50d5fc)
-const baseURL = import.meta.env.VITE_API_URL || "https://arcad-production.up.railway.app/api/v1"
+// Default to the same-origin API path so self-hosted deployments do not depend on Railway.
+const baseURL = import.meta.env.VITE_API_URL || "/api/v1"
 
 export const api = axios.create({
   baseURL,
