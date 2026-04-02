@@ -18,7 +18,9 @@ jobs:
       - uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.INTERNAL_SERVER_HOST }}
+          port: ${{ secrets.INTERNAL_SERVER_SSH_PORT }}
           username: ${{ secrets.INTERNAL_SERVER_USER }}
           key: ${{ secrets.INTERNAL_SERVER_SSH_KEY }}
+          passphrase: ${{ secrets.INTERNAL_SERVER_SSH_PASSPHRASE }}
           script: |
-            powershell -NoProfile -ExecutionPolicy Bypass -File "C:\arcad-bluegreen\scripts\promote_slot.ps1" -RootDir "C:\arcad-bluegreen" -TargetSlot ${{ inputs.slot }}
+            powershell -NoProfile -ExecutionPolicy Bypass -File "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}\scripts\promote_slot.ps1" -RootDir "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}" -TargetSlot ${{ inputs.slot }}

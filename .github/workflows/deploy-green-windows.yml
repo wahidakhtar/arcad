@@ -44,7 +44,9 @@ jobs:
       - uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.INTERNAL_SERVER_HOST }}
+          port: ${{ secrets.INTERNAL_SERVER_SSH_PORT }}
           username: ${{ secrets.INTERNAL_SERVER_USER }}
           key: ${{ secrets.INTERNAL_SERVER_SSH_KEY }}
+          passphrase: ${{ secrets.INTERNAL_SERVER_SSH_PASSPHRASE }}
           script: |
-            powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-Location 'C:\arcad-bluegreen'; docker login ghcr.io -u '${{ github.repository_owner }}' -p '${{ secrets.GHCR_READ_TOKEN }}'; .\scripts\deploy_inactive.ps1 -RootDir 'C:\arcad-bluegreen' -ImageTag '${{ github.sha }}'"
+            powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-Location '${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}'; docker login ghcr.io -u '${{ github.repository_owner }}' -p '${{ secrets.GHCR_READ_TOKEN }}'; .\scripts\deploy_inactive.ps1 -RootDir '${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}' -ImageTag '${{ github.sha }}'"
