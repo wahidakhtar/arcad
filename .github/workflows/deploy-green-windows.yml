@@ -48,7 +48,7 @@ jobs:
       - windows
     steps:
       - name: Deploy inactive slot locally on Windows runner
-        shell: pwsh
+        shell: powershell
         run: |
           Set-Location "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}"
           docker login ghcr.io -u "${{ github.repository_owner }}" -p "${{ secrets.GHCR_READ_TOKEN }}"
