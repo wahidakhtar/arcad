@@ -20,4 +20,5 @@ jobs:
       - name: Promote slot locally on Windows runner
         shell: powershell
         run: |
-          & "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}\scripts\promote_slot.ps1" -RootDir "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}" -TargetSlot "${{ inputs.slot }}"
+          Set-Location "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}"
+          .\scripts\promote_slot.ps1 -RootDir "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}" -TargetSlot "${{ inputs.slot }}"
