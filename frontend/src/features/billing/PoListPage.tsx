@@ -6,6 +6,7 @@ import ListPageLayout from "../../components/layout/ListPageLayout"
 import { subscribe } from "../../hooks/useWebSocket"
 import { useListPage } from "../../hooks/useListPage"
 import FieldRenderer from "../../components/ui/FieldRenderer"
+import { api } from "../../lib/api"
 import { poCircuitContext, poProjectName } from "./poHelpers"
 import type { Invoice, PO } from "./types"
 
@@ -13,19 +14,49 @@ type BillingTab = "pos" | "invoices"
 
 export default function PoListPage() {
   const [activeTab, setActiveTab] = useState<BillingTab>("pos")
+  const [invoiceData, setInvoiceData] = useState<Invoice[]>([])
+  const [invoiceLoading, setInvoiceLoading] = useState(false)
+  const [invoiceError, setInvoiceError] = useState("")
+  const [invoiceReloadToken, setInvoiceReloadToken] = useState(0)
   const { data: poData, loading: poLoading, error: poError, refetch } = useListPage<PO[]>({
     endpoint: "/billing/pos",
-  })
-  const { data: invoiceData, loading: invoiceLoading, error: invoiceError, refetch: refetchInvoices } = useListPage<Invoice[]>({
-    endpoint: "/billing/invoices",
   })
 
   useEffect(() => {
     const unsub1 = subscribe("PO_CREATED", () => { void refetch() })
     const unsub2 = subscribe("PO_UPDATED", () => { void refetch() })
-    const unsub3 = subscribe("INVOICE_UPDATED", () => { void Promise.all([refetch(), refetchInvoices()]) })
+    const unsub3 = subscribe("INVOICE_UPDATED", () => {
+      void refetch()
+      setInvoiceReloadToken((current) => current + 1)
+    })
     return () => { unsub1(); unsub2(); unsub3() }
-  }, [refetch, refetchInvoices])
+  }, [refetch])
+
+  useEffect(() => {
+    if (activeTab !== "invoices") return
+    let cancelled = false
+    setInvoiceLoading(true)
+    setInvoiceError("")
+
+    void api
+      .get<Invoice[]>("/billing/invoices")
+      .then((response) => {
+        if (cancelled) return
+        setInvoiceData(Array.isArray(response.data) ? response.data : [])
+      })
+      .catch((requestError: { response?: { data?: { detail?: string } } }) => {
+        if (cancelled) return
+        setInvoiceError(requestError.response?.data?.detail ?? "Unable to load invoices.")
+      })
+      .finally(() => {
+        if (cancelled) return
+        setInvoiceLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab, invoiceReloadToken])
 
   const poRows = [...(poData ?? [])].sort((a, b) => b.id - a.id)
   const poTableRows = poRows.map((row) => ({
@@ -33,7 +64,7 @@ export default function PoListPage() {
     project_name: poProjectName(row),
     circuit_context: poCircuitContext(row),
   }))
-  const invoiceRows = [...(invoiceData ?? [])].sort((a, b) => b.id - a.id)
+  const invoiceRows = [...invoiceData].sort((a, b) => b.id - a.id)
 
   function renderActiveTable() {
     if (activeTab === "pos") {
