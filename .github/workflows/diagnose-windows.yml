@@ -1,0 +1,19 @@
+name: Diagnose Server State (Windows)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on:
+      - self-hosted
+      - windows
+    steps:
+      - name: Check state
+        shell: powershell
+        run: |
+          Write-Output "=== .env ==="
+          Get-Content "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}\.env"
+          Write-Output ""
+          Write-Output "=== Running containers ==="
+          docker ps --format "table {{.Names}}`t{{.Image}}`t{{.Status}}`t{{.Ports}}"
