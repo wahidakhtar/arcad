@@ -16,6 +16,8 @@ type ProjectEntry = {
   id: number
   key: string
   label: string
+  active: boolean
+  recurring: boolean
 }
 
 type SiteLookup = {
@@ -47,7 +49,7 @@ export default function useTicketsPage() {
         api.get<{ items: TicketRaw[]; total: number; page: number; page_size: number; pages: number }>("/tickets", {
           params: { page: requestedPage, page_size: 50 },
         }),
-        api.get<ProjectEntry[]>("/projects"),
+        api.get<ProjectEntry[]>("/me/projects"),
       ])
 
       const { items: allTickets, total, page: responsePage, page_size, pages } = ticketsResponse.data

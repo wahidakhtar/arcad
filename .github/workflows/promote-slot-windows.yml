@@ -13,12 +13,12 @@ on:
 
 jobs:
   promote:
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - windows
     steps:
-      - uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.INTERNAL_SERVER_HOST }}
-          username: ${{ secrets.INTERNAL_SERVER_USER }}
-          key: ${{ secrets.INTERNAL_SERVER_SSH_KEY }}
-          script: |
-            powershell -NoProfile -ExecutionPolicy Bypass -File "C:\arcad-bluegreen\scripts\promote_slot.ps1" -RootDir "C:\arcad-bluegreen" -TargetSlot ${{ inputs.slot }}
+      - name: Promote slot locally on Windows runner
+        shell: powershell
+        run: |
+          Set-Location "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}"
+          .\scripts\promote_slot.ps1 -RootDir "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}" -TargetSlot "${{ inputs.slot }}"

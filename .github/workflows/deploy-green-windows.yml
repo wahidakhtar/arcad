@@ -10,7 +10,7 @@ permissions:
   packages: write
 
 jobs:
-  build-and-deploy:
+  build-images:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,10 +41,15 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/arcad-frontend:${{ github.sha }}
             ghcr.io/${{ github.repository_owner }}/arcad-frontend:latest
 
-      - uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.INTERNAL_SERVER_HOST }}
-          username: ${{ secrets.INTERNAL_SERVER_USER }}
-          key: ${{ secrets.INTERNAL_SERVER_SSH_KEY }}
-          script: |
-            powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-Location 'C:\arcad-bluegreen'; docker login ghcr.io -u '${{ github.repository_owner }}' -p '${{ secrets.GHCR_READ_TOKEN }}'; .\scripts\deploy_inactive.ps1 -RootDir 'C:\arcad-bluegreen' -ImageTag '${{ github.sha }}'"
+  deploy-inactive:
+    needs: build-images
+    runs-on:
+      - self-hosted
+      - windows
+    steps:
+      - name: Deploy inactive slot locally on Windows runner
+        shell: powershell
+        run: |
+          Set-Location "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}"
+          docker login ghcr.io -u "${{ github.repository_owner }}" -p "${{ secrets.GHCR_READ_TOKEN }}"
+          .\scripts\deploy_inactive.ps1 -RootDir "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}" -ImageTag "${{ github.sha }}"
