@@ -54,6 +54,8 @@ jobs:
         run: |
           Copy-Item -Path "deploy\windows\docker-compose.yml" -Destination "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}\docker-compose.yml" -Force
           Copy-Item -Path "deploy\windows\proxy\default.conf.template" -Destination "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}\proxy\default.conf.template" -Force
+          Copy-Item -Path "deploy\windows\scripts\deploy_inactive.ps1" -Destination "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}\scripts\deploy_inactive.ps1" -Force
+          Copy-Item -Path "deploy\windows\scripts\promote_slot.ps1" -Destination "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}\scripts\promote_slot.ps1" -Force
 
       - name: Deploy inactive slot locally on Windows runner
         shell: powershell
