@@ -22,3 +22,29 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
   }
 }
+
+# Test/staging port — always routes to the INACTIVE slot for pre-promote testing
+server {
+  listen 8082;
+  server_name _;
+
+  location /api/ {
+    proxy_pass http://api-${INACTIVE_SLOT}:8000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location /openapi.json {
+    proxy_pass http://api-${INACTIVE_SLOT}:8000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location / {
+    proxy_pass http://frontend-${INACTIVE_SLOT}:80;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
