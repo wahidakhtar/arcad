@@ -36,9 +36,9 @@ services:
       api-green:
         condition: service_healthy
       frontend-blue:
-        condition: service_healthy
+        condition: service_started
       frontend-green:
-        condition: service_healthy
+        condition: service_started
 
   api-blue:
     image: ${API_IMAGE}:${IMAGE_TAG}
