@@ -31,6 +31,6 @@ if (-not ($updated | Where-Object { $_ -match '^INACTIVE_SLOT=' })) {
 }
 Set-Content -Path $envPath -Value $updated
 
-docker compose -f docker-compose.yml up -d proxy
+docker compose -f docker-compose.yml up -d --force-recreate proxy
 
 Write-Output "active_slot=$TargetSlot"
