@@ -93,11 +93,6 @@ services:
       APP_SLOT: blue
     expose:
       - "80"
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
-      interval: 20s
-      timeout: 5s
-      retries: 5
 
   frontend-green:
     image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
@@ -106,11 +101,6 @@ services:
       APP_SLOT: green
     expose:
       - "80"
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
-      interval: 20s
-      timeout: 5s
-      retries: 5
 
 volumes:
   arcad_pgdata:
