@@ -60,6 +60,11 @@ export default function SiteDetailPage() {
   const [auditEarthingCableDraft, setAuditEarthingCableDraft] = useState("")
   const [auditResultsSaving, setAuditResultsSaving] = useState(false)
   const [auditResultsError, setAuditResultsError] = useState("")
+  const [dismantleOpen, setDismantleOpen] = useState(false)
+  const [dismantleDateDraft, setDismantleDateDraft] = useState("")
+  const [scrapValueDraft, setScrapValueDraft] = useState("")
+  const [dismantleSaving, setDismantleSaving] = useState(false)
+  const [dismantleError, setDismantleError] = useState("")
   const [deploying, setDeploying] = useState(false)
   const [deployError, setDeployError] = useState("")
   const [transferringToCm, setTransferringToCm] = useState(false)
@@ -130,6 +135,15 @@ export default function SiteDetailPage() {
     setVisitOutcomeOpen(true)
   }
 
+  function openDismantleEditor() {
+    setDismantleDateDraft((currentSite.fields.dismantle_date as string | null) ?? "")
+    setScrapValueDraft(
+      currentSite.fields.scrap_value == null ? "" : String(currentSite.fields.scrap_value),
+    )
+    setDismantleError("")
+    setDismantleOpen(true)
+  }
+
   function openAuditResultsEditor() {
     setAuditDateDraft((currentSite.fields.audit_date as string | null) ?? "")
     setAuditPaintDraft(Boolean(currentSite.fields.mpaint))
@@ -164,6 +178,26 @@ export default function SiteDetailPage() {
       setVisitOutcomeError(detailMessage(detail, "Failed to update visit details."))
     } finally {
       setVisitOutcomeSaving(false)
+    }
+  }
+
+  async function saveDismantle() {
+    setDismantleSaving(true)
+    setDismantleError("")
+    try {
+      await api.patch(`/sites/${projectKey}/${currentSite.id}`, {
+        data: {
+          dismantle_date: dismantleDateDraft || null,
+          scrap_value: scrapValueDraft.trim() === "" ? null : Number(scrapValueDraft),
+        },
+      })
+      setDismantleOpen(false)
+      await loadPage()
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+      setDismantleError(detailMessage(detail, "Failed to update dismantle details."))
+    } finally {
+      setDismantleSaving(false)
     }
   }
 
@@ -289,6 +323,7 @@ export default function SiteDetailPage() {
               setEditError("")
             }}
             onOpenVisitOutcome={openVisitOutcomeEditor}
+            onOpenDismantle={openDismantleEditor}
             onOpenAuditResults={openAuditResultsEditor}
           />
           {can("billing", "read") && <SiteBillingSection site={site} canWrite={can("billing", "write")} onSaved={loadPage} />}
@@ -352,6 +387,44 @@ export default function SiteDetailPage() {
               </SelectInput>
             </label>
             {visitOutcomeError ? <p className="text-sm text-red-600">{visitOutcomeError}</p> : null}
+          </div>
+        </Modal>
+
+        <Modal
+          isOpen={dismantleOpen}
+          title="Dismantle Details"
+          onClose={() => {
+            setDismantleOpen(false)
+            setDismantleError("")
+          }}
+          size="sm"
+          submitLabel="Save"
+          onSubmit={() => void saveDismantle()}
+          isSubmitting={dismantleSaving}
+        >
+          <div className="space-y-4">
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Dismantle Date</span>
+              <input
+                type="date"
+                value={dismantleDateDraft}
+                onChange={(event) => setDismantleDateDraft(event.target.value)}
+                className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-jscolors-crimson/40"
+                max={today}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Scrap Value</span>
+              <input
+                type="number"
+                value={scrapValueDraft}
+                onChange={(event) => setScrapValueDraft(event.target.value)}
+                className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-jscolors-crimson/40"
+                min="0"
+                step="0.01"
+              />
+            </label>
+            {dismantleError ? <p className="text-sm text-red-600">{dismantleError}</p> : null}
           </div>
         </Modal>
 

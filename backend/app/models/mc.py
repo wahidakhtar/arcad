@@ -45,6 +45,7 @@ class MCSite(Base):
     ec: Optional[Mapped[Decimal]] = mapped_column(Numeric(12, 2))
     cm_date: Optional[Mapped[date]] = mapped_column(Date)
     wcc_status_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_core.badges.id"))
+    report_status_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_core.badges.id"))
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     active_fe: Optional[Mapped[str]] = mapped_column(String(256))
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)

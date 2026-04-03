@@ -18,6 +18,7 @@ type SiteFieldsSectionProps = {
   canSiteWrite: boolean
   onOpenField: (field: UIField) => void
   onOpenVisitOutcome: () => void
+  onOpenDismantle: () => void
   onOpenAuditResults: () => void
 }
 
@@ -30,6 +31,7 @@ export default function SiteFieldsSection({
   canSiteWrite,
   onOpenField,
   onOpenVisitOutcome,
+  onOpenDismantle,
   onOpenAuditResults,
 }: SiteFieldsSectionProps) {
   return (
@@ -50,12 +52,15 @@ export default function SiteFieldsSection({
           const isFinancial = ["budget", "cost", "paid", "balance"].includes(normalizedField.key)
           const canEdit = canSiteWrite && !isReadOnly && !isCompleted
           const isVisitOutcomeField = projectKey === "md" && (normalizedField.key === "visit_date" || normalizedField.key === "outcome")
+          const isDismantleField = projectKey === "md" && (normalizedField.key === "dismantle_date" || normalizedField.key === "scrap_value")
           const isAuditResultField = projectKey === "ma" && ["audit_date", "mpaint", "mnbr", "arr", "ep", "ec"].includes(normalizedField.key)
           const openEditor = isVisitOutcomeField
             ? onOpenVisitOutcome
-            : isAuditResultField
-              ? onOpenAuditResults
-              : () => onOpenField(normalizedField)
+            : isDismantleField
+              ? onOpenDismantle
+              : isAuditResultField
+                ? onOpenAuditResults
+                : () => onOpenField(normalizedField)
 
           return (
             <DetailFieldCard
