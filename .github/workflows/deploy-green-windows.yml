@@ -47,6 +47,14 @@ jobs:
       - self-hosted
       - windows
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync deploy files to server root
+        shell: powershell
+        run: |
+          Copy-Item -Path "deploy\windows\docker-compose.yml" -Destination "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}\docker-compose.yml" -Force
+          Copy-Item -Path "deploy\windows\proxy\default.conf.template" -Destination "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}\proxy\default.conf.template" -Force
+
       - name: Deploy inactive slot locally on Windows runner
         shell: powershell
         run: |
