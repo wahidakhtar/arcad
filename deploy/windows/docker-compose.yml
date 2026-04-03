@@ -1,4 +1,19 @@
 services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - arcad_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   proxy:
     image: nginx:1.27-alpine
     restart: unless-stopped
@@ -28,6 +43,9 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
       APP_SLOT: blue
       DATABASE_URL: ${DATABASE_URL}
@@ -48,6 +66,9 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
       APP_SLOT: green
       DATABASE_URL: ${DATABASE_URL}
@@ -88,3 +109,6 @@ services:
       interval: 20s
       timeout: 5s
       retries: 5
+
+volumes:
+  arcad_pgdata:

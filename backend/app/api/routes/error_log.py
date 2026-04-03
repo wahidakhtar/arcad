@@ -56,7 +56,7 @@ def create_error_log(
             VALUES
               (:user_id, :username, :page_url, :error_type, :error_message,
                :stack_trace, :http_status, :http_url, :user_agent,
-               :extra::jsonb)
+               cast(:extra as jsonb))
             RETURNING id
         """),
         {
@@ -95,7 +95,7 @@ def list_error_logs(
         conditions.append("user_id = :user_id")
         params["user_id"] = user_id
     if since:
-        conditions.append("created_at >= :since::timestamptz")
+        conditions.append("created_at >= cast(:since as timestamptz)")
         params["since"] = since
 
     where = " AND ".join(conditions)
