@@ -19,10 +19,12 @@ jobs:
           docker ps --format "table {{.Names}}`t{{.Image}}`t{{.Status}}`t{{.Ports}}"
           Write-Output ""
           Write-Output "=== API green logs ==="
-          docker logs arcad-bluegreen-api-green-1 --tail 60 2>&1
+          $greenLogs = docker logs arcad-bluegreen-api-green-1 --tail 80 2>&1
+          $greenLogs | ForEach-Object { Write-Output $_ }
           Write-Output ""
           Write-Output "=== API blue logs ==="
-          docker logs arcad-bluegreen-api-blue-1 --tail 60 2>&1
+          $blueLogs = docker logs arcad-bluegreen-api-blue-1 --tail 80 2>&1
+          $blueLogs | ForEach-Object { Write-Output $_ }
           Write-Output ""
           Write-Output "=== Restarting proxy to fix DNS cache ==="
           Set-Location "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}"
