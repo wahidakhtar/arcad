@@ -14,6 +14,21 @@ services:
       timeout: 5s
       retries: 5
 
+  db-test:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${TEST_POSTGRES_DB}
+    volumes:
+      - arcad_pgdata_test:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${TEST_POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   proxy:
     image: nginx:1.27-alpine
     restart: unless-stopped
@@ -48,9 +63,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      db-test:
+        condition: service_healthy
     environment:
       APP_SLOT: blue
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${BLUE_DATABASE_URL}
       PORT: 8000
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
       SECRET_KEY: ${SECRET_KEY}
@@ -71,9 +88,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      db-test:
+        condition: service_healthy
     environment:
       APP_SLOT: green
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${GREEN_DATABASE_URL}
       PORT: 8000
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
       SECRET_KEY: ${SECRET_KEY}
@@ -104,3 +123,4 @@ services:
 
 volumes:
   arcad_pgdata:
+  arcad_pgdata_test:
