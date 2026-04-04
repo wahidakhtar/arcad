@@ -61,16 +61,24 @@ def upgrade() -> None:
 
     # 5. Add report_status ui_field to MA
     conn.execute(sa.text(
+        "SELECT setval('schema_ma.ui_fields_id_seq', COALESCE((SELECT MAX(id) FROM schema_ma.ui_fields), 0))"
+    ))
+    conn.execute(sa.text(
         "INSERT INTO schema_ma.ui_fields (key, label, type, list_view, form_view, bulk_view, tag_id, \"order\") "
         "VALUES ('report_status', 'Report', 'badge', true, false, false, "
-        "(SELECT id FROM schema_core.tags WHERE tag = 'doc_badge'), 50)"
+        "(SELECT id FROM schema_core.tags WHERE tag = 'doc_badge'), 50) "
+        "ON CONFLICT DO NOTHING"
     ))
 
     # 6. Add report_status ui_field to MC
     conn.execute(sa.text(
+        "SELECT setval('schema_mc.ui_fields_id_seq', COALESCE((SELECT MAX(id) FROM schema_mc.ui_fields), 0))"
+    ))
+    conn.execute(sa.text(
         "INSERT INTO schema_mc.ui_fields (key, label, type, list_view, form_view, bulk_view, tag_id, \"order\") "
         "VALUES ('report_status', 'Report', 'badge', true, false, false, "
-        "(SELECT id FROM schema_core.tags WHERE tag = 'doc_badge'), 50)"
+        "(SELECT id FROM schema_core.tags WHERE tag = 'doc_badge'), 50) "
+        "ON CONFLICT DO NOTHING"
     ))
 
     # 7. Report badge transitions for MA (pend→submitted, submitted→signed)
