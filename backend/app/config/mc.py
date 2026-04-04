@@ -18,8 +18,8 @@ system_status_triggers = {
     "permission_date:set": {"status_key": "wip"},
     "status_key:hold": {"clear": ["permission_date"]},
     "status_key:cancel": {"clear": ["permission_date"]},
-    "cm_date:set": {"status_key": "comp", "lock_all_except": ["cm_date", "wcc_status_id", "report_status_id"]},
-    "cm_date:clear": {"status_key": "p_wait", "clear": ["permission_date", "wcc_status_id", "report_status_id"]},
+    "cm_date:set": {"status_key": "comp", "lock_all_except": ["cm_date", "wcc_status_id", "report_status_id", "report_submission_date"]},
+    "cm_date:clear": {"status_key": "p_wait", "clear": ["permission_date", "wcc_status_id", "report_status_id", "report_submission_date"]},
 }
 field_lock_rules = {
     "permission_date": {"status_key": ["p_wait"]},
@@ -61,7 +61,7 @@ def apply_mc_rules(site, payload: dict, db) -> dict:
 
     # 3. If comp, restrict allowed fields
     if current_status_key == "comp":
-        allowed_when_comp = {"cm_date", "wcc_status_id", "report_status_id"}
+        allowed_when_comp = {"cm_date", "wcc_status_id", "report_status_id", "report_submission_date"}
         for key in payload:
             if key not in allowed_when_comp:
                 raise HTTPException(status_code=400, detail=f"Field '{key}' cannot be changed when site is complete")
@@ -110,5 +110,12 @@ def apply_mc_rules(site, payload: dict, db) -> dict:
         payload["permission_date"] = None
         payload["wcc_status_id"] = None
         payload["report_status_id"] = None
+        payload["report_submission_date"] = None
+
+    # 11. report_submission_date set: auto-advance report_status from gen → subm
+    if "report_submission_date" in payload and payload["report_submission_date"] is not None:
+        current_report_key = by_id.get(site.report_status_id, "")
+        if current_report_key == "gen" and "report_status_id" not in payload:
+            payload["report_status_id"] = doc_by_key["subm"]
 
     return payload

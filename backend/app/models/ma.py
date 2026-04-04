@@ -45,6 +45,7 @@ class MASite(Base):
     audit_date: Optional[Mapped[date]] = mapped_column(Date)
     wcc_status_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_core.badges.id"))
     report_status_id: Optional[Mapped[int]] = mapped_column(ForeignKey("schema_core.badges.id"))
+    report_submission_date: Optional[Mapped[date]] = mapped_column(Date)
     transferred_to_mc: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     active_fe: Optional[Mapped[str]] = mapped_column(String(256))

@@ -92,6 +92,23 @@ async def deploy_site(project_key: str, site_id: int, user: UserContext = Depend
     return result
 
 
+@router.post("/{project_key}/{site_id}/generate-report")
+async def generate_report(
+    project_key: str,
+    site_id: int,
+    user: UserContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from fastapi.responses import Response
+    html = site_service.generate_site_report(db, user, project_key, site_id)
+    await ws_manager.broadcast({"type": "SITE_UPDATED", "site_id": site_id, "project_key": project_key})
+    return Response(
+        content=html,
+        media_type="text/html",
+        headers={"Content-Disposition": f"attachment; filename=report_{project_key}_{site_id}.html"},
+    )
+
+
 @router.post("/ma/{site_id}/transfer-to-mc")
 async def transfer_ma_site_to_mc(site_id: int, user: UserContext = Depends(permission_required("site", "write")), db: Session = Depends(get_db)):
     result = site_service.transfer_ma_site_to_mc(db, user, site_id)

@@ -69,6 +69,12 @@ export default function SiteDetailPage() {
   const [deployError, setDeployError] = useState("")
   const [transferringToCm, setTransferringToCm] = useState(false)
   const [transferToCmError, setTransferToCmError] = useState("")
+  const [generatingReport, setGeneratingReport] = useState(false)
+  const [generateReportError, setGenerateReportError] = useState("")
+  const [reportSubmitOpen, setReportSubmitOpen] = useState(false)
+  const [reportSubmitDateDraft, setReportSubmitDateDraft] = useState("")
+  const [reportSubmitSaving, setReportSubmitSaving] = useState(false)
+  const [reportSubmitError, setReportSubmitError] = useState("")
   const {
     projectKey,
     site,
@@ -116,6 +122,17 @@ export default function SiteDetailPage() {
   const canReadAccUpdates = can("acc_update", "read")
   const cancelBadgeId = badges.find((badge) => badge.key === "cancel")?.id
   const reqBadgeId = badges.find((badge) => badge.key === "req")?.id
+  const canDocBadgeWrite = can("doc_badge", "write")
+  const reportStatusId = currentSite?.fields?.report_status_id as number | null | undefined
+  const reportStatusKey = reportStatusId != null ? (badgeById.get(reportStatusId)?.key ?? null) : null
+  const showGenerateReport = (projectKey === "ma" || projectKey === "mc")
+    && currentSite.status_key === "comp"
+    && canDocBadgeWrite
+    && reportStatusKey === "pend"
+  const showSubmitReport = (projectKey === "ma" || projectKey === "mc")
+    && canDocBadgeWrite
+    && reportStatusKey === "gen"
+
   const canDeployStagedSite = Boolean(
     project?.id && roles.some((role) => (
       ((role.dept_key === "ops" && role.level_key === "l3") || (role.dept_key === "mgmt" && (role.level_key === "l2" || role.level_key === "l3")))
@@ -243,6 +260,52 @@ export default function SiteDetailPage() {
     }
   }
 
+  async function generateReport() {
+    setGeneratingReport(true)
+    setGenerateReportError("")
+    try {
+      const response = await api.post(
+        `/sites/${projectKey}/${currentSite.id}/generate-report`,
+        {},
+        { responseType: "blob" },
+      )
+      const blob = new Blob([response.data as BlobPart], { type: "text/html" })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement("a")
+      anchor.href = url
+      anchor.download = `report_${projectKey}_${currentSite.id}.html`
+      anchor.click()
+      URL.revokeObjectURL(url)
+      await loadPage()
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setGenerateReportError(detail ?? "Failed to generate report.")
+    } finally {
+      setGeneratingReport(false)
+    }
+  }
+
+  async function saveReportSubmission() {
+    if (!reportSubmitDateDraft) {
+      setReportSubmitError("Submission date is required.")
+      return
+    }
+    setReportSubmitSaving(true)
+    setReportSubmitError("")
+    try {
+      await api.patch(`/sites/${projectKey}/${currentSite.id}`, {
+        data: { report_submission_date: reportSubmitDateDraft },
+      })
+      setReportSubmitOpen(false)
+      await loadPage()
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+      setReportSubmitError(detailMessage(detail, "Failed to save submission date."))
+    } finally {
+      setReportSubmitSaving(false)
+    }
+  }
+
   async function transferToCm() {
     setTransferringToCm(true)
     setTransferToCmError("")
@@ -286,6 +349,39 @@ export default function SiteDetailPage() {
                 {deploying ? "Deploying..." : "Deploy Site"}
               </Button>
             ) : null}
+          </section>
+        ) : null}
+        {showGenerateReport || generateReportError ? (
+          <section className="glass-panel flex flex-col gap-3 p-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Report</p>
+              <p className="mt-2 text-sm text-jscolors-text/65">Generate the completion report for this site.</p>
+              {generateReportError ? <p className="mt-2 text-sm text-red-600">{generateReportError}</p> : null}
+            </div>
+            {showGenerateReport ? (
+              <Button type="button" onClick={() => void generateReport()} disabled={generatingReport}>
+                {generatingReport ? "Generating..." : "Generate Report"}
+              </Button>
+            ) : null}
+          </section>
+        ) : null}
+        {showSubmitReport ? (
+          <section className="glass-panel flex flex-col gap-3 p-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Report Submission</p>
+              <p className="mt-2 text-sm text-jscolors-text/65">Record the date this report was submitted to the client.</p>
+            </div>
+            <Button
+              type="button"
+              onClick={() => {
+                const existing = currentSite.fields.report_submission_date as string | null
+                setReportSubmitDateDraft(existing ?? "")
+                setReportSubmitError("")
+                setReportSubmitOpen(true)
+              }}
+            >
+              Record Submission Date
+            </Button>
           </section>
         ) : null}
         {showProceedWithCm || transferToCmError ? (
@@ -425,6 +521,33 @@ export default function SiteDetailPage() {
               />
             </label>
             {dismantleError ? <p className="text-sm text-red-600">{dismantleError}</p> : null}
+          </div>
+        </Modal>
+
+        <Modal
+          isOpen={reportSubmitOpen}
+          title="Report Submission Date"
+          onClose={() => {
+            setReportSubmitOpen(false)
+            setReportSubmitError("")
+          }}
+          size="sm"
+          submitLabel="Save"
+          onSubmit={() => void saveReportSubmission()}
+          isSubmitting={reportSubmitSaving}
+        >
+          <div className="space-y-4">
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Submission Date *</span>
+              <input
+                type="date"
+                value={reportSubmitDateDraft}
+                onChange={(event) => setReportSubmitDateDraft(event.target.value)}
+                className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-jscolors-crimson/40"
+                max={today}
+              />
+            </label>
+            {reportSubmitError ? <p className="text-sm text-red-600">{reportSubmitError}</p> : null}
           </div>
         </Modal>
 

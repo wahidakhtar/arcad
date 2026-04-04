@@ -59,13 +59,22 @@ BADGE_TYPE_BY_FIELD = {
     "po_status": "doc_status",
     "invoice_status": "doc_status",
     "wcc_status": "doc_status",
+    "report_status": "doc_status",
 }
 
 TRANSITION_TYPE_BY_FIELD = {
     "status": "site",
     "wcc_status": "wcc",
     "invoice_status": "invoice",
+    "report_status": "report",
 }
+
+# Fields that require doc_badge:write permission in addition to the standard field:write check
+_DOC_BADGE_WRITE_FIELDS = frozenset({
+    "wcc_status", "wcc_status_id",
+    "report_status", "report_status_id",
+    "report_submission_date",
+})
 
 
 def _parse_date(value: Any) -> Optional[date]:
@@ -685,6 +694,10 @@ def update_site(db: Session, user: UserContext, project_key: str, site_id: int, 
     for field_name in data.keys():
         ensure_permission(user, db, project_key=project_key, tag="field", action="write", field_name=field_name)
 
+    # doc_badge fields require additional doc_badge:write permission
+    if any(f in _DOC_BADGE_WRITE_FIELDS for f in data.keys()):
+        ensure_permission(user, db, project_key=project_key, tag="doc_badge", action="write")
+
     # Normalize payload
     normalized_data = _normalize_site_payload(db, project_key, data)
     _validate_no_future_site_dates(normalized_data)
@@ -753,6 +766,35 @@ def update_site(db: Session, user: UserContext, project_key: str, site_id: int, 
         db.commit()
 
     return result
+
+
+def generate_site_report(db: Session, user: UserContext, project_key: str, site_id: int) -> str:
+    """Set report_status → gen and return the rendered report HTML for download."""
+    if project_key not in ("ma", "mc"):
+        raise HTTPException(status_code=400, detail="Report generation is only available for MA and MC projects")
+
+    ensure_permission(user, db, project_key=project_key, tag="doc_badge", action="write")
+
+    model = get_site_model(project_key)
+    site = db.get(model, site_id)
+    if site is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    badges_dict = badge_map(db)
+    status_obj = badges_dict.get(site.status_id)
+    if not status_obj or status_obj.key != "comp":
+        raise HTTPException(status_code=400, detail="Report can only be generated for completed sites")
+
+    gen_badge = next((b for b in badges_dict.values() if b.key == "gen" and b.type == "doc_status"), None)
+    if gen_badge is None:
+        raise HTTPException(status_code=500, detail="Generated badge not configured")
+
+    site.report_status_id = gen_badge.id
+    site.version = (site.version or 0) + 1
+    db.commit()
+
+    from app.services.reports import render_report
+    return render_report("report.html", {"site_id": site_id, "report_type": "report"})
 
 
 def assign_subcon(db: Session, user: UserContext, project_key: str, site_id: int, payload: SubconAssignmentRequest) -> SiteOut:

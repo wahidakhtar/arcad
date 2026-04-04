@@ -15,8 +15,8 @@ system_status_triggers = {
     "permission_date:set": {"status_key": "wip"},
     "status_key:hold": {"clear": ["permission_date"]},
     "status_key:cancel": {"clear": ["permission_date"]},
-    "audit_date:set": {"status_key": "comp", "lock_all_except": ["audit_date", "wcc_status_id", "report_status_id"]},
-    "audit_date:clear": {"status_key": "p_wait", "clear": ["permission_date", "wcc_status_id", "report_status_id"]},
+    "audit_date:set": {"status_key": "comp", "lock_all_except": ["audit_date", "wcc_status_id", "report_status_id", "report_submission_date"]},
+    "audit_date:clear": {"status_key": "p_wait", "clear": ["permission_date", "wcc_status_id", "report_status_id", "report_submission_date"]},
 }
 field_lock_rules = {
     "permission_date": {"status_key": ["p_wait"]},
@@ -63,6 +63,7 @@ def apply_ma_rules(site, payload: dict, db) -> dict:
             "audit_date",
             "wcc_status_id",
             "report_status_id",
+            "report_submission_date",
             "mpaint",
             "mnbr",
             "arr",
@@ -111,5 +112,12 @@ def apply_ma_rules(site, payload: dict, db) -> dict:
         payload["permission_date"] = None
         payload["wcc_status_id"] = None
         payload["report_status_id"] = None
+        payload["report_submission_date"] = None
+
+    # 11. report_submission_date set: auto-advance report_status from gen → subm
+    if "report_submission_date" in payload and payload["report_submission_date"] is not None:
+        current_report_key = by_id.get(site.report_status_id, "")
+        if current_report_key == "gen" and "report_status_id" not in payload:
+            payload["report_status_id"] = doc_by_key["subm"]
 
     return payload
