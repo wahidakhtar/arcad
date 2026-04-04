@@ -32,7 +32,7 @@ def upgrade() -> None:
     # 2. Add ui_fields row for tx_copy_status in schema_md.ui_fields
     conn.execute(
         sa.text(
-            "SELECT setval('schema_md.ui_fields_id_seq', (SELECT MAX(id) FROM schema_md.ui_fields))"
+            "SELECT setval('schema_md.ui_fields_id_seq', COALESCE((SELECT MAX(id) FROM schema_md.ui_fields), 0))"
         )
     )
     conn.execute(

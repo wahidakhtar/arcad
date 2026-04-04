@@ -88,6 +88,9 @@ def upgrade() -> None:
             WHERE tag != 'active_fe'
             """
         ))
+        op.execute(sa.text(
+            f"SELECT setval('{schema}.ui_fields_id_seq', COALESCE((SELECT MAX(id) FROM {schema}.ui_fields), 0))"
+        ))
 
 
 def downgrade() -> None:

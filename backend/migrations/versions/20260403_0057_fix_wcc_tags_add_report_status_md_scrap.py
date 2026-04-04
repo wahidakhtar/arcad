@@ -103,6 +103,9 @@ def upgrade() -> None:
 
     # 9. Add dismantle_date ui_field to MD (guard: may already exist)
     conn.execute(sa.text(
+        "SELECT setval('schema_md.ui_fields_id_seq', COALESCE((SELECT MAX(id) FROM schema_md.ui_fields), 0))"
+    ))
+    conn.execute(sa.text(
         "INSERT INTO schema_md.ui_fields (key, label, type, list_view, form_view, bulk_view, tag_id, \"order\") "
         "SELECT 'dismantle_date', 'Dismantle Date', 'date', false, false, false, "
         "(SELECT id FROM schema_core.tags WHERE tag = 'site'), 40 "
