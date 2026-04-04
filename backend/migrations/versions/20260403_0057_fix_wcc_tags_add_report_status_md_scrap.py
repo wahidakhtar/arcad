@@ -61,7 +61,7 @@ def upgrade() -> None:
 
     # 5. Add report_status ui_field to MA
     conn.execute(sa.text(
-        "SELECT setval('schema_ma.ui_fields_id_seq', COALESCE((SELECT MAX(id) FROM schema_ma.ui_fields), 0))"
+        "SELECT setval('schema_ma.ui_fields_id_seq', COALESCE((SELECT MAX(id) FROM schema_ma.ui_fields), 0) + 1, false)"
     ))
     conn.execute(sa.text(
         "INSERT INTO schema_ma.ui_fields (key, label, type, list_view, form_view, bulk_view, tag_id, \"order\") "
@@ -72,7 +72,7 @@ def upgrade() -> None:
 
     # 6. Add report_status ui_field to MC
     conn.execute(sa.text(
-        "SELECT setval('schema_mc.ui_fields_id_seq', COALESCE((SELECT MAX(id) FROM schema_mc.ui_fields), 0))"
+        "SELECT setval('schema_mc.ui_fields_id_seq', COALESCE((SELECT MAX(id) FROM schema_mc.ui_fields), 0) + 1, false)"
     ))
     conn.execute(sa.text(
         "INSERT INTO schema_mc.ui_fields (key, label, type, list_view, form_view, bulk_view, tag_id, \"order\") "
@@ -103,7 +103,7 @@ def upgrade() -> None:
 
     # 9. Add dismantle_date ui_field to MD (guard: may already exist)
     conn.execute(sa.text(
-        "SELECT setval('schema_md.ui_fields_id_seq', COALESCE((SELECT MAX(id) FROM schema_md.ui_fields), 0))"
+        "SELECT setval('schema_md.ui_fields_id_seq', COALESCE((SELECT MAX(id) FROM schema_md.ui_fields), 0) + 1, false)"
     ))
     conn.execute(sa.text(
         "INSERT INTO schema_md.ui_fields (key, label, type, list_view, form_view, bulk_view, tag_id, \"order\") "

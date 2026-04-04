@@ -89,7 +89,7 @@ def upgrade() -> None:
             """
         ))
         op.execute(sa.text(
-            f"SELECT setval('{schema}.ui_fields_id_seq', COALESCE((SELECT MAX(id) FROM {schema}.ui_fields), 0))"
+            f"SELECT setval('{schema}.ui_fields_id_seq', COALESCE((SELECT MAX(id) FROM {schema}.ui_fields), 0) + 1, false)"
         ))
 
 
