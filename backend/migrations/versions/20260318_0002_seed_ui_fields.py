@@ -232,7 +232,12 @@ def _workbook_ui_seed() -> dict[str, list[dict[str, object]]]:
 def upgrade() -> None:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
-    seed_data = _workbook_ui_seed()
+    try:
+        seed_data = _workbook_ui_seed()
+    except FileNotFoundError:
+        # xlsx not available in this environment (e.g. fresh test DB without docs folder)
+        # later migrations insert the correct ui_fields rows directly
+        return
 
     for project_key, schema_name in PROJECT_SHEETS.items():
         columns = {column["name"] for column in inspector.get_columns("ui_fields", schema=schema_name)}
