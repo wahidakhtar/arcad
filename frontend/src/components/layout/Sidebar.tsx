@@ -13,7 +13,11 @@ type SidebarProject = {
   recurring: boolean
 }
 
-export default function Sidebar() {
+type SidebarProps = {
+  onClose?: () => void
+}
+
+export default function Sidebar({ onClose }: SidebarProps) {
   const { user, can, projectKeys, logout } = useAuth()
   const [projects, setProjects] = useState<SidebarProject[]>([])
   const [counts, setCounts] = useState({ transactions: 0, tickets: 0 })
@@ -37,7 +41,7 @@ export default function Sidebar() {
 
   return (
     <aside className="squircle overflow-hidden flex h-full w-[260px] shrink-0 flex-col border border-white/50 bg-white/75 backdrop-blur-xl" style={{ boxShadow: "0 18px 60px rgba(83,20,20,0.12)" }}>
-      <div className="border-b border-jscolors-crimson/10 px-5 py-4">
+      <div className="relative border-b border-jscolors-crimson/10 px-5 py-4">
         <Link to="/dashboard" className="block">
           <div className="squircle overflow-hidden h-20 w-full bg-jscolors-gold/30 p-px">
             <div className="squircle h-full w-full bg-white flex items-center justify-center">
@@ -45,6 +49,18 @@ export default function Sidebar() {
             </div>
           </div>
         </Link>
+        {/* Close button — only shown on mobile where backdrop tap may not be obvious */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border border-jscolors-crimson/20 bg-white text-jscolors-crimson transition hover:bg-jscolors-crimson/5 md:hidden"
+            aria-label="Close sidebar"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="h-3.5 w-3.5">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <nav className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-5 text-sm">

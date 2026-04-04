@@ -116,6 +116,6 @@ def apply_mc_rules(site, payload: dict, db) -> dict:
     if "report_submission_date" in payload and payload["report_submission_date"] is not None:
         current_report_key = by_id.get(site.report_status_id, "")
         if current_report_key == "gen" and "report_status_id" not in payload:
-            payload["report_status_id"] = doc_by_key["subm"]
+            payload["report_status_id"] = doc_by_key["shr"]
 
     return payload
