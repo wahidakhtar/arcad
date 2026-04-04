@@ -219,7 +219,7 @@ def _extract_ui_rows(rows: dict[int, dict[str, str]]) -> list[dict[str, object]]
 
 
 def _workbook_ui_seed() -> dict[str, list[dict[str, object]]]:
-    workbook_path = Path(__file__).resolve().parents[3] / "docs" / "DB_Library and UI_design.xlsx"
+    workbook_path = Path(__file__).resolve().parents[2] / "docs" / "DB_Library and UI_design.xlsx"
     with zipfile.ZipFile(workbook_path) as archive:
         shared_strings = _load_shared_strings(archive)
         targets = _sheet_targets(archive)
@@ -232,12 +232,7 @@ def _workbook_ui_seed() -> dict[str, list[dict[str, object]]]:
 def upgrade() -> None:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
-    try:
-        seed_data = _workbook_ui_seed()
-    except FileNotFoundError:
-        # xlsx not available in this environment (e.g. fresh test DB without docs folder)
-        # later migrations insert the correct ui_fields rows directly
-        return
+    seed_data = _workbook_ui_seed()
 
     for project_key, schema_name in PROJECT_SHEETS.items():
         columns = {column["name"] for column in inspector.get_columns("ui_fields", schema=schema_name)}
