@@ -49,7 +49,13 @@ def upgrade() -> None:
                 f"WHERE type_id = :rt AND from_id = :gen AND to_id = :subm"
             ), {"rt": _REPORT_TYPE_ID, "gen": _GEN_ID, "subm": subm_id})
 
-    # 4. Drop subm badge
+    # 4. Drop subm badge — first clear any FK references in sites tables
+    if subm_row:
+        for schema in ("schema_ma", "schema_mc"):
+            conn.execute(sa.text(
+                f"UPDATE {schema}.sites SET report_status_id = NULL "
+                f"WHERE report_status_id = :subm"
+            ), {"subm": subm_id})
     conn.execute(sa.text("DELETE FROM schema_core.badges WHERE key = 'subm'"))
 
 
