@@ -12,6 +12,7 @@ jobs:
       - name: Check state
         shell: powershell
         run: |
+          $ErrorActionPreference = 'Continue'
           Write-Output "=== .env ==="
           Get-Content "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}\.env"
           Write-Output ""
@@ -19,14 +20,18 @@ jobs:
           docker ps --format "table {{.Names}}`t{{.Image}}`t{{.Status}}`t{{.Ports}}"
           Write-Output ""
           Write-Output "=== API green logs ==="
-          $greenLogs = docker logs arcad-bluegreen-api-green-1 --tail 80 2>&1
-          $greenLogs | ForEach-Object { Write-Output $_ }
+          docker logs arcad-bluegreen-api-green-1 --tail 80 2>&1
           Write-Output ""
           Write-Output "=== API blue logs ==="
-          $blueLogs = docker logs arcad-bluegreen-api-blue-1 --tail 80 2>&1
-          $blueLogs | ForEach-Object { Write-Output $_ }
+          docker logs arcad-bluegreen-api-blue-1 --tail 80 2>&1
           Write-Output ""
-          Write-Output "=== Restarting proxy to fix DNS cache ==="
+          Write-Output "=== Frontend green logs ==="
+          docker logs arcad-bluegreen-frontend-green-1 --tail 40 2>&1
+          Write-Output ""
+          Write-Output "=== Frontend blue logs ==="
+          docker logs arcad-bluegreen-frontend-blue-1 --tail 40 2>&1
+          Write-Output ""
+          Write-Output "=== Restarting all containers ==="
           Set-Location "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}"
-          docker compose -f docker-compose.yml up -d --force-recreate --no-deps proxy
-          Write-Output "Proxy restarted"
+          docker compose -f docker-compose.yml up -d --force-recreate
+          Write-Output "Done"
