@@ -53,7 +53,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
         {onClose && (
           <button
             onClick={onClose}
-            className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border border-jscolors-crimson/20 bg-white text-jscolors-crimson transition hover:bg-jscolors-crimson/5 md:hidden"
+            className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border border-jscolors-crimson/20 bg-white text-jscolors-crimson transition hover:bg-jscolors-crimson/5"
             aria-label="Close sidebar"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="h-3.5 w-3.5">

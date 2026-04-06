@@ -53,14 +53,16 @@ export default function PageLayout({ children }: { children?: React.ReactNode })
           className="relative flex flex-1 flex-col overflow-hidden rounded-[48px] border border-white/50 bg-white"
           style={{ boxShadow: "0 18px 60px rgba(83,20,20,0.12)" }}
         >
-          {/* Sidebar toggle button — always visible top-left of main */}
-          <button
-            onClick={() => setOpen((v) => !v)}
-            title={open ? "Hide sidebar" : "Show sidebar"}
-            className="absolute left-5 top-5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-jscolors-crimson/20 bg-white/90 text-jscolors-crimson shadow-sm transition hover:bg-jscolors-crimson/5 active:scale-95"
-          >
-            {open ? <CloseIcon /> : <MenuIcon />}
-          </button>
+          {/* Sidebar toggle button — only shown when sidebar is closed */}
+          {!open && (
+            <button
+              onClick={() => setOpen(true)}
+              title="Show sidebar"
+              className="absolute left-5 top-5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-jscolors-crimson/20 bg-white/90 text-jscolors-crimson shadow-sm transition hover:bg-jscolors-crimson/5 active:scale-95"
+            >
+              <MenuIcon />
+            </button>
+          )}
 
           <div className="flex flex-1 flex-col overflow-hidden p-8 pb-6 md:p-10 md:pb-8">
             {children ?? <Outlet />}
