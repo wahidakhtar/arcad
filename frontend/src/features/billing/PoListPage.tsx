@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 
+import Button from "../../components/ui/Button"
 import DataTable from "../../components/ui/DataTable"
 import FilterBar from "../../components/ui/FilterBar"
 import ListPageLayout from "../../components/layout/ListPageLayout"
@@ -119,31 +120,9 @@ export default function PoListPage() {
   return (
     <ListPageLayout
       filters={
-        <div className="space-y-4">
-          <div className="inline-flex rounded-full border border-jscolors-crimson/12 bg-white p-1">
-            <button
-              type="button"
-              onClick={() => setActiveTab("pos")}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                activeTab === "pos"
-                  ? "bg-jscolors-crimson text-white"
-                  : "text-jscolors-text/65 hover:bg-jscolors-gold/12"
-              }`}
-            >
-              POs
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("invoices")}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                activeTab === "invoices"
-                  ? "bg-jscolors-crimson text-white"
-                  : "text-jscolors-text/65 hover:bg-jscolors-gold/12"
-              }`}
-            >
-              Invoices
-            </button>
-          </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant={activeTab === "pos" ? "primary" : "secondary"} size="sm" onClick={() => setActiveTab("pos")}>POs</Button>
+          <Button variant={activeTab === "invoices" ? "primary" : "secondary"} size="sm" onClick={() => setActiveTab("invoices")}>Invoices</Button>
           <FilterBar filters={[]} onFilterChange={() => {}} />
         </div>
       }
