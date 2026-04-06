@@ -56,7 +56,7 @@ services:
         condition: service_started
 
   api-blue:
-    image: ${API_IMAGE}:${IMAGE_TAG}
+    image: ${API_IMAGE}:${BLUE_IMAGE_TAG}
     restart: unless-stopped
     env_file:
       - .env
@@ -81,7 +81,7 @@ services:
       retries: 5
 
   api-green:
-    image: ${API_IMAGE}:${IMAGE_TAG}
+    image: ${API_IMAGE}:${GREEN_IMAGE_TAG}
     restart: unless-stopped
     env_file:
       - .env
@@ -106,7 +106,7 @@ services:
       retries: 5
 
   frontend-blue:
-    image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
+    image: ${FRONTEND_IMAGE}:${BLUE_IMAGE_TAG}
     restart: unless-stopped
     environment:
       APP_SLOT: blue
@@ -114,7 +114,7 @@ services:
       - "80"
 
   frontend-green:
-    image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
+    image: ${FRONTEND_IMAGE}:${GREEN_IMAGE_TAG}
     restart: unless-stopped
     environment:
       APP_SLOT: green
