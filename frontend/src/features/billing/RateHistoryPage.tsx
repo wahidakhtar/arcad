@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom"
 import DataTable from "../../components/ui/DataTable"
 import DetailPageLayout from "../../components/layout/DetailPageLayout"
 import { api } from "../../lib/api"
+import { formatCurrency } from "../../utils/format"
 
 type RateRow = {
   id: number
@@ -46,7 +47,7 @@ export default function RateHistoryPage() {
             label: "Rate",
             minWidth: 120,
             align: "right",
-            render: (value) => <>₹ {Number(value).toLocaleString("en-IN")}</>,
+            render: (value) => <span className="tabular-nums">{formatCurrency(value as number)}</span>,
           },
         ]}
         rows={rows as unknown as Record<string, unknown>[]}

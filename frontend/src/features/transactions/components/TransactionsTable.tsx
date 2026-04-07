@@ -22,7 +22,7 @@ export default function TransactionsTable({ rows, badgeById }: TransactionsTable
       label: "Amount",
       align: "right" as const,
       minWidth: 100,
-      render: (value: unknown) => <div className="text-right">{formatCurrency(value as number)}</div>,
+      render: (value: unknown) => <span className="tabular-nums">{formatCurrency(value as number)}</span>,
     },
     {
       key: "status_label",

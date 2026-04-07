@@ -7,6 +7,7 @@ import DataTable from "../../components/ui/DataTable"
 import Modal from "../../components/ui/Modal"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
+import { formatCurrency } from "../../utils/format"
 
 type SubconSummary = {
   id: number
@@ -233,9 +234,9 @@ export default function SubconDetailPage() {
               { key: "project_name", label: "Project", minWidth: 180 },
               { key: "circuit_id", label: "Circuit ID", minWidth: 180 },
               { key: "status", label: "Status", minWidth: 140 },
-              { key: "cost", label: "Cost", align: "right", minWidth: 140 },
-              { key: "paid", label: "Paid", align: "right", minWidth: 140 },
-              { key: "balance", label: "Balance", align: "right", minWidth: 140 },
+              { key: "cost", label: "Cost", align: "right", minWidth: 140, render: (v) => <span className="tabular-nums">{formatCurrency(v as number)}</span> },
+              { key: "paid", label: "Paid", align: "right", minWidth: 140, render: (v) => <span className="tabular-nums">{formatCurrency(v as number)}</span> },
+              { key: "balance", label: "Balance", align: "right", minWidth: 140, render: (v) => <span className="tabular-nums">{formatCurrency(v as number)}</span> },
             ]}
             rows={assignedSites as Array<Record<string, unknown>>}
             emptyState={<div className="text-center text-sm text-jscolors-text/50">No assigned sites.</div>}
@@ -250,7 +251,7 @@ export default function SubconDetailPage() {
             columns={[
               { key: "po_number", label: "PO Number", minWidth: 180 },
               { key: "invoice_number", label: "Invoice Number", minWidth: 180 },
-              { key: "amount", label: "Amount", align: "right", minWidth: 140 },
+              { key: "amount", label: "Amount", align: "right", minWidth: 140, render: (v) => <span className="tabular-nums">{formatCurrency(v as number)}</span> },
               { key: "status", label: "Status", minWidth: 140 },
               { key: "project_or_subproject", label: "Project/Subproject", minWidth: 240 },
             ]}

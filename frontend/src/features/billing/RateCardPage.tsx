@@ -7,6 +7,7 @@ import { useAuth } from "../../context/AuthContext"
 import { useListPage } from "../../hooks/useListPage"
 import Modal from "../../components/ui/Modal"
 import { api } from "../../lib/api"
+import { formatCurrency } from "../../utils/format"
 
 type RateCardRow = {
   id: number
@@ -85,7 +86,7 @@ export default function RateCardPage() {
               label: "Rate",
               minWidth: 120,
               align: "right",
-              render: (value) => <>₹ {Number(value).toLocaleString("en-IN")}</>,
+              render: (value) => <span className="tabular-nums">{formatCurrency(value as number)}</span>,
             },
           ]}
           rows={rows as unknown as Record<string, unknown>[]}

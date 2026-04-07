@@ -94,7 +94,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                     {column.groupMerge && !isFirstInGroup ? null : (
                       <>
                         <div className="hidden">{column.label}</div>
-                        <div className={`text-sm text-jscolors-text${column.align === "right" ? " text-right" : ""}`}>
+                        <div className={`text-sm text-jscolors-text${column.align === "right" ? " text-right pr-4" : ""}`}>
                           {column.render
                             ? column.render(row[column.key], row as Record<string, unknown>)
                             : <div className="truncate"><FieldRenderer type={column.type} value={row[column.key]} /></div>

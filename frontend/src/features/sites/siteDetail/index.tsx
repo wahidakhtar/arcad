@@ -75,6 +75,10 @@ export default function SiteDetailPage() {
   const [reportSubmitDateDraft, setReportSubmitDateDraft] = useState("")
   const [reportSubmitSaving, setReportSubmitSaving] = useState(false)
   const [reportSubmitError, setReportSubmitError] = useState("")
+  const [terminateOpen, setTerminateOpen] = useState(false)
+  const [terminateDateDraft, setTerminateDateDraft] = useState("")
+  const [terminateSaving, setTerminateSaving] = useState(false)
+  const [terminateError, setTerminateError] = useState("")
   const {
     projectKey,
     site,
@@ -306,6 +310,25 @@ export default function SiteDetailPage() {
     }
   }
 
+  async function saveTermination() {
+    if (!terminateDateDraft) {
+      setTerminateError("Termination date is required.")
+      return
+    }
+    setTerminateSaving(true)
+    setTerminateError("")
+    try {
+      await api.post(`/sites/bb/${currentSite.id}/terminations`, { date: terminateDateDraft })
+      setTerminateOpen(false)
+      await loadPage()
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setTerminateError(detail ?? "Failed to terminate site.")
+    } finally {
+      setTerminateSaving(false)
+    }
+  }
+
   async function transferToCm() {
     setTransferringToCm(true)
     setTransferToCmError("")
@@ -406,6 +429,25 @@ export default function SiteDetailPage() {
             ) : null}
           </section>
         ) : null}
+        {projectKey === "bb" && canSiteWrite && (site.status_key !== "term") ? (
+          <section className="glass-panel flex flex-col gap-3 p-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/42">Terminate Site</p>
+              <p className="mt-2 text-sm text-jscolors-text/65">Record the termination date and mark this site as terminated.</p>
+            </div>
+            <Button
+              type="button"
+              onClick={() => {
+                setTerminateDateDraft("")
+                setTerminateError("")
+                setTerminateOpen(true)
+              }}
+            >
+              Terminate
+            </Button>
+          </section>
+        ) : null}
+
         <div className="grid gap-6 2xl:grid-cols-[1.05fr_0.95fr]">
           <SiteFieldsSection
             site={site}
@@ -622,6 +664,33 @@ export default function SiteDetailPage() {
               />
             </label>
             {auditResultsError ? <p className="text-sm text-red-600">{auditResultsError}</p> : null}
+          </div>
+        </Modal>
+
+        <Modal
+          isOpen={terminateOpen}
+          title="Terminate Site"
+          onClose={() => {
+            setTerminateOpen(false)
+            setTerminateError("")
+          }}
+          size="sm"
+          submitLabel="Terminate"
+          onSubmit={() => void saveTermination()}
+          isSubmitting={terminateSaving}
+        >
+          <div className="space-y-4">
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-jscolors-text/45">Termination Date *</span>
+              <input
+                type="date"
+                value={terminateDateDraft}
+                onChange={(event) => setTerminateDateDraft(event.target.value)}
+                className="w-full rounded-2xl border border-jscolors-crimson/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-jscolors-crimson/40"
+                max={today}
+              />
+            </label>
+            {terminateError ? <p className="text-sm text-red-600">{terminateError}</p> : null}
           </div>
         </Modal>
 
