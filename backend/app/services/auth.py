@@ -90,6 +90,13 @@ def refresh(db: Session, refresh_token: str) -> TokenResponse:
     if session is None or token_row is None or token_row.revoked_at is not None or token_row.expires_at <= datetime.now(timezone.utc):
         raise HTTPException(status_code=401, detail="Refresh token expired")
 
+    # Check user active BEFORE issuing new tokens — not after
+    user = db.get(User, session.user_id)
+    if user is None or not user.active:
+        log_event(_log, user_id=session.user_id, action="refresh", route="/auth/refresh", status="denied",
+                  reason="inactive")
+        raise HTTPException(status_code=401, detail="Inactive user")
+
     # Evict old session from Redis
     old_hash = session.token_hash
     cache_delete(session_key(old_hash))
@@ -101,10 +108,6 @@ def refresh(db: Session, refresh_token: str) -> TokenResponse:
     new_refresh_token, refresh_expires_at = create_refresh_token(str(session.user_id), str(session.id))
     db.add(RefreshToken(session_id=session.id, token_hash=hash_token(new_refresh_token), expires_at=refresh_expires_at, created_at=datetime.now(timezone.utc)))
     db.commit()
-
-    user = db.get(User, session.user_id)
-    if user is None or not user.active:
-        raise HTTPException(status_code=401, detail="Inactive user")
 
     return TokenResponse(
         access_token=access_token,

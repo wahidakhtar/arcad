@@ -5,6 +5,7 @@ import logging
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from app.core.logging import log_event
 from app.core.redis import get_redis
 
 _log = logging.getLogger("arcad.rate_limit")
@@ -47,7 +48,8 @@ async def rate_limit_middleware(request: Request, call_next):
         ip  = request.client.host if request.client else "unknown"
         key = f"rate:login:{ip}"
         if not _check(key, _LOGIN_LIMIT):
-            _log.warning("Login rate limit hit — ip=%s", ip)
+            log_event(_log, user_id=None, action="rate_limit", route=path, status="blocked",
+                      ip=ip, limit="login")
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Too many login attempts. Try again in 1 minute."},
@@ -63,7 +65,8 @@ async def rate_limit_middleware(request: Request, call_next):
                 resource = _resource(path, prefix)
                 key      = f"rate:{user_id}:{resource}"
                 if not _check(key, _WRITE_LIMIT):
-                    _log.warning("Write rate limit hit — user=%s resource=%s", user_id, resource)
+                    log_event(_log, user_id=user_id, action="rate_limit", route=path, status="blocked",
+                              resource=resource, limit="write")
                     return JSONResponse(
                         status_code=429,
                         content={"detail": "Rate limit exceeded. Try again in 1 minute."},

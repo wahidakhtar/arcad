@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -267,6 +267,7 @@ def ensure_permission(
 
 def permission_required(tag: str, action: str, project_key_getter=None, field_name: Optional[str] = None):
     def dependency(
+        request: Request,
         user: UserContext = Depends(get_current_user),
         db: Session = Depends(get_db),
     ) -> UserContext:
@@ -279,7 +280,7 @@ def permission_required(tag: str, action: str, project_key_getter=None, field_na
                 extra={
                     "user_id": user.user_id,
                     "action":  f"{tag}:{action}",
-                    "route":   "permission_check",
+                    "route":   request.url.path,
                     "status":  "denied",
                 },
             )
