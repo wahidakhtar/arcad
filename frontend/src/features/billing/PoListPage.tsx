@@ -10,6 +10,7 @@ import FieldRenderer from "../../components/ui/FieldRenderer"
 import { api } from "../../lib/api"
 import { poCircuitContext, poProjectName } from "./poHelpers"
 import type { Invoice, PO } from "./types"
+import { exportToExcel } from "../../utils/exportToExcel"
 
 type BillingTab = "pos" | "invoices"
 
@@ -120,10 +121,36 @@ export default function PoListPage() {
   return (
     <ListPageLayout
       filters={
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant={activeTab === "pos" ? "primary" : "secondary"} size="sm" onClick={() => setActiveTab("pos")}>POs</Button>
           <Button variant={activeTab === "invoices" ? "primary" : "secondary"} size="sm" onClick={() => setActiveTab("invoices")}>Invoices</Button>
           <FilterBar filters={[]} onFilterChange={() => {}} />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              if (activeTab === "pos") {
+                void exportToExcel("purchase_orders", "POs", [
+                  { key: "project_name", label: "Project" },
+                  { key: "circuit_context", label: "Circuit ID" },
+                  { key: "po_no", label: "PO Number" },
+                  { key: "po_status", label: "PO Status" },
+                  { key: "invoice_status", label: "Invoice Status" },
+                ], poTableRows as unknown as Record<string, unknown>[])
+              } else {
+                void exportToExcel("invoices", "Invoices", [
+                  { key: "po_id", label: "PO ID" },
+                  { key: "invoice_no", label: "Invoice Number" },
+                  { key: "invoice_date", label: "Invoice Date" },
+                  { key: "submission_date", label: "Submission Date" },
+                  { key: "settlement_date", label: "Settlement Date" },
+                  { key: "invoice_status", label: "Status" },
+                ], invoiceRows as unknown as Record<string, unknown>[])
+              }
+            }}
+          >
+            Export
+          </Button>
         </div>
       }
     >

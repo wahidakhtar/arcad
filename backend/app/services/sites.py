@@ -412,11 +412,36 @@ def list_sites(
         b = badges.get(badge_id)
         return {"id": badge_id, "label": b.label, "color": b.color} if b else None
 
+    # Query list_view fields once, outside the row loop
+    list_view_fields = db.execute(
+        text(f"SELECT key, type FROM schema_{project_key}.ui_fields WHERE list_view = TRUE ORDER BY id")
+    ).mappings().all()
+
+    # Fields handled by explicit computed/joined logic below — skip in dynamic loop
+    _COMPUTED = frozenset({"status", "budget", "cost", "paid", "balance", "po_number", "po_status", "invoice_number", "invoice_status"})
+
     all_items = []
     for row in rows:
         if exclude_staged and stage_badge_id is not None and row.status_id == stage_badge_id:
             continue
-        item = {"id": row.id, "ckt_id": row.ckt_id, "status_key": badges[row.status_id].key, "receiving_date": row.receiving_date, "active_fe": getattr(row, "active_fe", None)}
+
+        item: dict = {"id": row.id, "status_key": badges[row.status_id].key}
+
+        # Dynamically populate all list_view fields from the model
+        for uf in list_view_fields:
+            key = uf["key"]
+            ftype = uf["type"]
+            if key in _COMPUTED:
+                continue
+            if ftype == "badge":
+                # Badge fields store their value in a _id FK column on the model
+                item[key] = _badge_dict(getattr(row, f"{key}_id", None))
+            else:
+                # active_provider in BB ui_fields maps to active_fe model column
+                col = "active_fe" if key == "active_provider" else key
+                item[key] = getattr(row, col, None)
+
+        # Computed fields — always included regardless of list_view config
         financials = build_site_financials(db, project.id, project_key, row.id, model_to_dict(row))
         item.update({"budget": financials["budget"], "cost": financials["cost"], "paid": financials["paid"], "balance": financials["balance"]})
         po = po_by_site.get(row.id)

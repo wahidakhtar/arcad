@@ -15,6 +15,7 @@ import { useAuth } from "../../context/AuthContext"
 import { api } from "../../lib/api"
 import { formatSubprojectLabel } from "../../lib/subprojects"
 import { formatCurrency } from "../../utils/format"
+import { exportToExcel } from "../../utils/exportToExcel"
 
 type Badge = {
   id: number
@@ -267,6 +268,21 @@ export default function SiteListPage() {
             placeholder="Search by Circuit ID"
             className="rounded-full border border-jscolors-crimson/15 bg-white px-5 py-3 outline-none"
           />
+          <Button
+            type="button"
+            variant="secondary"
+            className="shrink-0"
+            onClick={() => {
+              void exportToExcel(
+                `sites_${projectKey}`,
+                projectKey.toUpperCase(),
+                columns.map((col) => ({ key: col.key, label: col.label, type: col.type, align: col.align })),
+                rows as unknown as Record<string, unknown>[],
+              )
+            }}
+          >
+            Export
+          </Button>
           {showAddButton && (
             <Button type="button" className="shrink-0" onClick={openAddHandler}>Add Site</Button>
           )}
