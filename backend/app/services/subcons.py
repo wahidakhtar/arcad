@@ -85,14 +85,17 @@ def _serialize_assigned_sites(db: Session, subcon_id: int) -> list[dict]:
         if projection is None:
             continue
         match = next((row for row in projection.get("subcon_rows", []) if int(row["subcon_id"]) == subcon_id and bool(row["active"])), None)
+        def _dec(val: object) -> Decimal:
+            return Decimal(str(val)) if val is not None else Decimal("0.00")
+
         rows.append(
             {
                 "project_name": project.label,
                 "circuit_id": projection["ckt_id"],
                 "status": badges.get(site.status_id).label if badges.get(site.status_id) is not None else str(site.status_id),
-                "cost": Decimal("0.00") if match is None else match["cost"],
-                "paid": Decimal("0.00") if match is None else match["paid"],
-                "balance": Decimal("0.00") if match is None else match["balance"],
+                "cost": _dec(None if match is None else match.get("cost")),
+                "paid": _dec(None if match is None else match.get("paid")),
+                "balance": _dec(None if match is None else match.get("balance")),
             }
         )
 
