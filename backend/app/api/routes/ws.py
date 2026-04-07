@@ -1,18 +1,29 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from sqlalchemy.orm import Session
 
+from app.core.database import get_db
 from app.core.security import decode_token
 from app.core.ws_manager import manager
+from app.models.hr import User
 
 router = APIRouter(tags=["ws"])
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str = Query(default="")) -> None:
-    # Reject unauthenticated connections before accepting
+async def websocket_endpoint(
+    websocket: WebSocket,
+    token: str = Query(default=""),
+    db: Session = Depends(get_db),
+) -> None:
+    # Validate token and confirm user is still active
     try:
-        decode_token(token)
+        payload = decode_token(token)
+        user_id = int(payload["sub"])
+        user = db.get(User, user_id)
+        if user is None or not user.active:
+            raise ValueError("Inactive or missing user")
     except Exception:
         await websocket.close(code=4001)
         return
