@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
-from app.core.database import get_db
+from app.core.database import SessionLocal
 from app.core.security import decode_token
 from app.core.ws_manager import manager
 from app.models.hr import User
@@ -12,19 +11,19 @@ router = APIRouter(tags=["ws"])
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    token: str = Query(default=""),
-    db: Session = Depends(get_db),
-) -> None:
-    # Validate token and confirm user is still active
+async def websocket_endpoint(websocket: WebSocket, token: str = Query(default="")) -> None:
+    # Validate token and confirm user active with a short-lived DB session
+    # (NOT Depends(get_db) — that would hold a connection open for the entire WS lifetime)
     try:
         payload = decode_token(token)
         user_id = int(payload["sub"])
-        user = db.get(User, user_id)
-        if user is None or not user.active:
-            raise ValueError("Inactive or missing user")
+        with SessionLocal() as db:
+            user = db.get(User, user_id)
+            if user is None or not user.active:
+                raise ValueError("Inactive or missing user")
     except Exception:
+        # Must accept before sending a close frame
+        await websocket.accept()
         await websocket.close(code=4001)
         return
 
