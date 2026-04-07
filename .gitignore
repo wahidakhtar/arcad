@@ -2,3 +2,8 @@
 backend/node_modules/
 frontend/node_modules/
 backups/
+
+# TLS certificates — generated on server, never committed
+deploy/windows/certs/*.pem
+deploy/windows/certs/*.key
+deploy/windows/certs/*.crt

@@ -12,6 +12,15 @@ if (-not (Test-Path ".env")) {
   Write-Error ".env is missing in $RootDir"
 }
 
+# Ensure certs directory exists — cert.pem and key.pem must be placed here manually
+if (-not (Test-Path "certs")) {
+  New-Item -ItemType Directory -Path "certs" | Out-Null
+  Write-Warning "certs\ directory created but cert.pem / key.pem are missing. nginx will fail to start until they are present."
+}
+if (-not (Test-Path "certs\cert.pem") -or -not (Test-Path "certs\key.pem")) {
+  Write-Warning "TLS certificates not found in certs\. Run the openssl command to generate them."
+}
+
 $envLines = Get-Content ".env"
 
 $activeSlotLine = $envLines | Where-Object { $_ -match '^ACTIVE_SLOT=' } | Select-Object -First 1

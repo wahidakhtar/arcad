@@ -45,8 +45,16 @@ function getWsUrl(token: string): string {
   const apiUrl =
     (import.meta.env.VITE_API_URL as string | undefined) ||
     "https://arcad-production.up.railway.app/api/v1"
-  const base = apiUrl.replace(/^https?/, (m) => (m === "https" ? "wss" : "ws")) + "/ws"
-  return `${base}?token=${encodeURIComponent(token)}`
+
+  // Relative URL (e.g. /api/v1) — derive absolute WS URL from page origin
+  if (apiUrl.startsWith("/")) {
+    const proto = window.location.protocol === "https:" ? "wss" : "ws"
+    const base = `${proto}://${window.location.host}${apiUrl}`
+    return `${base}/ws?token=${encodeURIComponent(token)}`
+  }
+
+  const base = apiUrl.replace(/^https?/, (m) => (m === "https" ? "wss" : "ws"))
+  return `${base}/ws?token=${encodeURIComponent(token)}`
 }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
