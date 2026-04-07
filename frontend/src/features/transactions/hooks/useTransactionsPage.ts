@@ -165,11 +165,10 @@ export default function useTransactionsPage() {
     void loadData(page)
   }, [loadData, page])
 
-  // WS subscriptions — refetch on any transaction change + ping sidebar counts
+  // WS subscriptions — refetch on any transaction change
   useEffect(() => {
     function handleTxEvent() {
       void loadData(page)
-      window.dispatchEvent(new Event("refresh-counts"))
     }
     const unsub1 = subscribe("TRANSACTION_CREATED", handleTxEvent)
     const unsub2 = subscribe("TRANSACTION_UPDATED", handleTxEvent)
