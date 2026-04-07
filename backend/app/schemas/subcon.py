@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -53,8 +54,8 @@ class SubconAssignedSiteOut(BaseModel):
 
 
 class SubconTransactionOut(BaseModel):
-    po_number: str | None
-    invoice_number: str | None
+    request_date: Optional[date]
+    execution_date: Optional[date]
     amount: Decimal
     status: str
     project_or_subproject: str

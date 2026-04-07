@@ -24,11 +24,14 @@ export default function TicketsPage() {
           {
             key: "status",
             label: "Status",
-            render: () => (
-              <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700">
-                Open
-              </span>
-            ),
+            render: (value) => {
+              const isOpen = value === "Open"
+              return (
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${isOpen ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                  {value as string}
+                </span>
+              )
+            },
           },
         ]}
         rows={rows}

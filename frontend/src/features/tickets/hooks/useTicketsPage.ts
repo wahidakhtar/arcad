@@ -31,6 +31,7 @@ export type TicketRow = Record<string, unknown> & {
   project_label: string
   ckt_id: string
   ticket_date: string | null
+  closing_date: string | null
   status: string
 }
 
@@ -58,10 +59,8 @@ export default function useTicketsPage() {
       const projects: ProjectEntry[] = Array.isArray(projectsResponse.data) ? projectsResponse.data : []
       const projectById = new Map(projects.map((p) => [p.id, p]))
 
-      const openTickets = tickets.filter((t) => !t.closing_date)
-
       const pairs = new Map<string, { projectKey: string; siteId: number }>()
-      for (const ticket of openTickets) {
+      for (const ticket of tickets) {
         const proj = projectById.get(ticket.project_id)
         if (proj && ticket.site_id) {
           const key = `${proj.key}:${ticket.site_id}`
@@ -84,7 +83,7 @@ export default function useTicketsPage() {
       )
 
       setRows(
-        openTickets.map((ticket) => {
+        tickets.map((ticket) => {
           const proj = projectById.get(ticket.project_id)
           const cktKey = proj ? `${proj.key}:${ticket.site_id}` : ""
           return {
@@ -93,7 +92,8 @@ export default function useTicketsPage() {
             project_label: proj?.label ?? String(ticket.project_id),
             ckt_id: siteMap.get(cktKey) ?? String(ticket.site_id),
             ticket_date: ticket.ticket_date ?? null,
-            status: "Open",
+            closing_date: ticket.closing_date ?? null,
+            status: ticket.closing_date ? "Closed" : "Open",
           }
         }),
       )

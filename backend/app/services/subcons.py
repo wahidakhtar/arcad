@@ -154,8 +154,8 @@ def _serialize_transactions(db: Session, subcon_id: int) -> list[dict]:
         badge = badges.get(transaction.status_id)
         rows.append(
             {
-                "po_number": getattr(site, "po_number", None),
-                "invoice_number": getattr(site, "invoice_number", None),
+                "request_date": transaction.request_date,
+                "execution_date": transaction.execution_date,
                 "amount": transaction.amount,
                 "status": badge.label if badge is not None else str(transaction.status_id),
                 "project_or_subproject": project_or_subproject,

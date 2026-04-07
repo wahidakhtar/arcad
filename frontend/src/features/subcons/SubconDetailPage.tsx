@@ -27,8 +27,8 @@ type AssignedSite = {
   balance: string | number
 }
 type SubconTransaction = {
-  po_number: string | null
-  invoice_number: string | null
+  request_date: string | null
+  execution_date: string | null
   amount: string | number
   status: string
   project_or_subproject: string
@@ -249,8 +249,8 @@ export default function SubconDetailPage() {
         <div className="mt-5">
           <DataTable
             columns={[
-              { key: "po_number", label: "PO Number", minWidth: 180 },
-              { key: "invoice_number", label: "Invoice Number", minWidth: 180 },
+              { key: "request_date", label: "Request Date", minWidth: 140 },
+              { key: "execution_date", label: "Execution Date", minWidth: 140 },
               { key: "amount", label: "Amount", align: "right", minWidth: 140, render: (v) => <span className="tabular-nums">{formatCurrency(v as number)}</span> },
               { key: "status", label: "Status", minWidth: 140 },
               { key: "project_or_subproject", label: "Project/Subproject", minWidth: 240 },

@@ -4,6 +4,7 @@ import { Link, NavLink } from "react-router-dom"
 import Button from "../ui/Button"
 import { api } from "../../lib/api"
 import { useAuth } from "../../context/AuthContext"
+import { subscribe } from "../../hooks/useWebSocket"
 
 type SidebarProject = {
   id: number
@@ -32,11 +33,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
     // Initial fetch
     fetchCounts()
 
-    // Listen for WebSocket-triggered refresh events instead of polling
-    window.addEventListener("refresh-counts", fetchCounts)
-    return () => {
-      window.removeEventListener("refresh-counts", fetchCounts)
-    }
+    // Subscribe to WS events that affect pill counts
+    const unsubs = [
+      subscribe("TRANSACTION_CREATED", fetchCounts),
+      subscribe("TRANSACTION_UPDATED", fetchCounts),
+      subscribe("TICKET_CREATED", fetchCounts),
+      subscribe("TICKET_CLOSED", fetchCounts),
+    ]
+    return () => { unsubs.forEach((fn) => fn()) }
   }, [])
 
   return (

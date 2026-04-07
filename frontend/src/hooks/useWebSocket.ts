@@ -13,6 +13,7 @@ export type WsEvent =
   | { type: "PO_UPDATED"; po_id: number }
   | { type: "INVOICE_CREATED"; po_id: number | null }
   | { type: "INVOICE_UPDATED"; po_id: number | null }
+  | { type: "NOTIFICATION"; message: string; dept_target: string }
 
 type WsHandler = (event: WsEvent) => void
 
@@ -40,11 +41,12 @@ function _publish(event: WsEvent) {
 
 // ─── Derive WS URL from API URL ──────────────────────────────────────────────
 
-function getWsUrl(): string {
+function getWsUrl(token: string): string {
   const apiUrl =
     (import.meta.env.VITE_API_URL as string | undefined) ||
     "https://arcad-production.up.railway.app/api/v1"
-  return apiUrl.replace(/^https?/, (m) => (m === "https" ? "wss" : "ws")) + "/ws"
+  const base = apiUrl.replace(/^https?/, (m) => (m === "https" ? "wss" : "ws")) + "/ws"
+  return `${base}?token=${encodeURIComponent(token)}`
 }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
@@ -60,7 +62,7 @@ export function useWebSocket() {
     const token = localStorage.getItem("access_token")
     if (!token) return
 
-    const ws = new WebSocket(getWsUrl())
+    const ws = new WebSocket(getWsUrl(token))
     wsRef.current = ws
 
     ws.onopen = () => {

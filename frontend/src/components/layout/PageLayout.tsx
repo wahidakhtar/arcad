@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Outlet } from "react-router-dom"
 
 import Sidebar from "./Sidebar"
+import ToastNotification from "../ui/ToastNotification"
 
 function MenuIcon() {
   return (
@@ -61,6 +62,8 @@ export default function PageLayout({ children }: { children?: React.ReactNode })
           </div>
         </main>
       </div>
+
+      <ToastNotification />
 
       <footer className="pointer-events-none fixed bottom-1 left-1/2 z-20 -translate-x-1/2 py-0 text-center leading-none tracking-normal text-gray-800 text-[12px]">
         Copyright © 2026 Wahid Akhtar. All rights reserved.
