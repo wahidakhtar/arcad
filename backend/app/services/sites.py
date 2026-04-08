@@ -420,6 +420,19 @@ def list_sites(
     # Fields handled by explicit computed/joined logic below — skip in dynamic loop
     _COMPUTED = frozenset({"status", "budget", "cost", "paid", "balance", "po_number", "po_status", "invoice_number", "invoice_status"})
 
+    _CLOSED_STATUSES = frozenset({"comp", "cancel", "term", "stage"})
+
+    def _site_date(item: dict) -> date:
+        val = item.get("receiving_date")
+        if val is None:
+            return date.min
+        if isinstance(val, date):
+            return val
+        try:
+            return date.fromisoformat(str(val))
+        except (ValueError, TypeError):
+            return date.min
+
     all_items = []
     for row in rows:
         if exclude_staged and stage_badge_id is not None and row.status_id == stage_badge_id:
@@ -453,6 +466,13 @@ def list_sites(
         item["invoice_status"] = _badge_dict(inv.invoice_status_id if inv and include_billing else None)
         item["invoice_status_id"] = inv.invoice_status_id if inv and include_billing else None
         all_items.append(item)
+
+    open_items = [i for i in all_items if i["status_key"] not in _CLOSED_STATUSES]
+    closed_items = [i for i in all_items if i["status_key"] in _CLOSED_STATUSES]
+    open_items.sort(key=_site_date)
+    closed_items.sort(key=_site_date, reverse=True)
+    all_items = open_items + closed_items
+
     total = len(all_items)
     page_size = max(1, page_size)
     pages = max(1, (total + page_size - 1) // page_size)

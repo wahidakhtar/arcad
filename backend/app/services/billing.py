@@ -212,12 +212,25 @@ def list_pos(db: Session) -> list[dict]:
         )
 
     rows = db.execute(
-        select(PO, Project, Badge.label.label("status_label"), Badge.color.label("status_color"))
+        select(PO, Project, Badge.label.label("status_label"), Badge.color.label("status_color"), Badge.key.label("po_status_key"))
         .join(Project, Project.id == PO.project_id)
         .join(Badge, Badge.id == PO.po_status_id)
         .order_by(PO.id.desc())
     ).all()
     site_map, subproject_map, site_status_map = _po_context_maps(db, rows)
+
+    _PO_CLOSED = frozenset({"rec", "set"})
+
+    def _po_date(row) -> date:
+        d = row.PO.po_date
+        return d if isinstance(d, date) else date.min
+
+    open_rows = [r for r in rows if r.po_status_key not in _PO_CLOSED]
+    closed_rows = [r for r in rows if r.po_status_key in _PO_CLOSED]
+    open_rows.sort(key=_po_date)
+    closed_rows.sort(key=_po_date, reverse=True)
+    rows = open_rows + closed_rows
+
     return [
         _serialize_po(
             row.PO,

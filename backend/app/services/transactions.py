@@ -149,8 +149,12 @@ def list_transactions(db: Session, user: UserContext, page: int = 1, page_size: 
             LEFT JOIN schema_core.recipients r ON r.id = t.recipient_type_id
             LEFT JOIN schema_hr.users u ON u.id = t.recipient_id
             LEFT JOIN schema_ops.subcons s ON s.id = t.recipient_id
+            LEFT JOIN schema_core.badges b_stat ON b_stat.id = t.status_id
             WHERE {where_clause}
-            ORDER BY t.request_date DESC
+            ORDER BY
+                (CASE WHEN b_stat.key = 'req' THEN 0 ELSE 1 END) ASC,
+                (CASE WHEN b_stat.key = 'req' THEN t.request_date END) ASC NULLS LAST,
+                (CASE WHEN b_stat.key <> 'req' THEN t.request_date END) DESC NULLS LAST
             LIMIT :limit OFFSET :offset
         """),
         params_paged,
