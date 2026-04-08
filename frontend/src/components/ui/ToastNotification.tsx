@@ -13,7 +13,7 @@ type ToastDetails = {
 type Toast = { id: number; message: string; details?: ToastDetails }
 
 export default function ToastNotification() {
-  const { roles } = useAuth()
+  const { roles, can } = useAuth()
   const [toasts, setToasts] = useState<Toast[]>([])
   const nextId = useRef(0)
 
@@ -23,6 +23,17 @@ export default function ToastNotification() {
     const unsub = subscribe("NOTIFICATION", (event) => {
       if (event.type !== "NOTIFICATION") return
       if (!deptKeys.has(event.dept_target)) return
+      // For ops notifications: require request write permission + project scope
+      if (event.dept_target === "ops") {
+        if (!can("request", "write")) return
+        const projectId = event.details?.project_id as number | undefined
+        if (projectId !== undefined) {
+          const hasScope = roles.some(
+            (r) => r.dept_key === "ops" && (r.project_id === null || r.project_id === projectId),
+          )
+          if (!hasScope) return
+        }
+      }
       const id = ++nextId.current
       setToasts((prev) => [...prev, { id, message: event.message, details: event.details as ToastDetails | undefined }])
       setTimeout(() => {

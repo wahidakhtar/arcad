@@ -17,6 +17,7 @@ def _tx_notification_details(db: Session, tx_id: int) -> dict:
     row = db.execute(
         text("""
             SELECT
+                t.project_id,
                 p.label AS project_label,
                 t.amount,
                 CASE
@@ -38,6 +39,7 @@ def _tx_notification_details(db: Session, tx_id: int) -> dict:
     if row is None:
         return {}
     return {
+        "project_id": row["project_id"],
         "project": row["project_label"],
         "amount": float(row["amount"]) if row["amount"] is not None else None,
         "recipient": row["recipient_name"],
