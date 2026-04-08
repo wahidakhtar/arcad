@@ -138,10 +138,21 @@ def _serialize_po(
         "version": po.version,
     }
 
-def _po_context_maps(db: Session, rows: list[tuple]) -> tuple[dict[tuple[int, int], str | None], dict[tuple[int, int], str | None]]:
+_PROJECT_COMPLETION_FIELD: dict[str, str] = {
+    "mi": "completion_date",
+    "md": "dismantle_date",
+    "ma": "audit_date",
+    "mc": "cm_date",
+}
+
+
+def _po_context_maps(db: Session, rows: list[tuple]) -> tuple:
     site_map: dict[tuple[int, int], str | None] = {}
     site_status_map: dict[tuple[int, int], str | None] = {}
+    site_receiving_date_map: dict[tuple[int, int], date | None] = {}
+    site_completion_date_map: dict[tuple[int, int], date | None] = {}
     subproject_map: dict[tuple[int, int], str | None] = {}
+    subproject_batch_date_map: dict[tuple[int, int], date | None] = {}
 
     by_project: dict[int, dict[str, object]] = {}
     for row in rows:
@@ -159,26 +170,32 @@ def _po_context_maps(db: Session, rows: list[tuple]) -> tuple[dict[tuple[int, in
         subproject_ids = set(entry["subproject_ids"])
         site_model = get_site_model(project.key)
         subproject_model = get_subproject_model(project.key)
+        completion_field = _PROJECT_COMPLETION_FIELD.get(project.key)
 
         if site_ids:
             site_rows = db.execute(select(site_model).where(site_model.id.in_(site_ids))).scalars().all()
             for site in site_rows:
-                site_map[(project_id, site.id)] = getattr(site, "ckt_id", None)
+                key = (project_id, site.id)
+                site_map[key] = getattr(site, "ckt_id", None)
                 status_badge = db.get(Badge, getattr(site, "status_id", None)) if getattr(site, "status_id", None) is not None else None
-                site_status_map[(project_id, site.id)] = None if status_badge is None else status_badge.key
+                site_status_map[key] = None if status_badge is None else status_badge.key
+                site_receiving_date_map[key] = getattr(site, "receiving_date", None)
+                site_completion_date_map[key] = getattr(site, completion_field, None) if completion_field else None
                 if getattr(site, "subproject_id", None) is not None:
                     subproject_ids.add(site.subproject_id)
 
         if subproject_ids:
             subproject_rows = db.execute(select(subproject_model).where(subproject_model.id.in_(list(subproject_ids)))).scalars().all()
             for subproject in subproject_rows:
-                subproject_map[(project_id, subproject.id)] = format_subproject_label(
+                sp_key = (project_id, subproject.id)
+                subproject_map[sp_key] = format_subproject_label(
                     subproject.batch_date,
                     getattr(subproject, "bucket", None),
                     subproject.id,
                 )
+                subproject_batch_date_map[sp_key] = getattr(subproject, "batch_date", None)
 
-    return site_map, subproject_map, site_status_map
+    return site_map, subproject_map, site_status_map, site_receiving_date_map, site_completion_date_map, subproject_batch_date_map
 
 
 def _serialize_invoice(invoice: Invoice, status_label: str | None, status_color: str | None) -> dict:
@@ -217,18 +234,33 @@ def list_pos(db: Session) -> list[dict]:
         .join(Badge, Badge.id == PO.po_status_id)
         .order_by(PO.id.desc())
     ).all()
-    site_map, subproject_map, site_status_map = _po_context_maps(db, rows)
+    site_map, subproject_map, site_status_map, site_receiving_date_map, site_completion_date_map, subproject_batch_date_map = _po_context_maps(db, rows)
 
     _PO_CLOSED = frozenset({"rec", "set"})
 
-    def _po_date(row) -> date:
-        d = row.PO.po_date
-        return d if isinstance(d, date) else date.min
+    def _as_date(val) -> date:
+        if isinstance(val, date):
+            return val
+        return date.min
+
+    def _po_reference_date(row, *, closed: bool) -> date:
+        po = row.PO
+        key = (po.project_id, po.site_id) if po.site_id is not None else None
+        sp_key = (po.project_id, po.subproject_id) if po.subproject_id is not None else None
+        if key is not None:
+            if closed:
+                d = site_completion_date_map.get(key) or site_receiving_date_map.get(key)
+            else:
+                d = site_receiving_date_map.get(key)
+            return _as_date(d)
+        if sp_key is not None:
+            return _as_date(subproject_batch_date_map.get(sp_key))
+        return date.min
 
     open_rows = [r for r in rows if r.po_status_key not in _PO_CLOSED]
     closed_rows = [r for r in rows if r.po_status_key in _PO_CLOSED]
-    open_rows.sort(key=_po_date)
-    closed_rows.sort(key=_po_date, reverse=True)
+    open_rows.sort(key=lambda r: _po_reference_date(r, closed=False))
+    closed_rows.sort(key=lambda r: _po_reference_date(r, closed=True), reverse=True)
     rows = open_rows + closed_rows
 
     return [
@@ -255,7 +287,7 @@ def get_po(db: Session, po_id: int) -> dict | None:
     ).one_or_none()
     if row is None:
         return None
-    site_map, subproject_map, site_status_map = _po_context_maps(db, [row])
+    site_map, subproject_map, site_status_map, *_ = _po_context_maps(db, [row])
     return _serialize_po(
         row.PO,
         row.Project.label,
