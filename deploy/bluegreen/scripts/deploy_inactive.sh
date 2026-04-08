@@ -23,7 +23,7 @@ fi
 export IMAGE_TAG
 
 docker compose -f docker-compose.yml pull "api-${TARGET_SLOT}" "frontend-${TARGET_SLOT}"
-docker compose -f docker-compose.yml up -d "api-${TARGET_SLOT}" "frontend-${TARGET_SLOT}"
+docker compose -f docker-compose.yml up -d --force-recreate "api-${TARGET_SLOT}" "frontend-${TARGET_SLOT}"
 
 echo "deployed_slot=${TARGET_SLOT}"
 echo "image_tag=${IMAGE_TAG}"
