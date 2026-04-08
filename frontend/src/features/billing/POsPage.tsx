@@ -11,7 +11,7 @@ export default function POsPage() {
     endpoint: "/billing/pos",
   })
 
-  const rows = [...(data ?? [])].sort((a, b) => b.id - a.id)
+  const rows = data ?? []
   const tableRows = rows.map((row) => ({
     ...row,
     project_name: poProjectName(row),

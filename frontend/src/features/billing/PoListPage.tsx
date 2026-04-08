@@ -60,7 +60,7 @@ export default function PoListPage() {
     }
   }, [activeTab, invoiceReloadToken])
 
-  const poRows = [...(poData ?? [])].sort((a, b) => b.id - a.id)
+  const poRows = poData ?? []
   const poTableRows = poRows.map((row) => ({
     ...row,
     project_name: poProjectName(row),

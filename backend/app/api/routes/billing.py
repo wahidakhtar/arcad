@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.api.auth import permission_required
 from app.core.database import get_db
@@ -46,7 +50,11 @@ def create_rate_card(payload: RateCardCreate, db: Session = Depends(get_db)):
 
 @router.get("/pos", dependencies=[Depends(permission_required("billing", "read"))])
 def list_pos(db: Session = Depends(get_db)):
-    return billing_service.list_pos(db)
+    try:
+        return billing_service.list_pos(db)
+    except Exception:
+        logger.exception("Error in list_pos")
+        raise
 
 
 @router.get("/po/{po_id}", dependencies=[Depends(permission_required("billing", "read"))])
