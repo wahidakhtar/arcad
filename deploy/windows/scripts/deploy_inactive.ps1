@@ -54,7 +54,7 @@ if (-not ($updated | Where-Object { $_ -match "^${slotTagKey}=" })) {
 Set-Content -Path $envPath -Value $updated
 
 docker compose -f docker-compose.yml pull "api-$targetSlot" "frontend-$targetSlot"
-docker compose -f docker-compose.yml up -d db "api-$targetSlot" "frontend-$targetSlot"
+docker compose -f docker-compose.yml up -d --force-recreate db "api-$targetSlot" "frontend-$targetSlot"
 docker compose -f docker-compose.yml up -d --force-recreate --no-deps proxy
 
 Write-Output "deployed_slot=$targetSlot"
