@@ -13,7 +13,7 @@ export type WsEvent =
   | { type: "PO_UPDATED"; po_id: number }
   | { type: "INVOICE_CREATED"; po_id: number | null }
   | { type: "INVOICE_UPDATED"; po_id: number | null }
-  | { type: "NOTIFICATION"; message: string; dept_target: string }
+  | { type: "NOTIFICATION"; message: string; dept_target: string; details?: Record<string, unknown> }
 
 type WsHandler = (event: WsEvent) => void
 
