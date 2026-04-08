@@ -66,7 +66,7 @@ export default function PoListPage() {
     project_name: poProjectName(row),
     circuit_context: poCircuitContext(row),
   }))
-  const invoiceRows = [...invoiceData].sort((a, b) => b.id - a.id)
+  const invoiceRows = invoiceData
 
   function renderActiveTable() {
     if (activeTab === "pos") {
