@@ -33,23 +33,21 @@ const SubconDetailPage = lazy(() => import("./features/subcons/SubconDetailPage"
 function PublicOnly({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const { user, loading, setupRequired } = useAuth()
-  const hasStoredToken = Boolean(localStorage.getItem("access_token"))
   if (loading) return <div className="page-shell" />
-  if (hasStoredToken || user) return <Navigate to="/dashboard" replace />
+  if (user) return <Navigate to="/dashboard" replace />
   if (setupRequired && location.pathname !== "/setup") return <Navigate to="/setup" replace />
   return <>{children}</>
 }
 
 function ProtectedApp() {
   const { user, loading, setupRequired } = useAuth()
-  const hasStoredToken = Boolean(localStorage.getItem("access_token"))
   // Establish WS connection for authenticated sessions
   useWebSocket()
   if (loading) {
     return <div className="page-shell flex items-center justify-center font-syne text-2xl text-jscolors-crimson">ARCAD</div>
   }
   if (setupRequired) return <Navigate to="/setup" replace />
-  if (!hasStoredToken && !user) return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/login" replace />
   return (
     <PageLayout>
       <Outlet />

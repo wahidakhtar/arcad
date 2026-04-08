@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.core.database import SessionLocal
 from app.core.security import decode_token
@@ -11,9 +11,11 @@ router = APIRouter(tags=["ws"])
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str = Query(default="")) -> None:
+async def websocket_endpoint(websocket: WebSocket) -> None:
     # Validate token and confirm user active with a short-lived DB session
     # (NOT Depends(get_db) — that would hold a connection open for the entire WS lifetime)
+    # Token arrives via httpOnly cookie — browsers include cookies on same-origin WS connections.
+    token = websocket.cookies.get("access_token", "")
     try:
         payload = decode_token(token)
         user_id = int(payload["sub"])

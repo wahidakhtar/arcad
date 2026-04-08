@@ -41,7 +41,7 @@ function _publish(event: WsEvent) {
 
 // ─── Derive WS URL from API URL ──────────────────────────────────────────────
 
-function getWsUrl(token: string): string {
+function getWsUrl(): string {
   const apiUrl =
     (import.meta.env.VITE_API_URL as string | undefined) ||
     "https://arcad-production.up.railway.app/api/v1"
@@ -49,12 +49,12 @@ function getWsUrl(token: string): string {
   // Relative URL (e.g. /api/v1) — derive absolute WS URL from page origin
   if (apiUrl.startsWith("/")) {
     const proto = window.location.protocol === "https:" ? "wss" : "ws"
-    const base = `${proto}://${window.location.host}${apiUrl}`
-    return `${base}/ws?token=${encodeURIComponent(token)}`
+    return `${proto}://${window.location.host}${apiUrl}/ws`
   }
 
   const base = apiUrl.replace(/^https?/, (m) => (m === "https" ? "wss" : "ws"))
-  return `${base}/ws?token=${encodeURIComponent(token)}`
+  return `${base}/ws`
+  // Auth is handled via httpOnly cookie — browser includes it automatically for same-origin WS.
 }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
@@ -67,10 +67,8 @@ export function useWebSocket() {
 
   const connect = useCallback(() => {
     if (!mountedRef.current) return
-    const token = localStorage.getItem("access_token")
-    if (!token) return
 
-    const ws = new WebSocket(getWsUrl(token))
+    const ws = new WebSocket(getWsUrl())
     wsRef.current = ws
 
     ws.onopen = () => {

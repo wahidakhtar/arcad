@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -25,6 +26,10 @@ class Settings(BaseSettings):
     media_root: str = Field(alias="MEDIA_ROOT", default="media")
     redis_url: str = Field(alias="REDIS_URL", default="redis://localhost:6379/0")
     app_timezone: str = Field(alias="APP_TIMEZONE", default="Asia/Kolkata")
+    # Cookie security — set COOKIE_SECURE=true once HTTPS/domain is in place.
+    # COOKIE_DOMAIN: set to ".yourdomain.com" when serving frontend and API on different subdomains.
+    cookie_secure: bool = Field(alias="COOKIE_SECURE", default=False)
+    cookie_domain: Optional[str] = Field(alias="COOKIE_DOMAIN", default=None)
 
     @property
     def effective_jwt_secret(self) -> str:

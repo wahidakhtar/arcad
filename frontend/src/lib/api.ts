@@ -6,9 +6,10 @@ const baseURL = import.meta.env.VITE_API_URL || "/api/v1"
 
 export const api = axios.create({
   baseURL,
+  withCredentials: true, // send httpOnly auth cookies on every request
 })
 
-let refreshPromise: Promise<string | null> | null = null
+let refreshPromise: Promise<boolean> | null = null
 let unauthorizedHandler: (() => void) | null = null
 
 export function setUnauthorizedHandler(handler: (() => void) | null) {
@@ -18,16 +19,6 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
 function handleUnauthorized() {
   unauthorizedHandler?.()
 }
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("access_token")
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-
-  return config
-})
 
 api.interceptors.response.use(
   (response) => response,
@@ -44,46 +35,31 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
 
+    // Don't attempt refresh for auth endpoints — signal unauthorized immediately.
     if (requestUrl.includes("/auth/login") || requestUrl.includes("/auth/refresh")) {
       handleUnauthorized()
       return Promise.reject(error)
     }
 
     if (!refreshPromise) {
-      const refreshToken = localStorage.getItem("refresh_token")
-      if (!refreshToken) {
-        localStorage.removeItem("access_token")
-        localStorage.removeItem("refresh_token")
-        handleUnauthorized()
-        return Promise.reject(error)
-      }
-
       refreshPromise = api
-        .post("/auth/refresh", { refresh_token: refreshToken })
-        .then((response) => {
-          localStorage.setItem("access_token", response.data.access_token)
-          localStorage.setItem("refresh_token", response.data.refresh_token)
-          return response.data.access_token as string
-        })
+        .post("/auth/refresh") // no body — refresh_token cookie sent automatically
+        .then(() => true)
         .catch(() => {
-          localStorage.removeItem("access_token")
-          localStorage.removeItem("refresh_token")
           handleUnauthorized()
-          return null
+          return false
         })
         .finally(() => {
           refreshPromise = null
         })
     }
 
-    const nextToken = await refreshPromise
-    if (!nextToken) {
+    const success = await refreshPromise
+    if (!success) {
       return Promise.reject(error)
     }
 
     original._retry = true
-    original.headers = original.headers ?? {}
-    original.headers.Authorization = `Bearer ${nextToken}`
-    return api(original)
+    return api(original) // retry with new access_token cookie already set by server
   },
 )

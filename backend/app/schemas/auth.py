@@ -42,3 +42,13 @@ class TokenResponse(BaseModel):
     username: str
     label: str
     roles: list[RoleEntry]
+
+
+class SessionResponse(BaseModel):
+    """Returned to the client after login/refresh — tokens are in httpOnly cookies, not the body."""
+    expires_at: datetime
+    refresh_expires_at: datetime
+    user_id: int
+    username: str
+    label: str
+    roles: list[RoleEntry]

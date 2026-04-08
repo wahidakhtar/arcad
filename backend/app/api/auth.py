@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import Depends, HTTPException, Request
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -18,7 +17,6 @@ from app.core.security import decode_token, hash_token
 from app.models.core import FieldPermission, Project, RoleTag, Tag
 from app.models.hr import Role, User, UserRole
 
-security = HTTPBearer(auto_error=False)
 
 _log = logging.getLogger("arcad.auth")
 
@@ -168,13 +166,12 @@ def _load_user_context(db: Session, user_id: int) -> UserContext:
 # ─── FastAPI dependency ───────────────────────────────────────────────────────
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,
     db: Session = Depends(get_db),
 ) -> UserContext:
-    if credentials is None:
+    token = request.cookies.get("access_token")
+    if not token:
         raise HTTPException(status_code=401, detail="Missing token")
-
-    token = credentials.credentials
     payload = decode_token(token)
     try:
         user_id = int(payload["sub"])

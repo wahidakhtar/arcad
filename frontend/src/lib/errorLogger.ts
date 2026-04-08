@@ -13,13 +13,10 @@ interface ErrorPayload {
 
 export function logError(payload: ErrorPayload): void {
   try {
-    const token = localStorage.getItem("access_token")
     fetch(`${BASE_URL}/error-log`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      credentials: "include", // send httpOnly auth cookie
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...payload, page_url: window.location.href }),
     }).catch(() => {})
   } catch {
