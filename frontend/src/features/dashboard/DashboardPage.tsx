@@ -345,14 +345,14 @@ export default function DashboardPage() {
 
 function PinnedCard({ label, value, alert }: { label: string; value: number; alert?: boolean }) {
   return (
-    <div className="glass-panel p-6">
-      <div className="text-xs font-semibold uppercase tracking-[0.26em] text-jscolors-text/40">
+    <div className="rounded-2xl bg-jscolors-gold p-6 shadow-md">
+      <div className="text-xs font-semibold uppercase tracking-[0.26em] text-jscolors-crimson/70">
         {label}
       </div>
       <div
         className={[
           "mt-3 font-syne text-4xl font-bold",
-          alert && value > 0 ? "text-jscolors-crimson" : "text-jscolors-gold",
+          alert && value > 0 ? "text-jscolors-crimson" : "text-jscolors-text/80",
         ].join(" ")}
       >
         {value}
@@ -363,11 +363,11 @@ function PinnedCard({ label, value, alert }: { label: string; value: number; ale
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="glass-panel p-6">
-      <div className="text-xs font-semibold uppercase tracking-[0.26em] text-jscolors-text/40">
+    <div className="rounded-2xl bg-jscolors-gold p-6 shadow-md">
+      <div className="text-xs font-semibold uppercase tracking-[0.26em] text-jscolors-crimson/70">
         {label}
       </div>
-      <div className="mt-3 font-syne text-4xl font-bold text-jscolors-gold">{value}</div>
+      <div className="mt-3 font-syne text-4xl font-bold text-jscolors-text/80">{value}</div>
     </div>
   )
 }
