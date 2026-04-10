@@ -82,7 +82,8 @@ type MetricDef = { key: keyof PinnedMetrics; label: string; alert?: boolean }
 
 function usePinnedDefs(activeTab: string): MetricDef[] {
   const depts = useDeptKeys()
-  const isBbTab = activeTab === "bb"
+  const { projectKeys } = useAuth()
+  const isBbTab = activeTab === "bb" || (activeTab === "all" && projectKeys.length === 1 && projectKeys[0] === "bb")
 
   if (depts.has("mgmt")) {
     return [
@@ -125,7 +126,8 @@ type PeriodDef = { key: keyof PeriodMetrics; label: string }
 
 function usePeriodDefs(activeTab: string): PeriodDef[] {
   const depts = useDeptKeys()
-  const isBbTab = activeTab === "bb"
+  const { projectKeys } = useAuth()
+  const isBbTab = activeTab === "bb" || (activeTab === "all" && projectKeys.length === 1 && projectKeys[0] === "bb")
 
   if (depts.has("mgmt")) {
     return [
@@ -210,7 +212,10 @@ export default function DashboardPage() {
       {/* Project tabs */}
       {tabs.length > 0 && (
         <section className="glass-panel p-4">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/40 mr-2">
+              Project
+            </p>
             {tabs.map((tab) => (
               <button
                 key={tab}
@@ -232,9 +237,6 @@ export default function DashboardPage() {
       {/* Pinned metrics — no date filter */}
       {pinnedDefs.length > 0 && (
         <section>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/40">
-            Live Queue
-          </p>
           <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {pinnedDefs.map(({ key, label, alert }) => {
               const val = summary.pinned[key]
