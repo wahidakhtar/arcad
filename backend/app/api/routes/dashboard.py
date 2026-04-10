@@ -15,21 +15,20 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 @router.get("/summary")
 def summary(
+    project_key: Optional[str] = None,
     range_key: str = "all",
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     user: UserContext = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return dashboard_service.summary(db, user, range_key, start_date, end_date)
+    return dashboard_service.summary(db, user, project_key, range_key, start_date, end_date)
 
 
 @router.get("/map")
 def map_data(
-    range_key: str = "all",
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    project_key: Optional[str] = None,
     user: UserContext = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return dashboard_service.map_data(db, user, range_key, start_date, end_date)
+    return dashboard_service.map_data(db, user, project_key)
