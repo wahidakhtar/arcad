@@ -54,9 +54,6 @@ const RANGE_OPTIONS = [
 ]
 
 const MAP_PROJECTS = new Set(["ma", "mc", "md"])
-const PROJECT_LABELS: Record<string, string> = {
-  mi: "MI", ma: "MA", mc: "MC", md: "MD", bb: "BB",
-}
 
 // ─── Role helpers ─────────────────────────────────────────────────────────────
 
@@ -66,11 +63,12 @@ function useDeptKeys() {
 }
 
 function useProjectTabs() {
-  const { projectKeys } = useAuth()
-  return useMemo(() => {
+  const { projectKeys, projectLabels } = useAuth()
+  const tabs = useMemo(() => {
     const keys = [...new Set(projectKeys)].filter(Boolean).sort()
     return keys.length > 1 ? ["all", ...keys] : []
   }, [projectKeys])
+  return { tabs, projectLabels }
 }
 
 function useShowMap() {
@@ -162,7 +160,7 @@ function usePeriodDefs(activeTab: string): PeriodDef[] {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const tabs = useProjectTabs()
+  const { tabs, projectLabels } = useProjectTabs()
   const showMap = useShowMap()
   const depts = useDeptKeys()
 
@@ -224,7 +222,7 @@ export default function DashboardPage() {
                     : "bg-jscolors-crimson/8 text-jscolors-text/60 hover:bg-jscolors-crimson/15",
                 ].join(" ")}
               >
-                {tab === "all" ? "All" : PROJECT_LABELS[tab] ?? tab.toUpperCase()}
+                {tab === "all" ? "All" : (projectLabels[tab] ?? tab.toUpperCase())}
               </button>
             ))}
           </div>
@@ -249,10 +247,13 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* Date range selector */}
+      {/* Period metrics + inline range selector */}
       {periodDefs.length > 0 && (
-        <section className="glass-panel p-5">
-          <div className="flex flex-wrap items-center gap-2">
+        <section>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/40 mr-2">
+              Period
+            </p>
             {RANGE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -268,7 +269,7 @@ export default function DashboardPage() {
               </button>
             ))}
             {rangeKey === "custom" && (
-              <div className="flex items-center gap-2 ml-2">
+              <>
                 <input
                   type="date"
                   value={startDate}
@@ -282,18 +283,9 @@ export default function DashboardPage() {
                   onChange={(e) => setEndDate(e.target.value)}
                   className="rounded-lg border border-jscolors-crimson/20 bg-white px-3 py-1.5 text-xs text-jscolors-text focus:outline-none"
                 />
-              </div>
+              </>
             )}
           </div>
-        </section>
-      )}
-
-      {/* Period metrics */}
-      {periodDefs.length > 0 && (
-        <section>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/40">
-            Period
-          </p>
           <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {periodDefs.map(({ key, label }) => {
               const val = summary.period[key]

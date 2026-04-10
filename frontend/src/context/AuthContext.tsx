@@ -16,6 +16,7 @@ type AuthContextValue = {
   roles: AuthRole[]
   tags: TagMap
   projectKeys: string[]
+  projectLabels: Record<string, string>
   loading: boolean
   setupRequired: boolean
   login: (username: string, password: string, deviceLabel?: string) => Promise<void>
@@ -34,6 +35,7 @@ type MeResponse = {
   roles: AuthRole[]
   tags: TagMap
   project_keys: string[]
+  project_labels: Record<string, string>
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -41,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<AuthRole[]>([])
   const [tags, setTags] = useState<TagMap>({})
   const [projectKeys, setProjectKeys] = useState<string[]>([])
+  const [projectLabels, setProjectLabels] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [setupRequired, setSetupRequired] = useState(false)
 
@@ -50,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRoles([])
       setTags({})
       setProjectKeys([])
+      setProjectLabels({})
       setSetupRequired(nextSetupRequired)
       setLoading(false)
     })
@@ -79,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let nextRoles: AuthRole[] = []
     let nextTags: TagMap = {}
     let nextProjectKeys: string[] = []
+    let nextProjectLabels: Record<string, string> = {}
     let nextSetupRequired = false
     try {
       const response = await api.get<MeResponse>("/auth/me")
@@ -90,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       nextRoles = response.data.roles
       nextTags = response.data.tags ?? {}
       nextProjectKeys = response.data.project_keys ?? []
+      nextProjectLabels = response.data.project_labels ?? {}
     } catch {
       nextSetupRequired = await fetchSetupRequired()
     } finally {
@@ -98,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRoles(nextRoles)
         setTags(nextTags)
         setProjectKeys(nextProjectKeys)
+        setProjectLabels(nextProjectLabels)
         setSetupRequired(nextSetupRequired)
         setLoading(false)
       })
@@ -140,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         roles,
         tags,
         projectKeys,
+        projectLabels,
         loading,
         setupRequired,
         login,

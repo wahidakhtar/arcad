@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
-from app.api.auth import UserContext, build_project_keys, build_tag_map, get_current_user
+from app.api.auth import UserContext, build_project_keys, build_project_map, build_tag_map, get_current_user
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.schemas.auth import LoginRequest, SessionResponse
@@ -87,8 +87,9 @@ def me(user: UserContext = Depends(get_current_user), db: Session = Depends(get_
             }
             for role in user.roles
         ],
-        "tags":         build_tag_map(user),
-        "project_keys": build_project_keys(user, db),
+        "tags":            build_tag_map(user),
+        "project_keys":    build_project_keys(user, db),
+        "project_labels":  build_project_map(user, db),
     }
 
 

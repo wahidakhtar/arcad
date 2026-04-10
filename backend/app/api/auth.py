@@ -307,14 +307,19 @@ def build_tag_map(user: UserContext) -> dict[str, dict[str, bool]]:
 
 def build_project_keys(user: UserContext, db: Session) -> list[str]:
     """Return project keys accessible to the user."""
+    return list(build_project_map(user, db).keys())
+
+
+def build_project_map(user: UserContext, db: Session) -> dict[str, str]:
+    """Return {project_key: project_label} for projects accessible to the user."""
     if any(role.global_scope for role in user.roles):
         rows = db.execute(select(Project).where(Project.active.is_(True))).scalars().all()
-        return [p.key for p in rows]
+        return {p.key: p.label for p in rows}
     project_ids = {role.project_id for role in user.roles if role.project_id is not None}
     if not project_ids:
-        return []
+        return {}
     rows = db.execute(select(Project).where(Project.id.in_(project_ids), Project.active.is_(True))).scalars().all()
-    return [p.key for p in rows]
+    return {p.key: p.label for p in rows}
 
 
 def user_project_ids(user: UserContext) -> Optional[list[int]]:
