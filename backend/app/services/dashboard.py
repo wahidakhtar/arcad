@@ -406,23 +406,34 @@ def summary(
 
     # ── mgmt ──────────────────────────────────────────────────────────────────
     if "mgmt" in depts:
-        pinned["pending_pos"] = _pending_pos(db, scoped_ids, badges)
-        pinned["pending_invoices"] = _pending_invoices(db, scoped_ids, badges)
-        pinned["pending_transactions"] = _pending_transactions(db, scoped_ids, badges)
-        pinned["open_tickets"] = _open_tickets(db, scoped_ids)
+        if project_key == "bb":
+            pinned["pending_pos"] = _pending_pos(db, scoped_ids, badges)
+            pinned["pending_invoices"] = _pending_invoices(db, scoped_ids, badges)
+            pinned["pending_transactions"] = _pending_transactions(db, scoped_ids, badges)
+            pinned["active_sites"] = _bb_active_sites(db)
+            pinned["down_sites"] = _bb_down_sites(db, badges)
+            pinned["expired_recharges"] = _bb_expired_recharges(db)
+            pinned["open_tickets"] = _open_tickets(db, scoped_ids)
+            period["new_sites"] = _bb_new_sites(db, resolved_start, resolved_end)
+            period["terminated_sites"] = _bb_terminated_sites(db, resolved_start, resolved_end)
+        else:
+            pinned["pending_pos"] = _pending_pos(db, scoped_ids, badges)
+            pinned["pending_invoices"] = _pending_invoices(db, scoped_ids, badges)
+            pinned["pending_transactions"] = _pending_transactions(db, scoped_ids, badges)
+            pinned["open_tickets"] = _open_tickets(db, scoped_ids)
 
-        wcc, tx_copy = _aggregate_wcc_and_tx_copy(db, project_map, scoped_ids, badges)
-        if wcc:
-            pinned["pending_wcc"] = wcc
-        if tx_copy:
-            pinned["pending_tx_copy"] = tx_copy
+            wcc, tx_copy = _aggregate_wcc_and_tx_copy(db, project_map, scoped_ids, badges)
+            if wcc:
+                pinned["pending_wcc"] = wcc
+            if tx_copy:
+                pinned["pending_tx_copy"] = tx_copy
 
-        reports = _aggregate_reports(db, project_map, scoped_ids, badges)
-        if reports:
-            pinned["pending_reports"] = reports
+            reports = _aggregate_reports(db, project_map, scoped_ids, badges)
+            if reports:
+                pinned["pending_reports"] = reports
 
-        period.update(_aggregate_site_periods(db, project_map, scoped_ids, badges, resolved_start, resolved_end))
-        period["new_users"] = _new_users(db, resolved_start, resolved_end)
+            period.update(_aggregate_site_periods(db, project_map, scoped_ids, badges, resolved_start, resolved_end))
+            period["new_users"] = _new_users(db, resolved_start, resolved_end)
 
     # ── acc ───────────────────────────────────────────────────────────────────
     elif "acc" in depts:

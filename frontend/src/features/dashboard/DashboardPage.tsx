@@ -86,6 +86,17 @@ function usePinnedDefs(activeTab: string): MetricDef[] {
   const isBbTab = activeTab === "bb" || (activeTab === "all" && projectKeys.length === 1 && projectKeys[0] === "bb")
 
   if (depts.has("mgmt")) {
+    if (isBbTab) {
+      return [
+        { key: "pending_pos", label: "Pending POs", alert: true },
+        { key: "pending_invoices", label: "Pending Invoices", alert: true },
+        { key: "pending_transactions", label: "Pending Transactions", alert: true },
+        { key: "active_sites", label: "Active Sites" },
+        { key: "down_sites", label: "Down Sites", alert: true },
+        { key: "expired_recharges", label: "Expired Recharges", alert: true },
+        { key: "open_tickets", label: "Open Tickets" },
+      ]
+    }
     return [
       { key: "pending_pos", label: "Pending POs", alert: true },
       { key: "pending_invoices", label: "Pending Invoices", alert: true },
@@ -130,6 +141,12 @@ function usePeriodDefs(activeTab: string): PeriodDef[] {
   const isBbTab = activeTab === "bb" || (activeTab === "all" && projectKeys.length === 1 && projectKeys[0] === "bb")
 
   if (depts.has("mgmt")) {
+    if (isBbTab) {
+      return [
+        { key: "new_sites", label: "New Sites" },
+        { key: "terminated_sites", label: "Terminated Sites" },
+      ]
+    }
     return [
       { key: "sites_received", label: "Sites Received" },
       { key: "sites_in_progress", label: "Sites In Progress" },
@@ -253,9 +270,9 @@ export default function DashboardPage() {
       {periodDefs.length > 0 && (
         <section>
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/40 mr-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/40 mr-2">
               Period
-            </p>
+            </span>
             {RANGE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
