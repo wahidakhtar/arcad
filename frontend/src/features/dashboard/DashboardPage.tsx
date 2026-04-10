@@ -230,9 +230,9 @@ export default function DashboardPage() {
       {tabs.length > 0 && (
         <section className="glass-panel p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/40 mr-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/40 mr-2 leading-none self-center">
               Project
-            </p>
+            </span>
             {tabs.map((tab) => (
               <button
                 key={tab}
@@ -270,7 +270,7 @@ export default function DashboardPage() {
       {periodDefs.length > 0 && (
         <section>
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/40 mr-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.28em] text-jscolors-text/40 mr-2 leading-none self-center">
               Period
             </span>
             {RANGE_OPTIONS.map((opt) => (
@@ -352,7 +352,7 @@ function PinnedCard({ label, value, alert }: { label: string; value: number; ale
       <div
         className={[
           "mt-3 font-syne text-4xl font-bold",
-          alert && value > 0 ? "text-jscolors-crimson" : "text-jscolors-text/70",
+          alert && value > 0 ? "text-jscolors-crimson" : "text-jscolors-gold",
         ].join(" ")}
       >
         {value}
@@ -367,7 +367,7 @@ function StatCard({ label, value }: { label: string; value: number }) {
       <div className="text-xs font-semibold uppercase tracking-[0.26em] text-jscolors-text/40">
         {label}
       </div>
-      <div className="mt-3 font-syne text-4xl font-bold text-jscolors-crimson">{value}</div>
+      <div className="mt-3 font-syne text-4xl font-bold text-jscolors-gold">{value}</div>
     </div>
   )
 }

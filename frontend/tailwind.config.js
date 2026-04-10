@@ -6,7 +6,7 @@ export default {
       colors: {
         jscolors: {
           crimson: "#8B1A1A",
-          gold: "#C9A84C",
+          gold: "#F0C040",
           bg: "#F2E8E8",
           text: "#1a0808",
         },
