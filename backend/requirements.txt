@@ -42,6 +42,8 @@ ecdsa==0.19.2
     # via python-jose
 email-validator==2.3.0
     # via pydantic
+et-xmlfile==2.0.0
+    # via openpyxl
 exceptiongroup==1.3.1
     # via anyio
 fastapi==0.128.8
@@ -83,6 +85,8 @@ markupsafe==3.0.3
     # via
     #   jinja2
     #   mako
+openpyxl==3.1.5
+    # via -r requirements.in
 passlib[bcrypt]==1.7.4
     # via -r requirements.in
 pillow==11.3.0
