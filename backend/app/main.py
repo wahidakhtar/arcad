@@ -109,10 +109,16 @@ async def _daily_backup_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    task1 = asyncio.create_task(_daily_expiry_loop())
-    task2 = asyncio.create_task(_daily_backup_loop())
+    import os
+    tasks = [asyncio.create_task(_daily_expiry_loop())]
+    # Only the active slot should run the backup to avoid backing up the test DB
+    if os.environ.get("APP_SLOT") == os.environ.get("ACTIVE_SLOT"):
+        tasks.append(asyncio.create_task(_daily_backup_loop()))
+        _scheduler_log.info("backup loop started (slot=%s)", os.environ.get("APP_SLOT"))
+    else:
+        _scheduler_log.info("backup loop skipped (slot=%s is not active)", os.environ.get("APP_SLOT"))
     yield
-    for task in (task1, task2):
+    for task in tasks:
         task.cancel()
         try:
             await task
