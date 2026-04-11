@@ -69,9 +69,9 @@ jobs:
             "BACKUP_DRIVE_FOLDER_ID"      = $env:BACKUP_DRIVE_FOLDER_ID
           }
           $updated = $lines | Where-Object { $_ -notmatch "^($($keys -join '|'))=" }
-          foreach ($key in $keys) {
-            $updated += "$key=$($vals[$key])"
-          }
+          # Wrap in single quotes so special chars (+, =, /) in JSON don't break the env parser
+          $updated += "GOOGLE_SERVICE_ACCOUNT_JSON='$($env:GOOGLE_SERVICE_ACCOUNT_JSON)'"
+          $updated += "BACKUP_DRIVE_FOLDER_ID=$($env:BACKUP_DRIVE_FOLDER_ID)"
           Set-Content -Path $envPath -Value $updated
           Write-Output "Backup secrets injected into .env"
 
