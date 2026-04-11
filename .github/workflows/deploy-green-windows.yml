@@ -55,6 +55,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Inject backup secrets into .env
+        shell: powershell
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          BACKUP_DRIVE_FOLDER_ID: ${{ secrets.BACKUP_DRIVE_FOLDER_ID }}
+        run: |
+          $envPath = "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}\.env"
+          $lines = Get-Content $envPath
+          $keys = @("GOOGLE_SERVICE_ACCOUNT_JSON", "BACKUP_DRIVE_FOLDER_ID")
+          $vals = @{
+            "GOOGLE_SERVICE_ACCOUNT_JSON" = $env:GOOGLE_SERVICE_ACCOUNT_JSON
+            "BACKUP_DRIVE_FOLDER_ID"      = $env:BACKUP_DRIVE_FOLDER_ID
+          }
+          $updated = $lines | Where-Object { $_ -notmatch "^($($keys -join '|'))=" }
+          foreach ($key in $keys) {
+            $updated += "$key=$($vals[$key])"
+          }
+          Set-Content -Path $envPath -Value $updated
+          Write-Output "Backup secrets injected into .env"
+
       - name: Sync deploy files to server root
         shell: powershell
         run: |
