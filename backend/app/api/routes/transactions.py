@@ -94,7 +94,7 @@ async def create_transaction(payload: TransactionCreate, db: Session = Depends(g
 async def update_status(
     transaction_id: int,
     payload: StatusUpdate,
-    user: UserContext = Depends(permission_required("transaction", "write")),
+    user: UserContext = Depends(permission_required("request", "write")),
     db: Session = Depends(get_db),
 ):
     result = transaction_service.update_status(

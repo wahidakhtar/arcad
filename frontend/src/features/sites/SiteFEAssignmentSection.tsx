@@ -222,7 +222,7 @@ export default function SiteFEAssignmentSection({
     }
   }
 
-  if (!canSiteWrite) return null
+  if (!canSiteWrite && !canTransactionWrite && !canRequestWrite) return null
 
   return (
     <ActionPanel
