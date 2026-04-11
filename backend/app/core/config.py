@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     cookie_secure: bool = Field(alias="COOKIE_SECURE", default=False)
     cookie_domain: Optional[str] = Field(alias="COOKIE_DOMAIN", default=None)
     google_service_account_json: Optional[str] = Field(alias="GOOGLE_SERVICE_ACCOUNT_JSON", default=None)
+    google_service_account_json_b64: Optional[str] = Field(alias="GOOGLE_SERVICE_ACCOUNT_JSON_B64", default=None)
     backup_drive_folder_id: Optional[str] = Field(alias="BACKUP_DRIVE_FOLDER_ID", default=None)
 
     @property

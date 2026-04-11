@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import gzip
 import io
 import json
@@ -38,9 +39,13 @@ _BB_SCHEMA = ("BB", "schema_bb")
 
 def _drive_service():
     s = get_settings()
-    if not s.google_service_account_json:
-        raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_JSON not configured")
-    info = json.loads(s.google_service_account_json)
+    if s.google_service_account_json_b64:
+        raw = base64.b64decode(s.google_service_account_json_b64).decode()
+    elif s.google_service_account_json:
+        raw = s.google_service_account_json
+    else:
+        raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_JSON_B64 not configured")
+    info = json.loads(raw)
     creds = service_account.Credentials.from_service_account_info(info, scopes=_DRIVE_SCOPES)
     return build("drive", "v3", credentials=creds, cache_discovery=False)
 
