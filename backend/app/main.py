@@ -39,6 +39,7 @@ from app.core.logging import configure_logging
 from app.core.rate_limit import rate_limit_middleware
 from app.models.hr import User
 from app.services import acc_rules
+from app.services import backup as backup_service
 
 _scheduler_log = logging.getLogger("arcad.scheduler")
 
@@ -81,15 +82,42 @@ async def _daily_expiry_loop() -> None:
             _scheduler_log.exception("bb_rollover scheduler error")
 
 
+async def _daily_backup_loop() -> None:
+    """Run backup every day at 18:00 IST (12:30 UTC)."""
+    IST_OFFSET = timedelta(hours=5, minutes=30)
+    TARGET_HOUR_IST = 18
+    while True:
+        now_ist = datetime.now(timezone.utc) + IST_OFFSET
+        next_run = now_ist.replace(hour=TARGET_HOUR_IST, minute=0, second=0, microsecond=0)
+        if next_run <= now_ist:
+            next_run += timedelta(days=1)
+        sleep_secs = (next_run - now_ist).total_seconds()
+        _scheduler_log.info("backup: next run in %.0f seconds", sleep_secs)
+        await asyncio.sleep(sleep_secs)
+        try:
+            db = next(get_db())
+            result = backup_service.run_backup(db)
+            _scheduler_log.info(
+                "backup: done restore=%s (%s KB) excel=%s (%s KB) deleted=%d",
+                result["restore_file"], result["restore_size_kb"],
+                result["excel_file"], result["excel_size_kb"],
+                result["deleted_old"],
+            )
+        except Exception:
+            _scheduler_log.exception("backup scheduler error")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    task = asyncio.create_task(_daily_expiry_loop())
+    task1 = asyncio.create_task(_daily_expiry_loop())
+    task2 = asyncio.create_task(_daily_backup_loop())
     yield
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    for task in (task1, task2):
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(title="ARCAD", lifespan=lifespan)
