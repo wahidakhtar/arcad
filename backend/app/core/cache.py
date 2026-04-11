@@ -10,6 +10,11 @@ _log = logging.getLogger("arcad.cache")
 
 ME_TTL = 60
 PROJECTS_TTL = 60
+BADGES_TTL = 3600           # 1 hour — bust on badge write
+GLOBAL_PROJECTS_TTL = 3600  # 1 hour — bust on project write
+STATES_TTL = 86400 * 7      # 7 days — states never change
+TRANSITIONS_TTL = 3600      # 1 hour — bust on transition write
+DASHBOARD_SUMMARY_TTL = 300 # 5 minutes — TTL-based only
 
 
 # ─── Key builders ─────────────────────────────────────────────────────────────
@@ -24,6 +29,27 @@ def me_key(user_id: int) -> str:
 
 def projects_key(user_id: int) -> str:
     return f"user:{user_id}:projects"
+
+
+def global_badges_key() -> str:
+    return "global:badges"
+
+
+def global_projects_key() -> str:
+    return "global:projects"
+
+
+def global_states_key() -> str:
+    return "global:states"
+
+
+def global_transitions_key(project_key: str) -> str:
+    return f"global:transitions:{project_key}"
+
+
+def dashboard_summary_key(user_id: int, project_key: str | None, range_key: str,
+                          start: str | None, end: str | None) -> str:
+    return f"dashboard:summary:{user_id}:{project_key or 'all'}:{range_key}:{start or ''}:{end or ''}"
 
 
 # ─── Generic get / set / delete ───────────────────────────────────────────────

@@ -234,26 +234,37 @@ def _resolve_site_field_key(model: type, field_name: str) -> str:
     return field_name
 
 
-def _allowed_badge_transitions(db: Session, project_key: str, field_name: str, from_id: int) -> list[int]:
-    transition_type = TRANSITION_TYPE_BY_FIELD.get(field_name)
-    if transition_type is None:
-        return []
+def _load_transitions_for_project(db: Session, project_key: str) -> list[dict]:
+    """Load all badge transitions for a project, with caching."""
+    from app.core.cache import TRANSITIONS_TTL, cache_get, cache_set, global_transitions_key
+    key = global_transitions_key(project_key)
+    cached = cache_get(key)
+    if cached is not None:
+        return cached
     try:
         rows = db.execute(
             text(
                 f"""
-                SELECT bt.to_id
+                SELECT bt.from_id, bt.to_id, tt.key AS type_key
                 FROM schema_{project_key}.badge_transitions bt
                 JOIN schema_core.transition_types tt ON tt.id = bt.type_id
-                WHERE tt.key = :transition_type AND bt.from_id = :from_id
                 """
-            ),
-            {"transition_type": transition_type, "from_id": from_id},
+            )
         ).mappings().all()
     except ProgrammingError:
         db.rollback()
         return []
-    return [int(row["to_id"]) for row in rows]
+    result = [{"from_id": int(r["from_id"]), "to_id": int(r["to_id"]), "type_key": r["type_key"]} for r in rows]
+    cache_set(key, result, TRANSITIONS_TTL)
+    return result
+
+
+def _allowed_badge_transitions(db: Session, project_key: str, field_name: str, from_id: int) -> list[int]:
+    transition_type = TRANSITION_TYPE_BY_FIELD.get(field_name)
+    if transition_type is None:
+        return []
+    transitions = _load_transitions_for_project(db, project_key)
+    return [t["to_id"] for t in transitions if t["type_key"] == transition_type and t["from_id"] == from_id]
 
 
 def _field_types(db: Session, project_key: str) -> dict[str, str]:

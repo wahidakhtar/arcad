@@ -5,6 +5,7 @@ from typing import Optional
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from app.core.cache import cache_delete, global_badges_key, global_transitions_key
 from app.models.core import Badge, Job, JobBucket, RoleTag, Tag, TransitionType
 from app.models.hr import Role
 from app.schemas.admin import BadgeTransitionCreate, BadgeUpdate, JobUpdate, RoleTagUpdate, UIFieldReorder, UIFieldUpdate
@@ -37,6 +38,7 @@ def update_badge(db: Session, badge_id: int, payload: BadgeUpdate) -> dict:
     row.color = payload.color
     db.commit()
     db.refresh(row)
+    cache_delete(global_badges_key())
     return {
         "id": row.id,
         "type": row.type,
@@ -102,6 +104,7 @@ def create_badge_transition(db: Session, payload: BadgeTransitionCreate) -> dict
         {"type_id": payload.type_id, "from_id": payload.from_id, "to_id": payload.to_id},
     ).mappings().one()
     db.commit()
+    cache_delete(global_transitions_key(payload.project))
     return {
         "id": result["id"],
         "project": payload.project,
@@ -120,6 +123,7 @@ def delete_badge_transition(db: Session, project: str, transition_id: int) -> No
         {"tid": transition_id},
     )
     db.commit()
+    cache_delete(global_transitions_key(project))
 
 
 # ---------------------------------------------------------------------------

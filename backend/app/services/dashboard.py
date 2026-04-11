@@ -7,6 +7,11 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.auth import UserContext
+from app.core.cache import (
+    BADGES_TTL, DASHBOARD_SUMMARY_TTL, GLOBAL_PROJECTS_TTL,
+    cache_get, cache_set,
+    dashboard_summary_key, global_badges_key, global_projects_key,
+)
 from app.models.acc import Invoice, PO, Transaction
 from app.models.bb import BBSite, Recharge, Termination
 from app.models.core import Badge, IndianState, Project
@@ -68,13 +73,22 @@ def _date_filters(column, start_date: Optional[date], end_date: Optional[date]) 
 
 
 def _load_projects(db: Session) -> dict[str, int]:
+    cached = cache_get(global_projects_key())
+    if cached is not None:
+        return cached
     rows = db.execute(select(Project).where(Project.active.is_(True))).scalars().all()
-    return {row.key: row.id for row in rows}
+    result = {row.key: row.id for row in rows}
+    cache_set(global_projects_key(), result, GLOBAL_PROJECTS_TTL)
+    return result
 
 
 def _load_badges(db: Session, keys: list[str]) -> dict[str, int]:
-    rows = db.execute(select(Badge).where(Badge.key.in_(keys))).scalars().all()
-    return {row.key: row.id for row in rows}
+    cached = cache_get(global_badges_key())
+    if cached is None:
+        rows = db.execute(select(Badge)).scalars().all()
+        cached = {row.key: row.id for row in rows}
+        cache_set(global_badges_key(), cached, BADGES_TTL)
+    return {k: v for k, v in cached.items() if k in keys}
 
 
 def _dept_keys(user: UserContext) -> set[str]:
@@ -388,6 +402,15 @@ def summary(
     start_date: Optional[date],
     end_date: Optional[date],
 ) -> dict:
+    cache_key = dashboard_summary_key(
+        user.user_id, project_key, range_key,
+        start_date.isoformat() if start_date else None,
+        end_date.isoformat() if end_date else None,
+    )
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     resolved_start, resolved_end = _resolve_date_window(range_key, start_date, end_date)
     project_map = _load_projects(db)
     badges = _load_badges(db, ["pend", "req", "comp", "cancel", "term", "stage", "down"])
@@ -490,7 +513,9 @@ def summary(
     elif "hr" in depts:
         period["new_users"] = _new_users(db, resolved_start, resolved_end)
 
-    return {"pinned": pinned, "period": period}
+    result = {"pinned": pinned, "period": period}
+    cache_set(cache_key, result, DASHBOARD_SUMMARY_TTL)
+    return result
 
 
 # ─── Map data ─────────────────────────────────────────────────────────────────
