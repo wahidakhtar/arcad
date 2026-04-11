@@ -402,14 +402,12 @@ def summary(
     start_date: Optional[date],
     end_date: Optional[date],
 ) -> dict:
-    cache_key = dashboard_summary_key(
+    period_cache_key = dashboard_summary_key(
         user.user_id, project_key, range_key,
         start_date.isoformat() if start_date else None,
         end_date.isoformat() if end_date else None,
     )
-    cached = cache_get(cache_key)
-    if cached is not None:
-        return cached
+    cached_period = cache_get(period_cache_key)
 
     resolved_start, resolved_end = _resolve_date_window(range_key, start_date, end_date)
     project_map = _load_projects(db)
@@ -425,7 +423,6 @@ def summary(
         scoped_ids = accessible_ids
 
     pinned: dict[str, int] = {}
-    period: dict = {}
 
     # ── mgmt ──────────────────────────────────────────────────────────────────
     if "mgmt" in depts:
@@ -437,8 +434,6 @@ def summary(
             pinned["down_sites"] = _bb_down_sites(db, badges)
             pinned["expired_recharges"] = _bb_expired_recharges(db)
             pinned["open_tickets"] = _open_tickets(db, scoped_ids)
-            period["new_sites"] = _bb_new_sites(db, resolved_start, resolved_end)
-            period["terminated_sites"] = _bb_terminated_sites(db, resolved_start, resolved_end)
         else:
             pinned["pending_pos"] = _pending_pos(db, scoped_ids, badges)
             pinned["pending_invoices"] = _pending_invoices(db, scoped_ids, badges)
@@ -455,18 +450,11 @@ def summary(
             if reports:
                 pinned["pending_reports"] = reports
 
-            period.update(_aggregate_site_periods(db, project_map, scoped_ids, badges, resolved_start, resolved_end))
-            period["new_users"] = _new_users(db, resolved_start, resolved_end)
-
     # ── acc ───────────────────────────────────────────────────────────────────
     elif "acc" in depts:
         pinned["pending_pos"] = _pending_pos(db, scoped_ids, badges)
         pinned["pending_invoices"] = _pending_invoices(db, scoped_ids, badges)
         pinned["pending_transactions"] = _pending_transactions(db, scoped_ids, badges)
-
-        period.update(_aggregate_site_periods(db, project_map, scoped_ids, badges, resolved_start, resolved_end))
-        # acc only needs completed count, not received/in_progress
-        period = {"sites_completed": period.get("sites_completed", 0)}
 
     # ── ops ───────────────────────────────────────────────────────────────────
     elif "ops" in depts:
@@ -474,16 +462,12 @@ def summary(
         non_bb_ids = scoped_ids - ({bb_pid} if bb_pid else set())
 
         if project_key == "bb":
-            # BB tab selected — show BB-only metrics
             pinned["active_sites"] = _bb_active_sites(db)
             pinned["down_sites"] = _bb_down_sites(db, badges)
             pinned["expired_recharges"] = _bb_expired_recharges(db)
             pinned["open_tickets"] = _open_tickets(db, scoped_ids)
-            period["new_sites"] = _bb_new_sites(db, resolved_start, resolved_end)
-            period["terminated_sites"] = _bb_terminated_sites(db, resolved_start, resolved_end)
 
         elif non_bb_ids:
-            # Non-BB ops project(s) in scope
             pinned["open_tickets"] = _open_tickets(db, non_bb_ids)
 
             for key, pid in project_map.items():
@@ -498,24 +482,40 @@ def summary(
                 if key in _REPORT_PROJECTS:
                     pinned["pending_reports"] = pinned.get("pending_reports", 0) + _pending_reports(db, key, badges)
 
-            period.update(_aggregate_site_periods(db, project_map, non_bb_ids, badges, resolved_start, resolved_end))
-
         else:
-            # Only BB in scope (no project_key selected, all-tab, BB-only ops user)
             pinned["active_sites"] = _bb_active_sites(db)
             pinned["down_sites"] = _bb_down_sites(db, badges)
             pinned["expired_recharges"] = _bb_expired_recharges(db)
             pinned["open_tickets"] = _open_tickets(db, scoped_ids)
-            period["new_sites"] = _bb_new_sites(db, resolved_start, resolved_end)
-            period["terminated_sites"] = _bb_terminated_sites(db, resolved_start, resolved_end)
 
-    # ── hr ────────────────────────────────────────────────────────────────────
-    elif "hr" in depts:
-        period["new_users"] = _new_users(db, resolved_start, resolved_end)
+    # ── Period metrics — cached, 5-min TTL ────────────────────────────────────
+    if cached_period is not None:
+        period = cached_period
+    else:
+        period: dict = {}
+        if "mgmt" in depts:
+            if project_key == "bb":
+                period["new_sites"] = _bb_new_sites(db, resolved_start, resolved_end)
+                period["terminated_sites"] = _bb_terminated_sites(db, resolved_start, resolved_end)
+            else:
+                period.update(_aggregate_site_periods(db, project_map, scoped_ids, badges, resolved_start, resolved_end))
+                period["new_users"] = _new_users(db, resolved_start, resolved_end)
+        elif "acc" in depts:
+            agg = _aggregate_site_periods(db, project_map, scoped_ids, badges, resolved_start, resolved_end)
+            period = {"sites_completed": agg.get("sites_completed", 0)}
+        elif "ops" in depts:
+            bb_pid = project_map.get("bb")
+            non_bb_ids = scoped_ids - ({bb_pid} if bb_pid else set())
+            if project_key == "bb" or not non_bb_ids:
+                period["new_sites"] = _bb_new_sites(db, resolved_start, resolved_end)
+                period["terminated_sites"] = _bb_terminated_sites(db, resolved_start, resolved_end)
+            else:
+                period.update(_aggregate_site_periods(db, project_map, non_bb_ids, badges, resolved_start, resolved_end))
+        elif "hr" in depts:
+            period["new_users"] = _new_users(db, resolved_start, resolved_end)
+        cache_set(period_cache_key, period, DASHBOARD_SUMMARY_TTL)
 
-    result = {"pinned": pinned, "period": period}
-    cache_set(cache_key, result, DASHBOARD_SUMMARY_TTL)
-    return result
+    return {"pinned": pinned, "period": period}
 
 
 # ─── Map data ─────────────────────────────────────────────────────────────────
