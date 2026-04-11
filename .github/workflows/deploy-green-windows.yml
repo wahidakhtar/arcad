@@ -68,7 +68,7 @@ jobs:
             "GOOGLE_SERVICE_ACCOUNT_JSON" = $env:GOOGLE_SERVICE_ACCOUNT_JSON
             "BACKUP_DRIVE_FOLDER_ID"      = $env:BACKUP_DRIVE_FOLDER_ID
           }
-          $updated = $lines | Where-Object { $_ -notmatch "^(GOOGLE_SERVICE_ACCOUNT_JSON_B64|BACKUP_DRIVE_FOLDER_ID)=" }
+          $updated = $lines | Where-Object { $_ -notmatch "^(GOOGLE_SERVICE_ACCOUNT_JSON|GOOGLE_SERVICE_ACCOUNT_JSON_B64|BACKUP_DRIVE_FOLDER_ID)=" }
           # Base64-encode the JSON so special chars never break the env file parser
           $jsonBytes = [System.Text.Encoding]::UTF8.GetBytes($env:GOOGLE_SERVICE_ACCOUNT_JSON)
           $b64 = [Convert]::ToBase64String($jsonBytes)
