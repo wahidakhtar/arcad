@@ -22,6 +22,6 @@ else
   printf '\nACTIVE_SLOT=%s\n' "$TARGET_SLOT" >> .env
 fi
 
-docker compose -f docker-compose.yml up -d proxy
+docker compose -f docker-compose.yml up -d proxy "api-${TARGET_SLOT}"
 
 echo "active_slot=${TARGET_SLOT}"
