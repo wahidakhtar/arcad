@@ -98,7 +98,6 @@ export default function useSiteDetail() {
       ])
 
       const nextProjects = projectsResponse.data as ProjectRow[]
-      const project = projectByKey(nextProjects, projectKey)
       const nextUiFields = (
         uiFieldsResponse.data as Array<{ key: string; label: string; type?: string; list_view?: boolean; tag?: string }>
       ).map((field) => ({
