@@ -109,7 +109,9 @@ export default function useSiteDetail() {
         tag: field.tag,
       }))
 
-      setSite(siteResponse.data as SiteDetail)
+      const siteData = siteResponse.data as SiteDetail
+      const siteProjectId = siteData.project_id
+      setSite(siteData)
       setUiFields(nextUiFields)
       setBadges(Array.isArray(badgesResponse.data) ? badgesResponse.data as Badge[] : [])
       setTransitions(Array.isArray(transitionResponse.data) ? transitionResponse.data as TransitionRow[] : [])
@@ -119,12 +121,12 @@ export default function useSiteDetail() {
       setUpdates(Array.isArray(updatesResponse.data) ? updatesResponse.data as UpdateRow[] : [])
       setTickets(
         ((ticketsResponse.data as { items?: TicketRow[] })?.items ?? []).filter(
-          (row) => row.project_id === project?.id && row.site_id === numericSiteId,
+          (row) => row.project_id === siteProjectId && row.site_id === numericSiteId,
         ),
       )
       setTransactions(
         ((transactionsResponse.data as { items?: TransactionRow[] })?.items ?? []).filter(
-          (row) => row.project_id === project?.id && row.site_id === numericSiteId,
+          (row) => row.project_id === siteProjectId && row.site_id === numericSiteId,
         ),
       )
       setSubcons((subconsResponse.data as SubconRow[]) ?? [])
