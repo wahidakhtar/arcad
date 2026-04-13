@@ -40,7 +40,9 @@ _BB_SCHEMA = ("BB", "schema_bb")
 def _drive_service():
     s = get_settings()
     if s.google_service_account_json_b64:
-        raw = base64.b64decode(s.google_service_account_json_b64).decode()
+        b64 = s.google_service_account_json_b64
+        b64 += "=" * (-len(b64) % 4)  # restore stripped padding
+        raw = base64.b64decode(b64).decode()
     elif s.google_service_account_json:
         raw = s.google_service_account_json
     else:
