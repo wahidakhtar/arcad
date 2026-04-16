@@ -83,12 +83,13 @@ async def _daily_expiry_loop() -> None:
 
 
 async def _daily_backup_loop() -> None:
-    """Run backup every day at 18:00 IST (12:30 UTC)."""
+    """Run backup every day at 11:40 IST (06:10 UTC)."""
     IST_OFFSET = timedelta(hours=5, minutes=30)
-    TARGET_HOUR_IST = 18
+    TARGET_HOUR_IST = 11
+    TARGET_MINUTE_IST = 40
     while True:
         now_ist = datetime.now(timezone.utc) + IST_OFFSET
-        next_run = now_ist.replace(hour=TARGET_HOUR_IST, minute=0, second=0, microsecond=0)
+        next_run = now_ist.replace(hour=TARGET_HOUR_IST, minute=TARGET_MINUTE_IST, second=0, microsecond=0)
         if next_run <= now_ist:
             next_run += timedelta(days=1)
         sleep_secs = (next_run - now_ist).total_seconds()
