@@ -1,0 +1,30 @@
+name: Fix B64 in .env (one-shot)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on:
+      - self-hosted
+      - windows
+    steps:
+      - name: Replace GOOGLE_SERVICE_ACCOUNT_JSON_B64 in .env
+        shell: powershell
+        env:
+          B64_VALUE: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_B64 }}
+        run: |
+          $envFile = "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}\.env"
+          $content = Get-Content $envFile -Raw
+          $escaped = [Regex]::Escape("GOOGLE_SERVICE_ACCOUNT_JSON_B64=")
+          $content = $content -replace "(?m)^GOOGLE_SERVICE_ACCOUNT_JSON_B64=.*$", "GOOGLE_SERVICE_ACCOUNT_JSON_B64=$env:B64_VALUE"
+          Set-Content $envFile -Value $content -NoNewline
+          Write-Output "Done. Line written:"
+          Select-String "GOOGLE_SERVICE_ACCOUNT_JSON_B64" $envFile | Select-Object -First 1
+
+      - name: Restart api-green to pick up new value
+        shell: powershell
+        run: |
+          Set-Location "${{ secrets.INTERNAL_SERVER_DEPLOY_ROOT }}"
+          docker compose -f docker-compose.yml up -d --force-recreate api-green
+          Write-Output "api-green restarted"
